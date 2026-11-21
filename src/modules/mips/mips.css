@@ -1,0 +1,562 @@
+/* MIPS module. Colours come only from tokens; signal colours keep their fixed meanings. */
+
+.mp-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.mp-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: end;
+  margin-bottom: var(--sp-3);
+}
+
+.mp-muted {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+
+.mp-err {
+  color: var(--sig-miss);
+  font-size: var(--fs-sm);
+  margin: var(--sp-1) 0;
+}
+
+.mp-pad {
+  padding: var(--sp-3);
+}
+
+.mp-out {
+  white-space: pre-wrap;
+}
+
+.mp-status {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+
+.mp-callouts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.panel-body > .mp-callouts:not(:first-child) {
+  margin-top: var(--sp-3);
+}
+
+.mp-link {
+  border: 0;
+  background: transparent;
+  padding: 0 3px;
+  color: var(--sig-data);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+}
+
+.mp-link[aria-pressed='true'] {
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* ---------- Working and facts ---------- */
+
+.mp-steps {
+  margin: 0;
+  padding-left: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--fs-sm);
+}
+
+.mp-steps li > span {
+  display: block;
+}
+
+.mp-step-work {
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 2px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--sunken);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+
+.mp-step-cite {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+
+.mp-facts {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: var(--fs-sm);
+}
+
+.mp-facts > div {
+  display: grid;
+  grid-template-columns: 10.5em minmax(0, 1fr);
+  gap: var(--sp-2);
+  padding: 3px 0;
+  border-bottom: 1px solid var(--grid);
+}
+
+.mp-facts > div:last-child {
+  border-bottom: 0;
+}
+
+.mp-facts dt {
+  color: var(--ink-3);
+}
+
+.mp-facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mp-facts .why-trigger {
+  white-space: normal;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 520px) {
+  .mp-facts > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}
+
+/* ---------- Run: program, step, registers, memory ---------- */
+
+.mp-prog {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+.mp-prog > .code-editor {
+  flex: 1 1 380px;
+}
+
+.mp-prog-side {
+  flex: 1 1 280px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.mp-prog-side .mp-row {
+  margin-bottom: 0;
+}
+
+.mp-stepbody {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+.mp-stepbody > * {
+  flex: 1 1 300px;
+  min-width: 0;
+}
+
+.mp-regs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+  gap: 1px;
+  background: var(--grid);
+  border: 1px solid var(--grid);
+  font-size: 0.78rem;
+}
+
+.mp-reg {
+  display: grid;
+  grid-template-columns: 2em 3.4em minmax(0, 1fr);
+  align-items: baseline;
+  gap: 4px;
+  padding: 2px 6px;
+  background: var(--panel);
+}
+
+.mp-reg-num {
+  color: var(--ink-3);
+  text-align: right;
+}
+
+.mp-reg-name {
+  color: var(--ink-2);
+}
+
+.mp-reg-val {
+  text-align: right;
+}
+
+.mp-reg-on {
+  background: var(--tint-path);
+  box-shadow: inset 3px 0 0 var(--sig-path);
+  animation: mp-flash 0.9s var(--ease);
+}
+
+.mp-reg-was {
+  grid-column: 1 / -1;
+  text-align: right;
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+
+@keyframes mp-flash {
+  from {
+    background: color-mix(in srgb, var(--sig-path) 40%, var(--panel));
+  }
+  to {
+    background: var(--tint-path);
+  }
+}
+
+.mp-mem {
+  font-size: var(--fs-xs);
+}
+
+.mp-mem th,
+.mp-mem td {
+  padding: 2px 4px;
+}
+
+.mp-c {
+  text-align: center;
+}
+
+.mp-r {
+  text-align: right;
+}
+
+.mp-byte-on {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- Encode: field grid ---------- */
+
+.mp-fields {
+  display: grid;
+  grid-template-columns: repeat(32, minmax(0, 1fr));
+  row-gap: 2px;
+  margin-bottom: var(--sp-3);
+}
+
+.mp-fhead {
+  min-width: 0;
+  margin: 0 1px;
+  padding: 1px 0 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-top: 3px solid var(--ink-3);
+  background: var(--sunken);
+}
+
+.mp-fbits {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 3px;
+  font-size: 10px;
+  color: var(--ink-3);
+}
+
+.mp-fname {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.mp-fhead.mp-f-control {
+  border-top-color: var(--sig-control);
+  background: var(--tint-control);
+}
+
+.mp-fhead.mp-f-data {
+  border-top-color: var(--sig-data);
+  background: var(--tint-data);
+}
+
+.mp-fhead.mp-f-zero {
+  border-top-style: dashed;
+  border-top-color: var(--rule);
+  background: transparent;
+}
+
+.mp-bit {
+  padding: 3px 0;
+  text-align: center;
+  font-size: 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--grid);
+}
+
+.mp-bit.mp-f-control {
+  color: var(--sig-control);
+  background: var(--tint-control);
+}
+
+.mp-bit.mp-f-data {
+  color: var(--sig-data);
+  background: var(--tint-data);
+}
+
+.mp-bit.mp-f-zero {
+  color: var(--ink-3);
+  border-bottom-style: dashed;
+}
+
+.mp-bit-edge {
+  box-shadow: inset -2px 0 0 var(--panel);
+}
+
+.mp-fval {
+  min-width: 0;
+  text-align: center;
+  font-size: var(--fs-sm);
+  padding-top: 2px;
+}
+
+.mp-nib {
+  min-width: 0;
+  margin: 6px 1px 0;
+  padding-top: 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-top: 1px solid var(--rule);
+}
+
+.mp-nib-bits {
+  font-size: 10px;
+  color: var(--ink-3);
+}
+
+.mp-nib-hex {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+/* ---------- Diagrams ---------- */
+
+.mp-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  margin-bottom: var(--sp-3);
+}
+
+.mp-svg {
+  display: block;
+}
+
+.mp-t {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  fill: var(--ink-2);
+}
+
+.mp-t.mono {
+  font-family: var(--font-mono);
+}
+
+.mp-t-small {
+  font-size: 10px;
+  fill: var(--ink-3);
+}
+
+.mp-t-mid {
+  text-anchor: middle;
+}
+
+.mp-t-end {
+  text-anchor: end;
+}
+
+.mp-t-path {
+  fill: var(--sig-path);
+  font-weight: 600;
+}
+
+.mp-t-bit {
+  fill: var(--ink);
+}
+
+.mp-box {
+  fill: var(--panel);
+  stroke: var(--rule);
+}
+
+.mp-box-branch {
+  fill: var(--sunken);
+  stroke: var(--ink-3);
+}
+
+.mp-box-origin {
+  fill: var(--panel);
+  stroke: var(--sig-path);
+  stroke-width: 2;
+}
+
+.mp-box-target {
+  fill: var(--tint-path);
+  stroke: var(--sig-path);
+  stroke-width: 2;
+}
+
+.mp-arc {
+  fill: none;
+  stroke: var(--sig-path);
+  stroke-width: 2;
+}
+
+.mp-arrowhead {
+  fill: var(--sig-path);
+}
+
+.mp-cell {
+  fill: var(--panel);
+  stroke: var(--grid);
+}
+
+.mp-cell-off {
+  fill: var(--sunken);
+}
+
+.mp-cell-path {
+  fill: var(--tint-path);
+  stroke: var(--sig-path);
+}
+
+.mp-cell-data {
+  fill: var(--tint-data);
+  stroke: var(--sig-data);
+}
+
+.mp-cell-control {
+  fill: var(--tint-control);
+}
+
+.mp-cell-zero {
+  fill: var(--sunken);
+  stroke: var(--ink-3);
+  stroke-dasharray: 2 2;
+}
+
+.mp-flow-path {
+  fill: var(--tint-path);
+}
+
+.mp-flow-data {
+  fill: var(--tint-data);
+}
+
+/* ---------- Expanding opcode ---------- */
+
+.mp-seg-control {
+  fill: var(--tint-control);
+  stroke: var(--sig-control);
+}
+
+.mp-seg-prefix {
+  fill: var(--sunken);
+  stroke: var(--ink-3);
+  stroke-dasharray: 4 3;
+}
+
+.mp-seg-unused {
+  fill: url(#mp-hatch);
+  stroke: var(--sig-dontcare);
+}
+
+.mp-hatch-bg {
+  fill: var(--panel);
+}
+
+.mp-hatch-line {
+  stroke: var(--sig-dontcare);
+  stroke-width: 2;
+}
+
+.mp-fan {
+  fill: var(--sunken);
+}
+
+.mp-classes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+
+.mp-class {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3) var(--sp-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+  align-items: end;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
+}
+
+.mp-class legend {
+  padding: 0 4px;
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+
+.mp-fit {
+  margin-bottom: var(--sp-3);
+}
+
+.mp-fit:last-child {
+  margin-bottom: 0;
+}
+
+.mp-total td {
+  font-weight: 600;
+  border-top: 1px solid var(--rule);
+}
+
+/* ---------- Answer check and branch conditions ---------- */
+
+.mp-check {
+  display: flex;
+  margin: var(--sp-3) 0 var(--sp-2);
+}
+
+.mp-gap {
+  margin: var(--sp-3) 0 var(--sp-1);
+}
+
+.mp-code {
+  margin: 0 0 var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--sunken);
+  border-radius: var(--r-panel);
+  font-size: var(--fs-sm);
+  overflow-x: auto;
+}
