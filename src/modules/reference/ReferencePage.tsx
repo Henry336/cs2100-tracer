@@ -315,7 +315,7 @@ const SECTIONS: { id: string; title: string; refs: string; tables: Sheet[]; note
     ],
     notes: (
       <Callout kind="trap" title="*p++ and the bitwise operators" cite="L02C p9">
-        *p++ groups as *(p++): postfix ++ is level 1, unary * is level 2. Bitwise &amp;, |, ^ and the shifts are not in the course table, so add brackets when you use them.
+        *p++ groups as *(p++): postfix ++ is level 1, unary * is level 2. Bitwise &amp;, |, ^ and the shifts are not in the course table, so bracket them.
       </Callout>
     ),
   },
@@ -330,7 +330,7 @@ const SECTIONS: { id: string; title: string; refs: string; tables: Sheet[]; note
     ],
     notes: (
       <Callout kind="course" title="Smallest values and the bias" cite="derived from L03D p6 and L09 p14">
-        Single precision: the smallest normalised value is 2^−126 and the smallest denormalised value is 2^−149. The stored exponent is the real one plus the bias: 2^3 is stored as 3 + 127 = 130.
+        Single precision: the smallest normalised value is 2^−126 and the smallest denormalised value is 2^−149. Stored exponent = real exponent + bias, so 2^3 is stored as 3 + 127 = 130.
       </Callout>
     ),
   },
@@ -345,8 +345,8 @@ const SECTIONS: { id: string; title: string; refs: string; tables: Sheet[]; note
     ],
     notes: (
       <Callout kind="course" title="Branch and jump fields" cite="L08 p28, p37 to p39">
-        Branch immediate = (target − (PC + 4)) ÷ 4, signed 16 bits. Jump target field = target address bits 27 to 2;
-        the CPU puts back PC+4[31:28] in front and 00 at the end.
+        Branch immediate = (target − (PC + 4)) ÷ 4, signed 16 bits. Jump target field = target address bits 27 to 2.
+        The CPU adds PC+4[31:28] in front and 00 at the end.
       </Callout>
     ),
   },
@@ -362,7 +362,7 @@ const SECTIONS: { id: string; title: string; refs: string; tables: Sheet[]; note
     notes: (
       <Callout kind="trap" title="Which signals can be X">
         Write enables (RegWrite, MemWrite, MemRead, Branch) are always 0 or 1. Only mux selects (RegDst, MemToReg) can be X,
-        when their output is not used.
+        and only when their output is unused.
       </Callout>
     ),
   },
@@ -373,7 +373,7 @@ const SECTIONS: { id: string; title: string; refs: string; tables: Sheet[]; note
     tables: [
       { label: 'ALU control', node: <DataTable compact columns={cols(['Instr', 'ALUop', 'Funct', 'Action', 'ALUcontrol'], { mono: ['ALUop', 'Funct', 'ALUcontrol'] })} rows={ALU_CONTROL} /> },
       { label: '4-bit codes', node: <DataTable compact columns={cols(['ALUcontrol', 'Function'], { mono: ['ALUcontrol'] })} rows={ALU_CODES} caption="4-bit codes: Ainvert, Binvert, Operation[1:0]" /> },
-      { label: 'Bit by bit', node: <DataTable compact columns={cols(['Bit', 'Equation', 'Source'], { mono: ['Equation'] })} rows={citeCol(ALU_BITS)} caption="ALU control unit, bit by bit (F = funct bits)" /> },
+      { label: 'Bit by bit', node: <DataTable compact columns={cols(['Bit', 'Equation', 'Source'], { mono: ['Equation'] })} rows={citeCol(ALU_BITS)} caption="Bit by bit (F = funct bits)" /> },
     ],
   },
   {
@@ -406,7 +406,7 @@ const SECTIONS: { id: string; title: string; refs: string; tables: Sheet[]; note
     ],
     notes: (
       <Callout kind="course" title="Operator precedence" cite="L13 p9, T06 p2">
-        Precedence: NOT, then AND, then OR. Always write the AND dot in answers.
+        NOT, then AND, then OR. Always write the AND dot in answers.
       </Callout>
     ),
   },
@@ -434,8 +434,8 @@ const SECTIONS: { id: string; title: string; refs: string; tables: Sheet[]; note
   {
     id: 'conventions',
     title: 'Conventions where sources differ',
-    refs: 'see each row',
-    tables: [{ label: 'Conventions', node: <DataTable compact columns={cols(['Topic', 'Course', 'Other'], { headers: { Course: 'What the course uses', Other: 'What else you may see' } })} rows={CONVENTIONS} /> }],
+    refs: '',
+    tables: [{ label: 'Conventions', node: <DataTable compact columns={cols(['Topic', 'Course', 'Other'], { headers: { Course: 'Course uses', Other: 'Other sources' } })} rows={CONVENTIONS} /> }],
   },
 ]
 
@@ -447,8 +447,7 @@ export default function ReferencePage() {
   return (
     <Workspace
       title="Reference tables"
-      lectures="Every table you look up during practice, with the slides it comes from"
-      toolbar={<Toggle label="Hide sources" checked={nocite} onChange={setNocite} hint="Cheat-sheet print: drops slide references from the page and from the printout" />}
+      toolbar={<Toggle label="Hide sources" checked={nocite} onChange={setNocite} hint="Drops slide references on screen and in print" />}
     >
       {nocite ? <span className="ref-nocite-on" hidden /> : null}
       <div className="ref-command-bar glow-input">
@@ -472,7 +471,7 @@ export default function ReferencePage() {
             <div className="ref-board canvas">
               <header className="ref-board-bar">
                 <h2 className="ref-board-title">{s.title}</h2>
-                <span className="ref-refs">{s.refs}</span>
+                {s.refs ? <span className="ref-refs">{s.refs}</span> : null}
               </header>
               <div className="ref-sheet">{main.node}</div>
               {s.notes}
