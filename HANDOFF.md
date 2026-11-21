@@ -1,6 +1,9 @@
 # Handoff
 
-## Current state (22 Nov 2026)
+## Current state (22 Nov 2026, 06:10)
+- Calm redesign live: design brief docs/design.md, shared layer src/styles/shell.css, home input routing src/pages/route-input.ts. 1035 tests pass.
+- Shared requests still open: promote the copied board/Play/story styles (dp-, pl-, ca-, cm-, mp-, bo-, seq- copies) into shell.css plus a BoardPlay component; Tabs with ReactNode labels; print all tab panels.
+- Datapath Control unit, Control quiz and Critical path tabs were not moved onto boards.
 - All 9 modules built and live: https://henry336.github.io/cs2100-tracer/ (GitHub Pages, deployed by `.github/workflows/deploy.yml` on push to `main`).
 - 59 test files, 1022 tests pass; `npm run typecheck` and `npm run build` clean.
 - Browser-checked at desktop and 375 px, light and dark: no console errors, no page-level horizontal scroll.

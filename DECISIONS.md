@@ -98,6 +98,21 @@ Judgement calls in the fix round:
 | The Constants tab gives no li expansion and cites only L06 p33, p41, p44-45. | The project rule is to teach only from the slides. I could not find li in the lecture text, so the tab shows the lui + ori method from the slide. |
 | The new totals Whys cite L21 p19-20 and p40-42 and the AY23/24 S2 Q17 and AY24/25 Q19 keys. The data/control split rule is worded as the app's own booking of each delay to its binding cause. | No slide defines a data/control split of stall cycles, so the Why says how the app counts rather than claiming a slide rule. |
 
+## Calm redesign (22 Nov, after student feedback)
+
+The student found the first version wordy and could not find the Play button. The redesign followed a learning app the student liked (ideas only, no code or assets). Brief: docs/design.md.
+
+| Decision | Reason |
+|---|---|
+| Home is one serif question and one input that routes what you type (an instruction, a program, a hex word, addresses, a Boolean function, a topic) to the right tracer with it filled in. | A student arrives with a question, not a module name. |
+| A floating player with a labelled Play pill, and a Play pill inside every stepping board. It pulses with a hint until first used. | The student could not find the old icon-only Play button. |
+| Each page puts the picture first on a dot-grid board, folds options into one closed disclosure, and shows secondary tables one at a time in a tab strip. | One thing to look at and one thing to press. |
+| Trap and course-rule notes fold to one line; page intros hide behind "About this view". Printing opens everything. | Cuts visible text without losing any cited rule. |
+| Wires and arrows that carry a value in the current step draw in from their source, then packets travel along them. Off for reduced motion and print. | The student asked for moving pieces along the lines; motion only marks what is active. |
+| Pipeline keeps forwarding and the Ideal/Compare switch visible; the other hazard options sit in "Code and options" with their values on the summary line. | The contract wants every option visible; the brief wants them folded. The summary line does both. |
+| Primary buttons are inverted ink, never a signal colour. Titles use Instrument Serif (OFL, new dependency). | Signal colours keep their fixed meanings. |
+| A text pass cut repeats and plain-worded the rest in every module; trap titles like "2 stalls, not 3" stay. | Those titles name the exam trap itself. |
+
 ## Appendix: every decision the module agents recorded
 
 Format: `[stage:module] decision || reason`.
