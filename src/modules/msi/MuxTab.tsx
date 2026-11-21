@@ -1,10 +1,10 @@
 import { useMemo, type ReactNode } from 'react'
 import { mintermText, muxImplement, muxSearch, muxTree, selectNames, type DataInput, type MuxPlan, type MuxTree } from '../../core/msi'
 import { useUrlState } from '../../lib/url-state'
-import { Button, Callout, Chip, DataTable, Legend, Panel, Presets, Segmented, TextField, Workspace, type Column } from '../../ui/kit'
+import { Button, Callout, Chip, DataTable, Legend, Presets, Segmented, TextField, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { BitRow, FnField, gatePath, int, pick, PinErrors, plural, pts, splitVars, str, useFn, W } from './common'
+import { BitRow, Board, Details, Flow, FnField, FocusToggle, gatePath, int, pick, PinErrors, PlayBar, plural, polyD, pts, seg, splitVars, StepNote, Story, str, useFn, W } from './common'
 import { MUX_PRESETS, TREE_PRESETS } from './presets'
 
 type Mode = 'impl' | 'tree'
@@ -64,39 +64,27 @@ export default function MuxTab({ intro }: { intro: ReactNode }) {
       />
     )
 
-  const controls = (
-    <Panel title="Multiplexer">
-      <div className="ms-row">
-        <Segmented
-          label="Use"
-          value={mode}
-          onChange={(m) => {
-            setMode(m)
-            stepper.first()
-          }}
-          options={[
-            { value: 'impl', label: 'implement a function', title: 'Selects and data inputs from the truth table (L18 p48-56)' },
-            { value: 'tree', label: 'larger muxes', title: 'A big mux from stages of small ones (L18 p42-45)' },
-          ]}
-        />
-      </div>
+  const command = (
+    <div className="ms-command">
+      <Segmented
+        label="Use"
+        value={mode}
+        onChange={(m) => {
+          setMode(m)
+          stepper.first()
+        }}
+        options={[
+          { value: 'impl', label: 'implement a function', title: 'Selects and data inputs from the truth table (L18 p48-56)' },
+          { value: 'tree', label: 'larger muxes', title: 'A big mux from stages of small ones (L18 p42-45)' },
+        ]}
+      />
       {mode === 'impl' ? (
         <>
-          <FnField state={fs} />
+          <div className="ms-grow">
+            <FnField state={fs} />
+          </div>
           <div className="ms-row">
             <TextField label="Select variables, S on top first" value={selText} onChange={setSel} width="9em" />
-            {search && search.plans.length ? (
-              <Button
-                variant="primary"
-                onClick={() => {
-                  setSel(search.plans[0].selects.join(','))
-                  stepper.first()
-                }}
-                title="Pick the select order that needs the fewest inverters and gates"
-              >
-                Best assignment
-              </Button>
-            ) : null}
             {fn
               ? fn.vars.map((v) => (
                   <button
@@ -113,66 +101,84 @@ export default function MuxTab({ intro }: { intro: ReactNode }) {
                   </button>
                 ))
               : null}
+            {search && search.plans.length ? (
+              <Button
+                onClick={() => {
+                  setSel(search.plans[0].selects.join(','))
+                  stepper.first()
+                }}
+                title="Pick the select order that needs the fewest inverters and gates"
+              >
+                Best assignment
+              </Button>
+            ) : null}
           </div>
         </>
       ) : (
-        <div className="ms-row">
+        <>
           <Segmented label="Mux size" value={tn} onChange={(v) => setN(v)} options={[2, 3, 4, 5].map((v) => ({ value: v, label: `${1 << v}:1` }))} />
           <TextField label="Select bits per stage, data side first" value={str(rawLv, '2,1')} onChange={setLv} width="8em" />
           <BitRow label={`Select = ${tv}`} names={selectNames(tn)} value={tv} onChange={setV} />
-        </div>
+        </>
       )}
-    </Panel>
+    </div>
   )
 
   if (mode === 'tree') {
     const tr = tree?.ok ? tree.tree : null
     return (
-      <Workspace
-        title="Combinational and MSI"
-        lectures="L18 p42-45"
-        intro={intro}
-        toolbar={toolbar}
-        inspector={
-          tr ? (
-            <Panel title="Build and path">
-              <dl className="ms-facts">
-                <dt>Blocks</dt>
-                <dd>
-                  <W e={tr.why.build}>{tr.why.build.working}</W>
-                </dd>
-                <dt>Output</dt>
-                <dd className="mono">
-                  <W e={tr.why.path}>Y = I{tr.output}</W>
-                </dd>
-              </dl>
-            </Panel>
-          ) : undefined
-        }
-      >
-        {controls}
+      <Workspace title="Combinational and MSI" lectures="L18 p42-45" intro={intro} toolbar={toolbar}>
+        {command}
         {tree && !tree.ok ? <PinErrors errors={tree.errors} /> : null}
         {tr ? (
-          <Panel flush title={`${1 << tn}:1 mux from smaller muxes`}>
-            <div className="ms-scroll">
-              <TreeSvg tree={tr} />
-            </div>
-            <div className="ms-pad">
+          <Board
+            title={`${1 << tn}:1 mux from smaller muxes`}
+            step={<W e={tr.why.path}>Y = I{tr.output}</W>}
+            tools={<FocusToggle />}
+            foot={
               <Legend
                 items={[
                   { signal: 'path', label: 'path from the selected input to Y' },
                   { signal: 'control', label: 'select bits of each stage' },
                 ]}
               />
-            </div>
-          </Panel>
+            }
+          >
+            <TreeSvg tree={tr} />
+          </Board>
         ) : null}
-        <div className="ms-callouts">
-          <Callout kind="course" title="Where the select bits go" cite="L18 p42-44">
-            The first stage takes the low select bits and the last stage takes the MSB. Two 4:1 then a 2:1 puts S1 S0 first and S2 last (p42); four 2:1 then a 4:1 puts S0
-            first and S2 S1 last (p44).
-          </Callout>
-        </div>
+        <Details
+          tabs={[
+            {
+              value: 'build',
+              label: 'Build and path',
+              body: tr ? (
+                <dl className="ms-facts">
+                  <dt>Blocks</dt>
+                  <dd>
+                    <W e={tr.why.build}>{tr.why.build.working}</W>
+                  </dd>
+                  <dt>Output</dt>
+                  <dd className="mono">
+                    <W e={tr.why.path}>Y = I{tr.output}</W>
+                  </dd>
+                </dl>
+              ) : null,
+            },
+            {
+              value: 'rules',
+              label: 'Rules and traps',
+              body: (
+                <div className="ms-callouts">
+                  <Callout kind="course" title="Where the select bits go" cite="L18 p42-44">
+                    The first stage takes the low select bits and the last stage takes the MSB. Two 4:1 then a 2:1 puts S1 S0 first and S2 last (p42); four 2:1 then a 4:1
+                    puts S0 first and S2 S1 last (p44).
+                  </Callout>
+                </div>
+              ),
+            },
+          ]}
+        />
       </Workspace>
     )
   }
@@ -216,98 +222,77 @@ export default function MuxTab({ intro }: { intro: ReactNode }) {
           />
         ) : undefined
       }
-      inspector={
-        plan ? (
-          <>
-            <Panel title="Plan">
-              <dl className="ms-facts">
-                <dt>Mux</dt>
-                <dd>
-                  {1 << k}:1, selects {plan.selects.map((s, j) => `S${k - 1 - j} = ${s}`).join(', ')}
-                </dd>
-                <dt>Data inputs</dt>
-                <dd className="mono ms-wrap">
-                  <W e={plan.why}>{plan.text}</W>
-                </dd>
-                <dt>Extra parts</dt>
-                <dd>
-                  {plan.noGates ? (
-                    <Chip signal="hit">none: no inverter, no gate</Chip>
-                  ) : (
-                    <>
-                      <Chip signal="miss">needs parts</Chip> {plural(plan.inverters, 'inverter')}, {plural(plan.gates, 'other gate')}
-                    </>
-                  )}
-                </dd>
-              </dl>
-            </Panel>
-            {search ? (
-              <Panel flush title={`Every select order with ${plural(k, 'select')}`}>
-                <div className="ms-tall">
-                  <DataTable compact columns={planCols} rows={search.plans} rowSignal={(p) => (p.selects.join() === plan.selects.join() ? 'path' : undefined)} />
-                </div>
-                <p className="ms-pad ms-muted">
-                  <W e={search.why}>{search.noGates.length ? `${plural(search.noGates.length, 'order')} need no gates.` : 'Every order needs an inverter or a gate.'}</W>
-                </p>
-              </Panel>
-            ) : fn && fn.vars.length > MAX_SEARCH_VARS ? (
-              <Panel title="Select search">
-                <p className="ms-status">The search over every select order takes up to {MAX_SEARCH_VARS} variables.</p>
-              </Panel>
-            ) : null}
-          </>
-        ) : undefined
-      }
     >
-      {controls}
+      {command}
       {built && !built.ok ? <PinErrors errors={built.errors} /> : null}
       {plan ? (
-        <>
-          <Panel flush title="Truth table split by the selects" actions={<span className="ms-muted mono">{describe}</span>}>
-            <SplitTable plan={plan} step={step} />
-            {g ? (
-              <div className="ms-note">
-                <p className="ms-note-title mono">
-                  {g.label} gives I{g.index} = {g.data.text}
+        <div className="ms-stage">
+          <Board
+            title={`${1 << k}:1 multiplexer, selects ${plan.selects.map((s, j) => `S${k - 1 - j} = ${s}`).join(', ')}`}
+            step={g ? `I${g.index} = ${g.data.text}` : 'all data inputs'}
+            tools={<FocusToggle />}
+            play={<PlayBar stepper={stepper} start="Work out each data input" next={step + 1 < plan.groups.length ? `I${step + 1}` : 'all data inputs'} />}
+            foot={
+              <>
+                <p className="mono ms-wrap ms-yeq">
+                  {plan.fn.name} ={' '}
+                  {plan.data.map((d, i) => (
+                    <span key={i} className={i === step ? 'ms-term is-now' : 'ms-term'}>
+                      {i ? ' + ' : ''}
+                      {d.text === '1' ? mintermText(i, plan.selects) : d.kind === 'expression' ? `(${d.text})∙${mintermText(i, plan.selects)}` : `${d.text}∙${mintermText(i, plan.selects)}`}
+                    </span>
+                  ))}
                 </p>
-                <p>
-                  <W e={g.data.why}>{g.data.why.rule}</W>
-                </p>
+                <Legend
+                  items={[
+                    { signal: 'path', label: 'data input worked out at this step' },
+                    { signal: 'control', label: 'select lines' },
+                    { signal: 'miss', label: 'needs an inverter or gate' },
+                    { signal: 'dontcare', label: "X, don't care" },
+                  ]}
+                />
+              </>
+            }
+          >
+            <div className="ms-board-pics">
+              <div>
+                <p className="ms-caption">Truth table split by the selects</p>
+                <SplitTable plan={plan} step={step} />
               </div>
-            ) : (
-              <div className="ms-note">
-                <p className="ms-note-title mono">Data inputs: {plan.text}</p>
-                <p>
-                  <W e={plan.why}>{plan.why.rule}</W>
-                </p>
-              </div>
-            )}
-          </Panel>
-          <Panel flush title={`${1 << k}:1 multiplexer`}>
-            <div className="ms-scroll">
               <MuxBlock plan={plan} step={step} />
             </div>
-            <div className="ms-pad">
-              <p className="mono ms-wrap ms-yeq">
-                {plan.fn.name} ={' '}
-                {plan.data.map((d, i) => (
-                  <span key={i} className={i === step ? 'ms-term is-now' : 'ms-term'}>
-                    {i ? ' + ' : ''}
-                    {d.text === '1' ? mintermText(i, plan.selects) : d.kind === 'expression' ? `(${d.text})∙${mintermText(i, plan.selects)}` : `${d.text}∙${mintermText(i, plan.selects)}`}
-                  </span>
-                ))}
-              </p>
-              <Legend
-                items={[
-                  { signal: 'path', label: 'data input worked out at this step' },
-                  { signal: 'control', label: 'select lines' },
-                  { signal: 'miss', label: 'needs an inverter or gate' },
-                  { signal: 'dontcare', label: "X, don't care" },
-                ]}
-              />
-            </div>
-          </Panel>
-        </>
+          </Board>
+          <Story
+            label="Each data input"
+            titles={[...plan.groups.map((q) => `${q.label} gives I${q.index}`), 'All data inputs']}
+            index={step}
+            onPick={stepper.set}
+            body={
+              g ? (
+                <>
+                  <p className="mono">
+                    I{g.index} = {g.data.text}
+                  </p>
+                  <StepNote e={g.data.why} />
+                </>
+              ) : (
+                <>
+                  <p className="mono ms-wrap">{plan.text}</p>
+                  <StepNote e={plan.why} />
+                  <p>
+                    {plan.noGates ? (
+                      <Chip signal="hit">no inverter, no gate</Chip>
+                    ) : (
+                      <>
+                        <Chip signal="miss">needs parts</Chip> {plural(plan.inverters, 'inverter')}, {plural(plan.gates, 'other gate')}
+                      </>
+                    )}
+                  </p>
+                </>
+              )
+            }
+          />
+        </div>
       ) : null}
       {bad.length && plan ? (
         <Callout kind="trap" title={`${plural(bad.length, 'data input')} need${bad.length === 1 ? 's' : ''} an inverter or gate`} cite="T06 p2; AY23/24 S1 Q10">
@@ -315,20 +300,47 @@ export default function MuxTab({ intro }: { intro: ReactNode }) {
           the inverter.
         </Callout>
       ) : null}
-      <div className="ms-callouts">
-        <Callout kind="course" title="Reserve one variable" cite="L18 p51-55">
-          An n-variable function fits a 2^(n-1):1 mux: put n - 1 variables on the selects, S on top first, and each data input becomes 0, 1, v or v'.
-        </Callout>
-        <Callout kind="trap" title="A constant beats a literal" cite="T08 Ans p1">
-          When a don't-care lets a data input be 0 or Z', pick 0: a constant needs no wire from a variable and no inverter.
-        </Callout>
-        <Callout kind="trap" title="A select variable stays off the data inputs" cite="AY21/22 S1 Q13c">
-          Once a variable drives a select line, the data inputs must not use it: the selects already fix its value in each group.
-        </Callout>
-        <Callout kind="trap" title="Write the data input for its group only" cite="T08 Q4; T08 Ans p4">
-          In a group where AB is fixed, write the restricted expression C'∙D + C∙D', not A'BC'D + A'BCD'. XOR is not an SOP, so expand C⊕D when an SOP is asked.
-        </Callout>
-      </div>
+      <Details
+        tabs={[
+          {
+            value: 'orders',
+            label: `Every select order with ${plural(k, 'select')}`,
+            body:
+              plan && search ? (
+                <>
+                  <p className="ms-caption">
+                    <W e={search.why}>{search.noGates.length ? `${plural(search.noGates.length, 'order')} need no gates.` : 'Every order needs an inverter or a gate.'}</W>
+                  </p>
+                  <div className="ms-tall">
+                    <DataTable compact columns={planCols} rows={search.plans} rowSignal={(p) => (p.selects.join() === plan.selects.join() ? 'path' : undefined)} />
+                  </div>
+                </>
+              ) : plan && fn && fn.vars.length > MAX_SEARCH_VARS ? (
+                <p className="ms-status">The search over every select order takes up to {MAX_SEARCH_VARS} variables.</p>
+              ) : null,
+          },
+          {
+            value: 'rules',
+            label: 'Rules and traps',
+            body: (
+              <div className="ms-callouts">
+                <Callout kind="course" title="Reserve one variable" cite="L18 p51-55">
+                  An n-variable function fits a 2^(n-1):1 mux: put n - 1 variables on the selects, S on top first, and each data input becomes 0, 1, v or v'.
+                </Callout>
+                <Callout kind="trap" title="A constant beats a literal" cite="T08 Ans p1">
+                  When a don't-care lets a data input be 0 or Z', pick 0: a constant needs no wire from a variable and no inverter.
+                </Callout>
+                <Callout kind="trap" title="A select variable stays off the data inputs" cite="AY21/22 S1 Q13c">
+                  Once a variable drives a select line, the data inputs must not use it: the selects already fix its value in each group.
+                </Callout>
+                <Callout kind="trap" title="Write the data input for its group only" cite="T08 Q4; T08 Ans p4">
+                  In a group where AB is fixed, write the restricted expression C'∙D + C∙D', not A'BC'D + A'BCD'. XOR is not an SOP, so expand C⊕D when an SOP is asked.
+                </Callout>
+              </div>
+            ),
+          },
+        ]}
+      />
     </Workspace>
   )
 }
@@ -406,6 +418,11 @@ function MuxBlock({ plan, step }: { plan: MuxPlan; step: number }) {
   const iy = (i: number) => top + 8 + i * P + P / 2
   const names = selectNames(k)
   const done = (i: number) => i <= step || step >= plan.groups.length
+  // Light on the data input worked out at this step; on the last step, on Y.
+  const cur = plan.data[step]
+  const flow = !cur
+    ? [seg(BX + BW, top + bh / 2, BX + BW + 50, top + bh / 2)]
+    : [seg(cur.needsInverter && cur.kind === 'complement' ? L + 1 : cur.needsGate ? L : L - 30, iy(step), BX, iy(step))]
   return (
     <svg className="ms-svg" viewBox={`0 0 ${VW} ${H}`} width={VW} height={H} role="img" aria-label="Multiplexer">
       <title>Multiplexer</title>
@@ -465,6 +482,7 @@ function MuxBlock({ plan, step }: { plan: MuxPlan; step: number }) {
           {plan.fn.name}
         </text>
       </g>
+      <Flow id={step} paths={flow} />
     </svg>
   )
 }
@@ -491,13 +509,25 @@ function TreeSvg({ tree }: { tree: MuxTree }) {
   const xOf = (l: number) => 50 + l * (NW + GX)
   const H = Math.max(...stage0.map((x) => (ys.get(x.id) ?? 0) + h0(x.size))) + 30
   const VW = xOf(stages - 1) + NW + 70
+  /** Input i of a mux: a stub from the data input, or a wire from the mux one stage back. */
+  const wireIn = (x: MuxTree['nodes'][number], i: number): [number, number][] => {
+    const bx = xOf(x.level)
+    const iy = (ys.get(x.id) ?? 0) + 7 + i * P + P / 2
+    if (x.level === 0) return [[bx - 26, iy], [bx, iy]]
+    const c = tree.nodes.filter((q) => q.level === x.level - 1)[x.index * x.size + i]
+    const cy = (ys.get(c.id) ?? 0) + h0(c.size) / 2
+    const cx = xOf(c.level) + NW
+    return [[cx, cy], [cx + GX / 2, cy], [cx + GX / 2, iy], [bx, iy]]
+  }
+  const last = tree.nodes[tree.nodes.length - 1]
+  const outY = (ys.get(last.id) ?? 0) + h0(last.size) / 2
+  const outX = xOf(last.level) + NW
   return (
     <svg className="ms-svg" viewBox={`0 0 ${VW} ${H}`} width={VW} height={H} role="img" aria-label="Multiplexer tree">
       <title>Larger multiplexer from smaller ones</title>
       {tree.nodes.map((x) => {
         const y = ys.get(x.id) ?? 0
         const bx = xOf(x.level)
-        const prev = tree.nodes.filter((q) => q.level === x.level - 1)
         return (
           <g key={x.id}>
             {Array.from({ length: x.size }, (_, i) => {
@@ -506,18 +536,15 @@ function TreeSvg({ tree }: { tree: MuxTree }) {
               if (x.level === 0)
                 return (
                   <g key={i} className={`ms-net ${on ? 'is-now' : 'is-off'}`}>
-                    <line x1={bx - 26} y1={iy} x2={bx} y2={iy} className="ms-wire" />
+                    <polyline points={pts(wireIn(x, i))} className="ms-wire" />
                     <text x={bx - 30} y={iy + 4} textAnchor="end" className="ms-small">
                       I{x.index * x.size + i}
                     </text>
                   </g>
                 )
-              const c = prev[x.index * x.size + i]
-              const cy = (ys.get(c.id) ?? 0) + h0(c.size) / 2
-              const cx = xOf(c.level) + NW
               return (
                 <g key={i} className={`ms-net ${on ? 'is-now' : 'is-off'}`}>
-                  <polyline points={pts([[cx, cy], [cx + GX / 2, cy], [cx + GX / 2, iy], [bx, iy]])} className="ms-wire" />
+                  <polyline points={pts(wireIn(x, i))} className="ms-wire" />
                 </g>
               )
             })}
@@ -533,19 +560,13 @@ function TreeSvg({ tree }: { tree: MuxTree }) {
           </g>
         )
       })}
-      {(() => {
-        const last = tree.nodes[tree.nodes.length - 1]
-        const y = (ys.get(last.id) ?? 0) + h0(last.size) / 2
-        const x = xOf(last.level) + NW
-        return (
-          <g className="ms-net is-now">
-            <line x1={x} y1={y} x2={x + 40} y2={y} className="ms-wire" />
-            <text x={x + 44} y={y + 4} className="ms-label">
-              Y = I{tree.output}
-            </text>
-          </g>
-        )
-      })()}
+      <g className="ms-net is-now">
+        <line x1={outX} y1={outY} x2={outX + 40} y2={outY} className="ms-wire" />
+        <text x={outX + 44} y={outY + 4} className="ms-label">
+          Y = I{tree.output}
+        </text>
+      </g>
+      <Flow id={tree.output} paths={[...tree.nodes.filter((x) => x.active).map((x) => polyD(wireIn(x, x.chosen))), seg(outX, outY, outX + 40, outY)]} />
     </svg>
   )
 }

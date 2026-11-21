@@ -583,3 +583,368 @@
   max-width: 100%;
   text-overflow: ellipsis;
 }
+
+/* ---------- Calm layout: compact inputs, board with the player inside, one tab strip ---------- */
+
+.ms-command {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-4);
+  align-items: end;
+}
+
+.ms-options > summary {
+  cursor: pointer;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+  width: max-content;
+  padding: 2px 4px;
+}
+
+.ms-options[open] > summary {
+  color: var(--ink);
+}
+
+.ms-options-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0 var(--sp-1);
+}
+
+.ms-options-body > .ms-row + .ms-row {
+  margin-top: 0;
+}
+
+.ms-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.ms-board {
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
+  overflow: hidden;
+}
+
+.ms-board-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  padding: 12px 16px 0;
+}
+
+.ms-board-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-3);
+  margin: 0;
+  font-size: var(--fs-md);
+}
+
+.ms-board-step {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  color: var(--sig-path);
+}
+
+.ms-board-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+}
+
+.ms-board-note {
+  margin: 4px 16px 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.ms-board > .ms-scroll {
+  padding: var(--sp-3) 16px;
+}
+
+.ms-board-play {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  padding: 0 16px 14px;
+}
+
+.ms-play,
+.ms-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: var(--r-pill);
+  font: 600 var(--fs-sm) / 1 var(--font-sans);
+  cursor: pointer;
+  transition:
+    transform 0.25s var(--ease-spring),
+    background-color 0.15s var(--ease);
+}
+
+.ms-play {
+  position: relative;
+  border: 0;
+  background: var(--primary);
+  color: var(--primary-ink);
+}
+
+.ms-play svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.ms-play:hover {
+  transform: scale(1.03);
+}
+
+.ms-play[data-playing='true']::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  padding: 2px;
+  background: var(--glow);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  animation: glow-spin 2.4s linear infinite;
+}
+
+.ms-next {
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.ms-next svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ms-next:hover {
+  border-color: var(--ink-3);
+}
+
+.ms-play:focus-visible,
+.ms-next:focus-visible,
+.ms-step-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.ms-board-foot {
+  padding: var(--sp-2) 16px;
+  border-top: 1px solid var(--grid);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+/* A board that shows a list (finder results) rather than a diagram. */
+.ms-board .ms-solutions {
+  padding-left: 1.4em;
+}
+
+.ms-board-pics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  align-items: flex-start;
+}
+
+.ms-caption {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+
+/* The story: the current step bright and opened, the rest one line each. */
+.ms-story {
+  position: sticky;
+  top: var(--sp-4);
+}
+
+.ms-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ms-steps li {
+  position: relative;
+  padding-left: 22px;
+}
+
+.ms-steps li::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--rule);
+}
+
+.ms-steps li:first-child::before {
+  top: 16px;
+}
+
+.ms-steps li:last-child::before {
+  bottom: calc(100% - 16px);
+}
+
+.ms-step-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 7px 0;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ms-step-dot {
+  position: absolute;
+  left: 0;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid var(--rule);
+  background: var(--paper);
+}
+
+.ms-steps .is-past .ms-step-btn {
+  color: var(--ink-2);
+}
+
+.ms-steps .is-past .ms-step-dot {
+  background: var(--ink-3);
+  border-color: var(--ink-3);
+}
+
+.ms-steps .is-now .ms-step-btn {
+  color: var(--ink);
+  font-weight: 600;
+  font-size: var(--fs-md);
+}
+
+.ms-steps .is-now .ms-step-dot {
+  border-color: var(--sig-path);
+  background: var(--sig-path);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--sig-path) 25%, transparent);
+}
+
+.ms-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: 2px 0 14px;
+  font-size: var(--fs-sm);
+  animation: rise 0.35s var(--ease) both;
+}
+
+.ms-step-body p {
+  margin: 0;
+}
+
+.ms-does {
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+.ms-cite {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+.ms-working {
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+}
+
+.ms-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.ms-detail-body {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
+  background: var(--panel);
+  padding: var(--sp-3);
+  overflow-x: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.ms-detail-body > p {
+  margin: 0;
+}
+
+@media (max-width: 1180px) {
+  .ms-stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ms-story {
+    position: static;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-play[data-playing='true']::before,
+  .ms-step-body {
+    animation: none;
+  }
+  .ms-play,
+  .ms-next {
+    transition: none;
+  }
+}
+
+@media print {
+  .ms-board-play,
+  .ms-options > summary {
+    display: none;
+  }
+  .ms-story {
+    position: static;
+  }
+}
+
+.ms-out + .ms-out {
+  margin-left: 1em;
+}

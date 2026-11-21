@@ -17,7 +17,7 @@ import { useUrlState } from '../../lib/url-state'
 import { Button, Callout, Chip, DataTable, Legend, NumberField, Panel, Presets, Segmented, Select, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { pick, PinErrors, plural, splitVars, str, W } from './common'
+import { Board, Details, Flow, FocusToggle, Options, pick, PinErrors, PlayBar, plural, seg, splitVars, str, W } from './common'
 import { WB_PRESETS } from './presets'
 
 const KINDS: { value: BlockKind; label: string }[] = [
@@ -160,85 +160,21 @@ export default function WorkbenchTab({ intro }: { intro: ReactNode }) {
       ]
     : []
 
-  const inspector = net ? (
+  const checkStatus = !targetText.trim() ? null : !target ? (
     <>
-      <Panel title="Check against a target">
-        <div className="ms-row">
-          <div className="ms-grow">
-            <TextField label="Target: Σm(..) + d(..), ΠM(..) or an expression" value={targetText} onChange={setTarget} placeholder="F(A,B,C,D) = Σm(3-12)" />
-          </div>
-          {names.length ? <Select label="Signal" value={check} onChange={setCheck} options={names.map((nm) => ({ value: nm, label: nm }))} /> : null}
-        </div>
-        <p className="ms-status">
-          {!targetText.trim() ? (
-            'No target: the table just lists every signal.'
-          ) : !target ? (
-            <>
-              <Chip signal="miss">cannot read the target</Chip> it must use only {vars.join(', ')}
-            </>
-          ) : !sig ? (
-            'Name an output to check it.'
-          ) : mis && mis.length ? (
-            <>
-              <Chip signal="miss">differs</Chip> {check} is wrong on {plural(mis.length, 'row')}: <span className="mono">{mis.join(', ')}</span>
-            </>
-          ) : (
-            <>
-              <Chip signal="hit">matches</Chip> {check} agrees with the target on every row that is not a don't-care
-            </>
-          )}
-        </p>
-      </Panel>
-      <Panel title="Signals">
-        {names.length ? (
-          <dl className="ms-facts">
-            {names.map((nm) => {
-              const f = net.signals[nm]
-              return (
-                <div key={nm} className="ms-fact">
-                  <dt>{nm}</dt>
-                  <dd className="mono ms-wrap">
-                    <W e={net.why[nm]}>
-                      {sigmaOf(f)}
-                      {f.dc.length ? ` + d(${f.dc.join(',')})` : ''}
-                    </W>
-                    {net.why[nm].working?.includes('simplified: ') ? <span className="ms-muted"> = {net.why[nm].working?.split('simplified: ')[1]}</span> : null}
-                  </dd>
-                </div>
-              )
-            })}
-          </dl>
-        ) : (
-          <p className="ms-status">Name a block output (for example S1 or F) to see it as a function.</p>
-        )}
-      </Panel>
-      <Panel title="Parts">
-        <dl className="ms-facts">
-          <dt>Devices</dt>
-          <dd>
-            {Object.entries(net.devices)
-              .map(([k, n]) => `${n} ${KIND_LABEL[k as BlockKind]}`)
-              .join(', ') || 'none'}
-          </dd>
-          <dt>Gates</dt>
-          <dd>{Object.entries(net.gates).map(([k, n]) => `${n} ${k === 'NOT' ? (n === 1 ? 'inverter' : 'inverters') : k}`).join(', ') || 'none'}</dd>
-          <dt>Hidden in pins</dt>
-          <dd>{net.implicit.length ? <span className="mono ms-wrap">{net.implicit.join('; ')}</span> : 'none: every pin is a variable, a constant or a signal'}</dd>
-        </dl>
-      </Panel>
-      <Panel flush title="Truth table">
-        <div className="ms-tall">
-          <DataTable
-            compact
-            columns={tableCols}
-            rows={net.rows.map((r) => r.row)}
-            rowSignal={(r) => (r === row?.row ? 'path' : misSet.has(r) ? 'miss' : undefined)}
-          />
-        </div>
-        {mis && mis.length ? <p className="ms-pad ms-muted">Rows where {check} and the target differ are marked as errors.</p> : null}
-      </Panel>
+      <Chip signal="miss">cannot read the target</Chip> it must use only {vars.join(', ')}
     </>
-  ) : undefined
+  ) : !sig ? (
+    'Name an output to check it.'
+  ) : mis && mis.length ? (
+    <>
+      <Chip signal="miss">differs</Chip> {check} is wrong on {plural(mis.length, 'row')}: <span className="mono">{mis.join(', ')}</span>
+    </>
+  ) : (
+    <>
+      <Chip signal="hit">matches</Chip> {check} agrees with the target on every row that is not a don't-care
+    </>
+  )
 
   return (
     <Workspace
@@ -256,38 +192,58 @@ export default function WorkbenchTab({ intro }: { intro: ReactNode }) {
           />
         ) : undefined
       }
-      inspector={inspector}
     >
-      <Panel title="Circuit">
-        <div className="ms-row">
-          <TextField label="Input variables, first is the MSB" value={varsText} onChange={setVars} width="12em" />
-          <Select label="New block" value={addKind} onChange={setAdd} options={KINDS} />
-          <Button onClick={addBlock} disabled={blocks.length >= MAX_BLOCKS} title={`Up to ${MAX_BLOCKS} blocks`}>
-            Add block
-          </Button>
-        </div>
+      <div className="ms-command">
+        <TextField label="Input variables, first is the MSB" value={varsText} onChange={setVars} width="12em" />
+        <Select label="New block" value={addKind} onChange={setAdd} options={KINDS} />
+        <Button onClick={addBlock} disabled={blocks.length >= MAX_BLOCKS} title={`Up to ${MAX_BLOCKS} blocks`}>
+          Add block
+        </Button>
+      </div>
+      {vars.length > MAX_VARS ? <PinErrors errors={[{ pin: 'vars', message: `use at most ${MAX_VARS} input variables` }]} /> : null}
+      {result && !result.ok ? <PinErrors errors={result.errors} /> : null}
+      <Options summary={`Edit the ${plural(blocks.length, 'block')}`}>
         <p className="ms-status">
           Blocks run top to bottom. A pin takes a variable, 0 (GND), 1 (Vcc) or a signal named by an earlier block. Name an output to use it later.
         </p>
-        {vars.length > MAX_VARS ? <PinErrors errors={[{ pin: 'vars', message: `use at most ${MAX_VARS} input variables` }]} /> : null}
-        {result && !result.ok ? <PinErrors errors={result.errors} /> : null}
-      </Panel>
-
-      {blocks.map((b, i) => (
-        <BlockEditor
-          key={i}
-          spec={b}
-          index={i}
-          count={blocks.length}
-          onChange={(patch) => update(i, patch)}
-          onMove={(d) => move(i, d)}
-          onRemove={() => setBlocks(blocks.filter((_, j) => j !== i))}
-        />
-      ))}
+        {blocks.map((b, i) => (
+          <BlockEditor
+            key={i}
+            spec={b}
+            index={i}
+            count={blocks.length}
+            onChange={(patch) => update(i, patch)}
+            onMove={(d) => move(i, d)}
+            onRemove={() => setBlocks(blocks.filter((_, j) => j !== i))}
+          />
+        ))}
+      </Options>
 
       {net && row ? (
-        <Panel flush title={`Every block on row ${row.row}`} actions={<span className="ms-muted mono">{describe}</span>}>
-          <div className="ms-scroll ms-wb-cards">
+        <Board
+          title={`Every block on row ${row.row}`}
+          step={check ? `${check} = ${valueOf(row.row, check) ?? ''}` : undefined}
+          note={
+            <>
+              {describe}
+              {checkStatus ? <> {checkStatus}</> : null}
+            </>
+          }
+          tools={<FocusToggle />}
+          play={<PlayBar stepper={stepper} start="Step through the rows" next={`row ${row.row + 1}`} />}
+          foot={
+            <Legend
+              items={[
+                { signal: 'data', label: 'wire in use' },
+                { signal: 'path', label: 'the signal being checked' },
+                { signal: 'hit', label: 'value 1' },
+                { signal: 'miss', label: 'pin hides an inverter or gate' },
+                { signal: 'dontcare', label: "X, a don't-care" },
+              ]}
+            />
+          }
+        >
+          <div className="ms-wb-cards">
             {blocks.map((b, bi) => (
               <BlockSvg
                 key={b.id || bi}
@@ -299,41 +255,114 @@ export default function WorkbenchTab({ intro }: { intro: ReactNode }) {
                 portVals={row.ports[b.id] ?? []}
                 implicit={net.implicit}
                 check={check}
+                flowId={ri}
               />
             ))}
           </div>
-          <div className="ms-pad">
-            <Legend
-              items={[
-                { signal: 'data', label: 'wire in use' },
-                { signal: 'path', label: 'the signal being checked' },
-                { signal: 'hit', label: 'value 1' },
-                { signal: 'miss', label: 'pin hides an inverter or gate' },
-                { signal: 'dontcare', label: "X, a don't-care" },
-              ]}
-            />
-          </div>
-        </Panel>
+        </Board>
       ) : null}
 
-      <div className="ms-callouts">
-        {net?.implicit.length ? (
-          <Callout kind="trap" title={`${plural(net.implicit.length, 'pin')} hide${net.implicit.length === 1 ? 's' : ''} a gate`} cite="T07 p2; R09 p51">
-            {net.implicit.join('; ')}. A complemented literal or an expression on a pin costs an inverter or a gate. Questions that say "no gates" do not allow it.
-          </Callout>
-        ) : null}
-        <Callout kind="course" title="Only the plain literals and the constants" cite="T07 p2; L17 p23">
-          Unless a question says otherwise, pins take A, B, C, ... and the constants 0 (GND) and 1 (Vcc). A' needs an inverter. Use only the devices the question lists, and as
-          few as possible.
+      {net?.implicit.length ? (
+        <Callout kind="trap" title={`${plural(net.implicit.length, 'pin')} hide${net.implicit.length === 1 ? 's' : ''} a gate`} cite="T07 p2; R09 p51">
+          {net.implicit.join('; ')}. A complemented literal or an expression on a pin costs an inverter or a gate. Questions that say "no gates" do not allow it.
         </Callout>
-        <Callout kind="course" title="Blocks are just functions" cite="L17 p22-23; T07 Q2">
-          Rewiring is free arithmetic: a constant on an adder input adds it (+0011 turns BCD into Excess-3), and shifting the wires one place divides by 2.
-        </Callout>
-        <Callout kind="note" title="X from an encoder">
-          A plain encoder with no input or several inputs high gives X (L18 p29), and so does a priority encoder with no input high. An X stays X unless a later gate makes
-          the value certain, for example an AND with a 0.
-        </Callout>
-      </div>
+      ) : null}
+
+      <Details
+        tabs={[
+          {
+            value: 'check',
+            label: 'Check against a target',
+            body: net ? (
+              <>
+                <div className="ms-row">
+                  <div className="ms-grow">
+                    <TextField label="Target: Σm(..) + d(..), ΠM(..) or an expression" value={targetText} onChange={setTarget} placeholder="F(A,B,C,D) = Σm(3-12)" />
+                  </div>
+                  {names.length ? <Select label="Signal" value={check} onChange={setCheck} options={names.map((nm) => ({ value: nm, label: nm }))} /> : null}
+                </div>
+                <p className="ms-status">{checkStatus ?? 'No target: the table just lists every signal.'}</p>
+              </>
+            ) : null,
+          },
+          {
+            value: 'tt',
+            label: 'Truth table',
+            body: net ? (
+              <>
+                <div className="ms-tall">
+                  <DataTable compact columns={tableCols} rows={net.rows.map((r) => r.row)} rowSignal={(r) => (r === row?.row ? 'path' : misSet.has(r) ? 'miss' : undefined)} />
+                </div>
+                {mis && mis.length ? <p className="ms-muted">Rows where {check} and the target differ are marked as errors.</p> : null}
+              </>
+            ) : null,
+          },
+          {
+            value: 'signals',
+            label: 'Signals',
+            body: net ? (
+              names.length ? (
+                <dl className="ms-facts">
+                  {names.map((nm) => {
+                    const f = net.signals[nm]
+                    return (
+                      <div key={nm} className="ms-fact">
+                        <dt>{nm}</dt>
+                        <dd className="mono ms-wrap">
+                          <W e={net.why[nm]}>
+                            {sigmaOf(f)}
+                            {f.dc.length ? ` + d(${f.dc.join(',')})` : ''}
+                          </W>
+                          {net.why[nm].working?.includes('simplified: ') ? <span className="ms-muted"> = {net.why[nm].working?.split('simplified: ')[1]}</span> : null}
+                        </dd>
+                      </div>
+                    )
+                  })}
+                </dl>
+              ) : (
+                <p className="ms-status">Name a block output (for example S1 or F) to see it as a function.</p>
+              )
+            ) : null,
+          },
+          {
+            value: 'parts',
+            label: 'Parts',
+            body: net ? (
+              <dl className="ms-facts">
+                <dt>Devices</dt>
+                <dd>
+                  {Object.entries(net.devices)
+                    .map(([k, n]) => `${n} ${KIND_LABEL[k as BlockKind]}`)
+                    .join(', ') || 'none'}
+                </dd>
+                <dt>Gates</dt>
+                <dd>{Object.entries(net.gates).map(([k, n]) => `${n} ${k === 'NOT' ? (n === 1 ? 'inverter' : 'inverters') : k}`).join(', ') || 'none'}</dd>
+                <dt>Hidden in pins</dt>
+                <dd>{net.implicit.length ? <span className="mono ms-wrap">{net.implicit.join('; ')}</span> : 'none: every pin is a variable, a constant or a signal'}</dd>
+              </dl>
+            ) : null,
+          },
+          {
+            value: 'rules',
+            label: 'Rules and traps',
+            body: (
+              <div className="ms-callouts">
+                <Callout kind="course" title="Only the plain literals and the constants" cite="T07 p2; L17 p23">
+                  Unless a question says otherwise, pins take A, B, C, ... and the constants 0 (GND) and 1 (Vcc). A' needs an inverter. Use only the devices the question
+                  lists, and as few as possible.
+                </Callout>
+                <Callout kind="course" title="Blocks are just functions" cite="L17 p22-23; T07 Q2">
+                  Rewiring is free arithmetic: a constant on an adder input adds it (+0011 turns BCD into Excess-3), and shifting the wires one place divides by 2.
+                </Callout>
+                <Callout kind="note" title="X from an encoder">
+                  A plain encoder with no input or several inputs high gives X (L18 p29), and so does a priority encoder with no input high. An X stays X unless a later gate
+                  makes the value certain, for example an AND with a 0.
+                </Callout>
+              </div>
+            ),
+          },
+        ]}
+      />
     </Workspace>
   )
 }
@@ -475,6 +504,7 @@ function BlockSvg({
   portVals,
   implicit,
   check,
+  flowId,
 }: {
   spec: BlockSpec
   pins: string[]
@@ -484,6 +514,8 @@ function BlockSvg({
   portVals: CellValue[]
   implicit: string[]
   check: string
+  /** Restarts the light on the output being checked. */
+  flowId: number
 }) {
   const P = 20
   const L = 78
@@ -497,6 +529,7 @@ function BlockSvg({
   const py = (i: number, total: number) => top + 6 + (bh - 12 - total * P) / 2 + i * P + P / 2
   const v = (x: CellValue | undefined) => (x === undefined ? 'x' : x === 'X' ? 'x' : x)
   const clip = (s: string) => (s.length > 9 ? `${s.slice(0, 8)}…` : s)
+  const flow = ports.flatMap((p, i) => (check && spec.out?.[p] === check ? [seg(BX + BW, py(i, ports.length), BX + BW + 40, py(i, ports.length))] : []))
   return (
     <svg className="ms-svg" viewBox={`0 0 ${VW} ${H}`} width={VW} height={H} role="img" aria-label={`${spec.id}, ${KIND_LABEL[spec.kind]}`}>
       <title>{`${spec.id}: ${KIND_LABEL[spec.kind]}`}</title>
@@ -541,6 +574,7 @@ function BlockSvg({
           </g>
         )
       })}
+      <Flow id={flowId} paths={flow} />
     </svg>
   )
 }

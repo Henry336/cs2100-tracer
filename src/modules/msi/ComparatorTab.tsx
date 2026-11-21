@@ -12,13 +12,14 @@ import {
   type CmpOutput,
   type CmpSolution,
   type CompareTrace,
+  type Explain,
   type PairGate,
 } from '../../core/msi'
 import { useUrlState } from '../../lib/url-state'
-import { Button, Callout, Chip, DataTable, Legend, Panel, Presets, Segmented, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Button, Callout, Chip, DataTable, Legend, Presets, Segmented, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { BitRow, FnField, int, pick, PinErrors, pins, plural, splitVars, str, useFn, W } from './common'
+import { BitRow, Board, Details, Flow, FnField, FocusToggle, int, Options, pick, PinErrors, pins, PlayBar, plural, seg, splitVars, StepNote, Story, str, useFn, W } from './common'
 import { CMP_PRESETS } from './presets'
 
 type Mode = 'values' | 'wire' | 'find'
@@ -106,72 +107,74 @@ export default function ComparatorTab({ intro }: { intro: ReactNode }) {
   )
 
   const widthOptions = (mode === 'values' ? [2, 4, 8] : [2, 4]).map((w) => ({ value: w, label: `${w}-bit` }))
-  const controls = (
-    <Panel title="Comparator">
-      <div className="ms-row">
-        <Segmented
-          label="Use"
-          value={mode}
-          onChange={(m) => {
-            setMode(m)
-            stepper.first()
-          }}
-          options={[
-            { value: 'values', label: 'compare two numbers', title: 'Bit cascade from the MSB (L17 p30-31)' },
-            { value: 'wire', label: 'wire to variables', title: 'Pins wired to variables or constants (T07 Q5)' },
-            { value: 'find', label: 'find a wiring for F', title: 'Which single comparator, with no gates, gives F? (AY24/25 Q7, AY25/26 Q8)' },
-          ]}
-        />
-        <Segmented label="Width" value={width} onChange={(w) => setW(w)} options={widthOptions} />
-      </div>
+  const command = (
+    <div className="ms-command">
+      <Segmented
+        label="Use"
+        value={mode}
+        onChange={(m) => {
+          setMode(m)
+          stepper.first()
+        }}
+        options={[
+          { value: 'values', label: 'compare two numbers', title: 'Bit cascade from the MSB (L17 p30-31)' },
+          { value: 'wire', label: 'wire to variables', title: 'Pins wired to variables or constants (T07 Q5)' },
+          { value: 'find', label: 'find a wiring for F', title: 'Which single comparator, with no gates, gives F? (AY24/25 Q7, AY25/26 Q8)' },
+        ]}
+      />
       {mode === 'values' ? (
-        <div className="ms-row">
+        <>
           <BitRow label={`A = ${a}`} names={Array.from({ length: width }, (_, j) => `A${width - 1 - j}`)} value={a} onChange={setA} />
           <BitRow label={`B = ${b}`} names={Array.from({ length: width }, (_, j) => `B${width - 1 - j}`)} value={b} onChange={setB} />
-        </div>
+        </>
       ) : mode === 'wire' ? (
-        <>
-          <div className="ms-row">
-            <TextField label="Input variables, first is the MSB" value={varsText} onChange={setVars} width="12em" />
-          </div>
-          <div className="ms-row">
-            {xs.map((p, j) => (
-              <TextField key={`x${j}`} label={`X${width - 1 - j}`} value={p} width="4.2em" onChange={(v) => setX(xs.map((q, k) => (k === j ? v : q)))} />
-            ))}
-            <span className="ms-sep" aria-hidden="true" />
-            {ys.map((p, j) => (
-              <TextField key={`y${j}`} label={`Y${width - 1 - j}`} value={p} width="4.2em" onChange={(v) => setY(ys.map((q, k) => (k === j ? v : q)))} />
-            ))}
-          </div>
-          <p className="ms-status">Each pin takes a variable, 0 or 1. A complemented variable or an expression also works, but it costs an inverter or a gate.</p>
-        </>
+        <div className="ms-row">
+          {xs.map((p, j) => (
+            <TextField key={`x${j}`} label={`X${width - 1 - j}`} value={p} width="4.2em" onChange={(v) => setX(xs.map((q, k) => (k === j ? v : q)))} />
+          ))}
+          <span className="ms-sep" aria-hidden="true" />
+          {ys.map((p, j) => (
+            <TextField key={`y${j}`} label={`Y${width - 1 - j}`} value={p} width="4.2em" onChange={(v) => setY(ys.map((q, k) => (k === j ? v : q)))} />
+          ))}
+        </div>
       ) : (
-        <>
+        <div className="ms-grow">
           <FnField state={fs} />
-          <div className="ms-row ms-toggles">
-            <Toggle label="Constants 0 and 1 on pins" checked={consts !== false} onChange={setConsts} hint="Allowed by default (T07 p2)" />
-            <Toggle label="Also try two comparators and one gate" checked={pairs === true} onChange={setPairs} hint="L17 p33: cascading means gates on the outputs" />
-            {pairs === true ? (
-              <Segmented
-                label="Gate"
-                value={gate}
-                onChange={setGate}
-                options={[
-                  { value: 'any', label: 'any' },
-                  { value: 'AND', label: 'AND' },
-                  { value: 'OR', label: 'OR' },
-                  { value: 'NAND', label: 'NAND' },
-                  { value: 'NOR', label: 'NOR' },
-                ]}
-              />
-            ) : null}
-          </div>
-        </>
+        </div>
       )}
-    </Panel>
+    </div>
   )
 
-  const callouts = (
+  const options = (
+    <Options summary={mode === 'find' ? 'Width, constants and gates' : mode === 'wire' ? 'Width and input variables' : 'Width'}>
+      <div className="ms-row">
+        <Segmented label="Width" value={width} onChange={(w) => setW(w)} options={widthOptions} />
+        {mode === 'wire' ? <TextField label="Input variables, first is the MSB" value={varsText} onChange={setVars} width="12em" /> : null}
+      </div>
+      {mode === 'find' ? (
+        <div className="ms-row ms-toggles">
+          <Toggle label="Constants 0 and 1 on pins" checked={consts !== false} onChange={setConsts} hint="Allowed by default (T07 p2)" />
+          <Toggle label="Also try two comparators and one gate" checked={pairs === true} onChange={setPairs} hint="L17 p33: cascading means gates on the outputs" />
+          {pairs === true ? (
+            <Segmented
+              label="Gate"
+              value={gate}
+              onChange={setGate}
+              options={[
+                { value: 'any', label: 'any' },
+                { value: 'AND', label: 'AND' },
+                { value: 'OR', label: 'OR' },
+                { value: 'NAND', label: 'NAND' },
+                { value: 'NOR', label: 'NOR' },
+              ]}
+            />
+          ) : null}
+        </div>
+      ) : null}
+    </Options>
+  )
+
+  const rules = (
     <div className="ms-callouts">
       <Callout kind="course" title="No cascade inputs" cite="L17 p33">
         The course comparator has only A and B and the three outputs. Cascading means putting gates on the outputs of several comparators, for example (ABCD &gt; 0010) AND
@@ -196,7 +199,14 @@ export default function ComparatorTab({ intro }: { intro: ReactNode }) {
 
   /* ---------- Compare two numbers ---------- */
   if (mode === 'values') {
-    if (!trace) return <Workspace title="Combinational and MSI" lectures="L17 p30-33" intro={intro} toolbar={toolbar}>{controls}{values && !values.ok ? <PinErrors errors={values.errors} /> : null}</Workspace>
+    if (!trace)
+      return (
+        <Workspace title="Combinational and MSI" lectures="L17 p30-33" intro={intro} toolbar={toolbar}>
+          {command}
+          {options}
+          {values && !values.ok ? <PinErrors errors={values.errors} /> : null}
+        </Workspace>
+      )
     const frame = trace.frames[i]
     const at = frame.bit ?? trace.bits.length
     const known = frame.decided
@@ -225,38 +235,25 @@ export default function ComparatorTab({ intro }: { intro: ReactNode }) {
             describe={frame.label}
           />
         }
-        inspector={
-          <>
-            <Panel title="Outputs">
-              <dl className="ms-facts">
-                {CMP_OUTPUTS.map((o) => (
-                  <div key={o} className="ms-fact">
-                    <dt>A {OUT_LABEL[o]} B</dt>
-                    <dd className="mono">{known ? <W e={trace.why[o]}>{trace.out[o]}</W> : 'not decided yet'}</dd>
-                  </div>
-                ))}
-                <div className="ms-fact">
-                  <dt>This step</dt>
-                  <dd>
-                    <W e={frame.why}>{frame.bit === null ? 'result' : `bit ${trace.bits[frame.bit].i}`}</W>
-                  </dd>
-                </div>
-              </dl>
-            </Panel>
-            <Panel flush title="Bit cascade from the MSB">
-              <DataTable
-                compact
-                columns={cols}
-                rows={trace.bits}
-                rowSignal={(_, k) => (k === frame.bit ? 'path' : dk !== null && k > dk && k <= at ? 'stall' : undefined)}
-              />
-            </Panel>
-          </>
-        }
       >
-        {controls}
-        <Panel flush title={`${width}-bit magnitude comparator`} actions={<span className="ms-muted mono">{frame.label}</span>}>
-          <div className="ms-scroll">
+        {command}
+        {options}
+        <div className="ms-stage">
+          <Board
+            title={`${width}-bit magnitude comparator`}
+            step={frame.bit === null ? 'result' : `bit ${trace.bits[frame.bit].i}`}
+            tools={<FocusToggle />}
+            play={<PlayBar stepper={stepper} start="Compare from the MSB" next={i + 1 < trace.bits.length ? `bit ${trace.bits[i + 1].i}` : 'result'} />}
+            foot={
+              <Legend
+                items={[
+                  { signal: 'path', label: 'bit pair being compared' },
+                  { signal: 'stall', label: 'switched off: a higher bit decided' },
+                  { signal: 'hit', label: 'output that is 1' },
+                ]}
+              />
+            }
+          >
             <CmpBlock
               width={width}
               xLabels={trace.bits.map((t) => `A${t.i}`)}
@@ -266,29 +263,53 @@ export default function ComparatorTab({ intro }: { intro: ReactNode }) {
               active={frame.bit}
               out={known ? trace.out : null}
               side={['A', 'B']}
+              flowId={i}
             />
-          </div>
-          <div className="ms-pad">
-            <Legend
-              items={[
-                { signal: 'path', label: 'bit pair being compared' },
-                { signal: 'stall', label: 'switched off: a higher bit decided' },
-                { signal: 'hit', label: 'output that is 1' },
-              ]}
-            />
-          </div>
-        </Panel>
-        <Panel title="Equations">
-          <div className="ms-eqs mono">
-            {CMP_OUTPUTS.map((o) => (
-              <p key={o}>
-                <span className="ms-eq-name">(A{OUT_LABEL[o]}B)</span> = {trace.why[o].rule.split(' = ').slice(1).join(' = ').replace(': every bit equal', '')}
-              </p>
-            ))}
-            <p className="ms-muted">x_i = A_i∙B_i + A_i'∙B_i' is 1 when the two bits are equal (L17 p31).</p>
-          </div>
-        </Panel>
-        {callouts}
+          </Board>
+          <Story
+            label="Each bit from the MSB"
+            titles={trace.frames.map((f) => (f.bit === null ? 'Result' : `Bit ${trace.bits[f.bit].i}`))}
+            index={i}
+            onPick={stepper.set}
+            body={
+              <>
+                <p className="mono">{frame.label}</p>
+                <StepNote e={frame.why} />
+                <p className="mono">
+                  {CMP_OUTPUTS.map((o) => (
+                    <span key={o} className="ms-out">
+                      A{OUT_LABEL[o]}B = {known ? <W e={trace.why[o]}>{trace.out[o]}</W> : '?'}
+                    </span>
+                  ))}
+                </p>
+              </>
+            }
+          />
+        </div>
+        <Details
+          tabs={[
+            {
+              value: 'cascade',
+              label: 'Bit cascade from the MSB',
+              body: <DataTable compact columns={cols} rows={trace.bits} rowSignal={(_, k) => (k === frame.bit ? 'path' : dk !== null && k > dk && k <= at ? 'stall' : undefined)} />,
+            },
+            {
+              value: 'eqs',
+              label: 'Equations',
+              body: (
+                <div className="ms-eqs mono">
+                  {CMP_OUTPUTS.map((o) => (
+                    <p key={o}>
+                      <span className="ms-eq-name">(A{OUT_LABEL[o]}B)</span> = {trace.why[o].rule.split(' = ').slice(1).join(' = ').replace(': every bit equal', '')}
+                    </p>
+                  ))}
+                  <p className="ms-muted">x_i = A_i∙B_i + A_i'∙B_i' is 1 when the two bits are equal (L17 p31).</p>
+                </div>
+              ),
+            },
+            { value: 'rules', label: 'Rules and traps', body: rules },
+          ]}
+        />
       </Workspace>
     )
   }
@@ -306,26 +327,49 @@ export default function ComparatorTab({ intro }: { intro: ReactNode }) {
       ...CMP_OUTPUTS.map((o) => ({ key: o, header: `X${OUT_LABEL[o]}Y`, cell: (r: R) => r.out[o], align: 'center' as const, mono: true })),
     ]
     const rowBits = (v: number) => Array.from({ length: width }, (_, j) => ((v >> (width - 1 - j)) & 1) as 0 | 1)
+    const describe = row ? `${vars.join('')} = ${row.row.toString(2).padStart(n, '0')}: X = ${row.x}, Y = ${row.y}` : undefined
     return (
       <Workspace
         title="Combinational and MSI"
         lectures="L17 p30-33, T07 Q5"
         intro={intro}
         toolbar={toolbar}
-        transport={
-          wired && row ? (
-            <Transport
-              stepper={stepper}
-              label="Row"
-              marks={wired.rows.map((r) => (r.out.gt ? 'hit' : undefined))}
-              describe={`${vars.join('')} = ${row.row.toString(2).padStart(n, '0')}: X = ${row.x}, Y = ${row.y}`}
-            />
-          ) : undefined
-        }
-        inspector={
-          wired ? (
-            <>
-              <Panel title="Each output as a function">
+        transport={wired && row ? <Transport stepper={stepper} label="Row" marks={wired.rows.map((r) => (r.out.gt ? 'hit' : undefined))} describe={describe} /> : undefined}
+      >
+        {command}
+        {options}
+        {circuit && !circuit.ok ? <PinErrors errors={circuit.errors} /> : null}
+        {wired && row ? (
+          <Board
+            title="Wired comparator"
+            step={`row ${row.row}`}
+            note={describe}
+            tools={<FocusToggle />}
+            play={<PlayBar stepper={stepper} start="Step through the rows" next={`row ${row.row + 1}`} />}
+            foot={
+              <Legend
+                items={[
+                  { signal: 'hit', label: 'value 1' },
+                  { signal: 'miss', label: 'pin hides an inverter or gate' },
+                ]}
+              />
+            }
+          >
+            <CmpBlock width={width} xLabels={xs} yLabels={ys} xVals={rowBits(row.x)} yVals={rowBits(row.y)} active={null} out={row.out} side={['X', 'Y']} gated={wired.gated} flowId={i} />
+          </Board>
+        ) : null}
+        {wired?.gated.length ? (
+          <Callout kind="trap" title={`${plural(wired.gated.length, 'pin')} need${wired.gated.length === 1 ? 's' : ''} a gate`} cite="T07 p2">
+            {wired.gated.join(', ')} {wired.gated.length === 1 ? 'is' : 'are'} driven by a complemented variable or an expression, so this is not a single comparator with no
+            gates.
+          </Callout>
+        ) : null}
+        <Details
+          tabs={[
+            {
+              value: 'fns',
+              label: 'Each output as a function',
+              body: wired ? (
                 <dl className="ms-facts">
                   {CMP_OUTPUTS.map((o) => (
                     <div key={o} className="ms-fact">
@@ -336,101 +380,45 @@ export default function ComparatorTab({ intro }: { intro: ReactNode }) {
                     </div>
                   ))}
                 </dl>
-              </Panel>
-              <Panel flush title="Truth table">
+              ) : null,
+            },
+            {
+              value: 'tt',
+              label: 'Truth table',
+              body: wired ? (
                 <div className="ms-tall">
                   <DataTable compact columns={cols} rows={wired.rows} rowSignal={(r) => (r.row === row?.row ? 'path' : undefined)} />
                 </div>
-              </Panel>
-            </>
-          ) : undefined
-        }
-      >
-        {controls}
-        {circuit && !circuit.ok ? <PinErrors errors={circuit.errors} /> : null}
-        {wired && row ? (
-          <Panel flush title="Wired comparator" actions={<span className="ms-muted mono">row {row.row}</span>}>
-            <div className="ms-scroll">
-              <CmpBlock width={width} xLabels={xs} yLabels={ys} xVals={rowBits(row.x)} yVals={rowBits(row.y)} active={null} out={row.out} side={['X', 'Y']} gated={wired.gated} />
-            </div>
-            <div className="ms-pad">
-              <Legend
-                items={[
-                  { signal: 'hit', label: 'value 1' },
-                  { signal: 'miss', label: 'pin hides an inverter or gate' },
-                ]}
-              />
-            </div>
-          </Panel>
-        ) : null}
-        {wired?.gated.length ? (
-          <Callout kind="trap" title={`${plural(wired.gated.length, 'pin')} need${wired.gated.length === 1 ? 's' : ''} a gate`} cite="T07 p2">
-            {wired.gated.join(', ')} {wired.gated.length === 1 ? 'is' : 'are'} driven by a complemented variable or an expression, so this is not a single comparator with no
-            gates.
-          </Callout>
-        ) : null}
-        {callouts}
+              ) : null,
+            },
+            { value: 'rules', label: 'Rules and traps', body: rules },
+          ]}
+        />
       </Workspace>
     )
   }
 
   /* ---------- Finder ---------- */
   const tooMany = fn && fn.vars.length > MAX_CMP_VARS
+  const verdict = (s: { possible: boolean; complete: boolean; why: Explain }) => (
+    <W e={s.why}>
+      {s.possible ? <Chip signal="hit">possible</Chip> : s.complete ? <Chip signal="miss">not possible</Chip> : <Chip signal="dontcare">search stopped</Chip>}
+    </W>
+  )
   return (
-    <Workspace
-      title="Combinational and MSI"
-      lectures="L17 p30-33, T07 Q5, AY24/25 Q7, AY25/26 Q8"
-      intro={intro}
-      toolbar={toolbar}
-      inspector={
-        search ? (
-          <Panel title="Verdict">
-            <dl className="ms-facts">
-              <div className="ms-fact">
-                <dt>One comparator</dt>
-                <dd>
-                  <W e={search.why}>
-                    {search.possible ? (
-                      <Chip signal="hit">possible</Chip>
-                    ) : search.complete ? (
-                      <Chip signal="miss">not possible</Chip>
-                    ) : (
-                      <Chip signal="dontcare">search stopped</Chip>
-                    )}
-                  </W>
-                </dd>
-              </div>
-              <div className="ms-fact">
-                <dt>Wirings that work</dt>
-                <dd className="mono">
-                  {search.count.toLocaleString('en')}
-                  {search.complete ? '' : ' or more'}
-                </dd>
-              </div>
-              {pairSearch ? (
-                <div className="ms-fact">
-                  <dt>Two comparators and a gate</dt>
-                  <dd>
-                    <W e={pairSearch.why}>
-                      {pairSearch.possible ? <Chip signal="hit">possible</Chip> : pairSearch.complete ? <Chip signal="miss">not possible</Chip> : <Chip signal="dontcare">search stopped</Chip>}
-                    </W>{' '}
-                    <span className="ms-muted">{pairSearch.count.toLocaleString('en')} pairs</span>
-                  </dd>
-                </div>
-              ) : null}
-            </dl>
-          </Panel>
-        ) : undefined
-      }
-    >
-      {controls}
+    <Workspace title="Combinational and MSI" lectures="L17 p30-33, T07 Q5, AY24/25 Q7, AY25/26 Q8" intro={intro} toolbar={toolbar}>
+      {command}
+      {options}
       {tooMany ? (
         <Callout kind="course" title="Too many variables">
           The finder takes at most {MAX_CMP_VARS} variables.
         </Callout>
       ) : null}
       {search ? (
-        <Panel flush title={search.possible ? `Simplest wirings (${Math.min(search.solutions.length, 12)} of ${search.count.toLocaleString('en')})` : 'No single comparator'}>
+        <Board
+          title={search.possible ? `Simplest wirings (${Math.min(search.solutions.length, 12)} of ${search.count.toLocaleString('en')}${search.complete ? '' : ' or more'})` : 'No single comparator'}
+          step={verdict(search)}
+        >
           {search.solutions.length ? (
             <ol className="ms-solutions">
               {search.solutions.map((s, k) => (
@@ -446,33 +434,46 @@ export default function ComparatorTab({ intro }: { intro: ReactNode }) {
               ))}
             </ol>
           ) : (
-            <p className="ms-pad ms-status">
+            <p className="ms-status">
               <W e={search.why}>Every wiring of the {plural(search.sources.length, 'source')} was checked.</W>
             </p>
           )}
-        </Panel>
+        </Board>
       ) : null}
       {pairs === true && fn && fn.vars.length > MAX_PAIR_VARS ? (
         <Callout kind="course" title="Two comparators: up to 4 variables">
           The two-comparator search takes at most {MAX_PAIR_VARS} variables.
         </Callout>
       ) : null}
-      {pairSearch && pairSearch.solutions.length ? (
-        <Panel flush title={`Two comparators and one gate (${Math.min(pairSearch.solutions.length, 12)} shown)`}>
-          <ol className="ms-solutions">
-            {pairSearch.solutions.map((s, k) => (
-              <li key={k}>
-                <span className="mono ms-sol-text">{s.text}</span>
-                <span className="ms-sol-actions">
-                  <Button onClick={() => wireIt(s.first)}>Wire first</Button>
-                  <Button onClick={() => wireIt(s.second)}>Wire second</Button>
-                </span>
-              </li>
-            ))}
-          </ol>
-        </Panel>
-      ) : null}
-      {callouts}
+      <Details
+        tabs={[
+          {
+            value: 'pairs',
+            label: 'Two comparators and one gate',
+            body: pairSearch ? (
+              <>
+                <p className="ms-status">
+                  {verdict(pairSearch)} <span className="ms-muted">{pairSearch.count.toLocaleString('en')} pairs</span>
+                </p>
+                {pairSearch.solutions.length ? (
+                  <ol className="ms-solutions">
+                    {pairSearch.solutions.map((s, k) => (
+                      <li key={k}>
+                        <span className="mono ms-sol-text">{s.text}</span>
+                        <span className="ms-sol-actions">
+                          <Button onClick={() => wireIt(s.first)}>Wire first</Button>
+                          <Button onClick={() => wireIt(s.second)}>Wire second</Button>
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
+              </>
+            ) : null,
+          },
+          { value: 'rules', label: 'Rules and traps', body: rules },
+        ]}
+      />
     </Workspace>
   )
 }
@@ -489,6 +490,7 @@ function CmpBlock({
   out,
   side,
   gated = [],
+  flowId,
 }: {
   width: number
   xLabels: string[]
@@ -500,6 +502,8 @@ function CmpBlock({
   out: Record<CmpOutput, 0 | 1> | null
   side: [string, string]
   gated?: string[]
+  /** Restarts the light: the pin pair being compared, or the outputs that are 1. */
+  flowId: number
 }) {
   const P = 22
   const top = 24
@@ -510,6 +514,10 @@ function CmpBlock({
   const bh = 2 * width * P + 8
   const outY = (k: number) => top + bh / 2 + (k - 1) * 30
   const VW = BX + BW + 130
+  const flow =
+    active !== null
+      ? [seg(L, top + active * P, BX, top + active * P), seg(L, top + (width + active) * P, BX, top + (width + active) * P)]
+      : (['lt', 'eq', 'gt'] as CmpOutput[]).flatMap((o, k) => (out?.[o] === 1 ? [seg(BX + BW, outY(k), BX + BW + 50, outY(k))] : []))
   const pin = (label: string, v: 0 | 1, y: number, name: string, on: boolean) => {
     const bad = gated.includes(name)
     return (
@@ -553,6 +561,7 @@ function CmpBlock({
           </g>
         )
       })}
+      <Flow id={flowId} paths={flow} />
     </svg>
   )
 }

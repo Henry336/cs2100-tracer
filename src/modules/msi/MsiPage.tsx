@@ -1,5 +1,5 @@
 import { useUrlState } from '../../lib/url-state'
-import { Tabs, Toggle } from '../../ui/kit'
+import { Tabs } from '../../ui/kit'
 import AdderTab from './AdderTab'
 import ComparatorTab from './ComparatorTab'
 import DecoderTab from './DecoderTab'
@@ -23,26 +23,18 @@ const TABS: { value: Tab; label: string; blurb: string }[] = [
   },
 ]
 
-/** Tabs whose diagrams mark unused parts (is-off); the adder tab has its own "settled" toggle. */
+/** Tabs whose diagrams mark unused parts (is-off); the toggle sits in each board (FocusToggle). The adder has its own "settled" toggle. */
 const FOCUS_TABS: Tab[] = ['cmp', 'dec', 'enc', 'mux', 'wb']
 
 export default function MsiPage() {
   const [tab, setTab] = useUrlState<Tab>('tab', 'adder')
-  const [focus, setFocus] = useUrlState<boolean>('fo', false)
+  const [focus] = useUrlState<boolean>('fo', false)
   const current = TABS.find((t) => t.value === tab) ?? TABS[0]
   const hasFocus = FOCUS_TABS.includes(current.value)
   const intro = (
     <div className="ms-intro">
       <p>{current.blurb} Click any underlined value to see how it was worked out.</p>
       <Tabs label="Combinational and MSI tools" value={current.value} onChange={setTab} tabs={TABS} />
-      {hasFocus ? (
-        <Toggle
-          label="Show only what this step uses"
-          checked={focus === true}
-          onChange={setFocus}
-          hint="Hides the outputs, inputs and blocks the current row or step does not use. Off draws them faint."
-        />
-      ) : null}
     </div>
   )
   return (

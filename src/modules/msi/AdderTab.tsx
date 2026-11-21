@@ -1,10 +1,10 @@
 import { useMemo, type ReactNode } from 'react'
 import { fullAdder, fullAdderTiming, halfAdder, rippleAdd, type AdderTrace, type Explain } from '../../core/msi'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, DataTable, Legend, NumberField, Panel, Presets, Segmented, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Callout, DataTable, Legend, NumberField, Presets, Segmented, Toggle, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { BitRow, BitToggle, bitOf, bubble, gatePath, int, netClass, pick, pts, W, type NetState, type Shape } from './common'
+import { BitRow, BitToggle, bitOf, Board, bubble, Details, Flow, gatePath, int, netClass, Options, pick, PlayBar, polyD, pts, seg, W, type NetState, type Shape } from './common'
 import { ADDER_PRESETS } from './presets'
 
 type Mode = 'ha' | 'fa' | 'rc'
@@ -71,60 +71,64 @@ export default function AdderTab({ intro }: { intro: ReactNode }) {
     />
   )
 
-  const controls = (
-    <Panel title="Inputs">
-      <div className="ms-row">
-        <Segmented
-          label="Circuit"
-          value={mode}
-          onChange={(m) => {
-            setMode(m)
-            stepper.first()
-          }}
-          options={[
-            { value: 'ha', label: 'half adder', title: 'L17 p6-7' },
-            { value: 'fa', label: 'full adder', title: 'Two half adders and an OR gate (L17 p9-12)' },
-            { value: 'rc', label: 'ripple-carry adder', title: 'Full adders chained by their carries (L17 p18-21)' },
-          ]}
-        />
-        {mode === 'rc' ? (
-          <>
-            <NumberField label="Width" value={n} onChange={(v) => setN(Math.min(16, Math.max(1, Math.trunc(v))))} min={1} max={16} suffix="bits" />
-            <Segmented
-              label="Bit names"
-              value={nb}
-              onChange={setNb}
-              options={[
-                { value: 'lec', label: 'lecture, 1 = LSB', title: 'X4..X1, C1 in, C5 out (L17 p20)' },
-                { value: 'tut', label: 'tutorial, 0 = LSB', title: 'X3..X0 (T07)' },
-              ]}
-            />
-          </>
-        ) : null}
-      </div>
-      <div className="ms-row">
-        {mode === 'ha' ? (
-          <BitRow label="Inputs X, Y" names={['X', 'Y']} value={hm} onChange={setH} />
-        ) : mode === 'fa' ? (
-          <BitRow label="Inputs X, Y and carry-in Z" names={['X', 'Y', 'Z']} value={fm} onChange={setF} />
-        ) : (
-          <>
-            <BitRow label={`X = ${x}`} names={Array.from({ length: n }, (_, j) => name('X', n - 1 - j))} value={x} onChange={setX} />
-            <BitRow label={`Y = ${y}`} names={Array.from({ length: n }, (_, j) => name('Y', n - 1 - j))} value={y} onChange={setY} />
-            <div className="ms-bitrow">
-              <span className="control-label">Carry-in</span>
-              <div className="ms-bits">
-                <BitToggle label={nb === 'lec' ? 'C1' : 'Cin'} value={cin} onChange={setC} />
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-      <div className="ms-row ms-toggles">
-        <Toggle label="Show only what has settled" checked={fo} onChange={setFocus} hint="Hides every wire and gate whose value is not stable yet at this step" />
-      </div>
-    </Panel>
+  const circuitPick = (
+    <Segmented
+      label="Circuit"
+      value={mode}
+      onChange={(m) => {
+        setMode(m)
+        stepper.first()
+      }}
+      options={[
+        { value: 'ha', label: 'half adder', title: 'L17 p6-7' },
+        { value: 'fa', label: 'full adder', title: 'Two half adders and an OR gate (L17 p9-12)' },
+        { value: 'rc', label: 'ripple-carry adder', title: 'Full adders chained by their carries (L17 p18-21)' },
+      ]}
+    />
   )
+
+  const command = (
+    <div className="ms-command">
+      {circuitPick}
+      {mode === 'ha' ? (
+        <BitRow label="Inputs X, Y" names={['X', 'Y']} value={hm} onChange={setH} />
+      ) : mode === 'fa' ? (
+        <BitRow label="Inputs X, Y and carry-in Z" names={['X', 'Y', 'Z']} value={fm} onChange={setF} />
+      ) : (
+        <>
+          <BitRow label={`X = ${x}`} names={Array.from({ length: n }, (_, j) => name('X', n - 1 - j))} value={x} onChange={setX} />
+          <BitRow label={`Y = ${y}`} names={Array.from({ length: n }, (_, j) => name('Y', n - 1 - j))} value={y} onChange={setY} />
+          <div className="ms-bitrow">
+            <span className="control-label">Carry-in</span>
+            <div className="ms-bits">
+              <BitToggle label={nb === 'lec' ? 'C1' : 'Cin'} value={cin} onChange={setC} />
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+
+  const options =
+    mode === 'rc' ? (
+      <Options summary="Width and bit names">
+        <div className="ms-row">
+          <NumberField label="Width" value={n} onChange={(v) => setN(Math.min(16, Math.max(1, Math.trunc(v))))} min={1} max={16} suffix="bits" />
+          <Segmented
+            label="Bit names"
+            value={nb}
+            onChange={setNb}
+            options={[
+              { value: 'lec', label: 'lecture, 1 = LSB', title: 'X4..X1, C1 in, C5 out (L17 p20)' },
+              { value: 'tut', label: 'tutorial, 0 = LSB', title: 'X3..X0 (T07)' },
+            ]}
+          />
+        </div>
+      </Options>
+    ) : null
+
+  const settled = <Toggle label="Show only what has settled" checked={fo} onChange={setFocus} hint="Hides every wire and gate whose value is not stable yet at this step" />
+  const play = <PlayBar stepper={stepper} start="Step through the gate delays" next={`t = ${T(t + 1)}`} />
 
   const legend = (
     <Legend
@@ -164,57 +168,68 @@ export default function AdderTab({ intro }: { intro: ReactNode }) {
         intro={intro}
         toolbar={toolbar}
         transport={<Transport stepper={stepper} label="Gate delay" marks={Array.from({ length: steps }, (_, i) => (i === steps - 1 ? 'path' : undefined))} describe={`t = ${T(t)}: ${describe}`} />}
-        inspector={
-          <>
-            <Panel title="Outputs">
-              <dl className="ms-facts">
-                <dt>Sum S</dt>
-                <dd>
-                  <W e={why.s}>
-                    <span className="mono">S = {res.s}</span>
-                  </W>
-                  <span className="ms-muted"> stable at {half ? 't' : <W e={tm.why.s}>{T(tm.s)}</W>}</span>
-                </dd>
-                <dt>Carry C</dt>
-                <dd>
-                  <W e={why.c}>
-                    <span className="mono">C = {res.c}</span>
-                  </W>
-                  <span className="ms-muted"> stable at {half ? 't' : <W e={tm.why.cout}>{T(tm.cout)}</W>}</span>
-                </dd>
-                <dt>As minterms</dt>
-                <dd className="mono">
-                  C = Σm({cOn.join(',')}), S = Σm({sOn.join(',')})
-                </dd>
-              </dl>
-            </Panel>
-            <Panel flush title="Truth table">
-              <DataTable compact columns={cols} rows={rows} rowSignal={(r) => (r === cur ? 'path' : undefined)} />
-            </Panel>
-          </>
-        }
       >
-        {controls}
-        <Panel flush title={half ? 'Half adder: S = X⊕Y, C = X∙Y' : 'Full adder: two half adders and an OR gate'} actions={<span className="ms-muted mono">t = {T(t)}</span>}>
-          <div className="ms-scroll">
-            <FaGates half={half} x={half ? hx : fx} y={half ? hy : fy} z={fz} t={t} focus={fo} />
-          </div>
-          <div className="ms-pad">{legend}</div>
-        </Panel>
-        <div className="ms-callouts">
-          <Callout kind="course" title="Every gate costs one delay t" cite="L17 p34-35">
-            A gate output is stable at the latest input time plus t, and XOR counts as one gate. The full adder is drawn as two half adders and an OR gate, so S is stable at 2t
-            and C at 3t.
-          </Callout>
-          <Callout kind="trap" title="The delay depends on the drawing" cite="L17 p35">
-            The 2t and 3t only hold for the two half adders plus OR drawing. A full adder built as the SOP C = XY + XZ + YZ has different gate delays.
-          </Callout>
-        </div>
+        {command}
+        <Board title={half ? 'Half adder: S = X⊕Y, C = X∙Y' : 'Full adder: two half adders and an OR gate'} step={`t = ${T(t)}`} note={describe} tools={settled} play={play} foot={legend}>
+          <FaGates half={half} x={half ? hx : fx} y={half ? hy : fy} z={fz} t={t} focus={fo} />
+        </Board>
+        <Details
+          tabs={[
+            {
+              value: 'out',
+              label: 'Outputs',
+              body: (
+                <dl className="ms-facts">
+                  <dt>Sum S</dt>
+                  <dd>
+                    <W e={why.s}>
+                      <span className="mono">S = {res.s}</span>
+                    </W>
+                    <span className="ms-muted"> stable at {half ? 't' : <W e={tm.why.s}>{T(tm.s)}</W>}</span>
+                  </dd>
+                  <dt>Carry C</dt>
+                  <dd>
+                    <W e={why.c}>
+                      <span className="mono">C = {res.c}</span>
+                    </W>
+                    <span className="ms-muted"> stable at {half ? 't' : <W e={tm.why.cout}>{T(tm.cout)}</W>}</span>
+                  </dd>
+                  <dt>As minterms</dt>
+                  <dd className="mono">
+                    C = Σm({cOn.join(',')}), S = Σm({sOn.join(',')})
+                  </dd>
+                </dl>
+              ),
+            },
+            { value: 'tt', label: 'Truth table', body: <DataTable compact columns={cols} rows={rows} rowSignal={(r) => (r === cur ? 'path' : undefined)} /> },
+            {
+              value: 'rules',
+              label: 'Rules and traps',
+              body: (
+                <div className="ms-callouts">
+                  <Callout kind="course" title="Every gate costs one delay t" cite="L17 p34-35">
+                    A gate output is stable at the latest input time plus t, and XOR counts as one gate. The full adder is drawn as two half adders and an OR gate, so S is
+                    stable at 2t and C at 3t.
+                  </Callout>
+                  <Callout kind="trap" title="The delay depends on the drawing" cite="L17 p35">
+                    The 2t and 3t only hold for the two half adders plus OR drawing. A full adder built as the SOP C = XY + XZ + YZ has different gate delays.
+                  </Callout>
+                </div>
+              ),
+            },
+          ]}
+        />
       </Workspace>
     )
   }
 
-  if (!trace) return <Workspace title="Combinational and MSI" lectures="L17 p18-38" intro={intro} toolbar={toolbar}>{controls}</Workspace>
+  if (!trace)
+    return (
+      <Workspace title="Combinational and MSI" lectures="L17 p18-38" intro={intro} toolbar={toolbar}>
+        {command}
+        {options}
+      </Workspace>
+    )
 
   const stageCols: Column<AdderTrace['stages'][number]>[] = [
     { key: 'fa', header: 'Stage', cell: (s) => `FA ${nb === 'lec' ? s.i : s.bit}` },
@@ -261,64 +276,65 @@ export default function AdderTab({ intro }: { intro: ReactNode }) {
           describe={`t = ${T(t)}: ${describe}`}
         />
       }
-      inspector={
-        <>
-          <Panel title="Result and delay">
-            <dl className="ms-facts">
-              <dt>Sum</dt>
-              <dd>
-                <W e={trace.why.total}>
-                  <span className="mono">
-                    {last.timing.cout <= t ? `${trace.cout} ${trace.columns.sum} = ${trace.total}` : 'not settled yet'}
-                  </span>
-                </W>
-              </dd>
-              <dt>{nb === 'lec' ? `S${n}` : `S${n - 1}`} stable at</dt>
-              <dd>
-                <W e={trace.delay.why}>{T(trace.delay.s)}</W>
-              </dd>
-              <dt>{outName} stable at</dt>
-              <dd>
-                <W e={trace.delay.why}>{T(trace.delay.cout)}</W>
-              </dd>
-              <dt>Truth table</dt>
-              <dd>
-                {2 * n + 1} inputs, so {(2 ** (2 * n + 1)).toLocaleString('en')} rows. Cascade full adders instead.
-              </dd>
-            </dl>
-          </Panel>
-          <Panel flush title="Stages">
-            <DataTable
-              compact
-              columns={stageCols}
-              rows={trace.stages}
-              rowSignal={(s) => (s.timing.s === t || s.timing.cout === t ? 'path' : undefined)}
-            />
-          </Panel>
-        </>
-      }
     >
-      {controls}
-      <Panel flush title={`${n}-bit ripple-carry adder`} actions={<span className="ms-muted mono">t = {T(t)}</span>}>
-        <div className="ms-scroll">
-          <RippleSvg trace={trace} t={t} focus={fo} name={name} cinName={nb === 'lec' ? 'C1' : 'Cin'} outName={outName} />
-        </div>
-        <div className="ms-pad">{legend}</div>
-      </Panel>
-      <Panel title="Column addition">
-        <ColumnSum trace={trace} t={t} name={name} />
-      </Panel>
-      <div className="ms-callouts">
-        <Callout kind="course" title="Two numberings" cite="L17 p20; T07">
-          The lecture numbers the bits from 1 (X4..X1, carry-in C1, carry-out C5). The tutorials number them from 0 (X3..X0). Switch with Bit names.
-        </Callout>
-        <Callout kind="course" title="The carry ripples" cite="L17 p36-38">
-          Each stage waits for the carry from the stage below, 2t more per stage. For n bits, Sn is stable at ((n-1)∙2+2)t and Cn+1 at ((n-1)∙2+3)t.
-        </Callout>
-        <Callout kind="trap" title="Not from a truth table" cite="L17 p19">
-          A 4-bit adder has 9 inputs, so a truth table needs 512 rows. Build it from blocks: full adders, or 4-bit adders chained through their carries (L17 p24).
-        </Callout>
-      </div>
+      {command}
+      {options}
+      <Board title={`${n}-bit ripple-carry adder`} step={`t = ${T(t)}`} note={describe} tools={settled} play={play} foot={legend}>
+        <RippleSvg trace={trace} t={t} focus={fo} name={name} cinName={nb === 'lec' ? 'C1' : 'Cin'} outName={outName} />
+      </Board>
+      <Details
+        tabs={[
+          { value: 'cols', label: 'Column addition', body: <ColumnSum trace={trace} t={t} name={name} /> },
+          {
+            value: 'stages',
+            label: 'Stages',
+            body: <DataTable compact columns={stageCols} rows={trace.stages} rowSignal={(s) => (s.timing.s === t || s.timing.cout === t ? 'path' : undefined)} />,
+          },
+          {
+            value: 'delay',
+            label: 'Result and delay',
+            body: (
+              <dl className="ms-facts">
+                <dt>Sum</dt>
+                <dd>
+                  <W e={trace.why.total}>
+                    <span className="mono">{last.timing.cout <= t ? `${trace.cout} ${trace.columns.sum} = ${trace.total}` : 'not settled yet'}</span>
+                  </W>
+                </dd>
+                <dt>{nb === 'lec' ? `S${n}` : `S${n - 1}`} stable at</dt>
+                <dd>
+                  <W e={trace.delay.why}>{T(trace.delay.s)}</W>
+                </dd>
+                <dt>{outName} stable at</dt>
+                <dd>
+                  <W e={trace.delay.why}>{T(trace.delay.cout)}</W>
+                </dd>
+                <dt>Truth table</dt>
+                <dd>
+                  {2 * n + 1} inputs, so {(2 ** (2 * n + 1)).toLocaleString('en')} rows. Cascade full adders instead.
+                </dd>
+              </dl>
+            ),
+          },
+          {
+            value: 'rules',
+            label: 'Rules and traps',
+            body: (
+              <div className="ms-callouts">
+                <Callout kind="course" title="Two numberings" cite="L17 p20; T07">
+                  The lecture numbers the bits from 1 (X4..X1, carry-in C1, carry-out C5). The tutorials number them from 0 (X3..X0). Switch under Width and bit names.
+                </Callout>
+                <Callout kind="course" title="The carry ripples" cite="L17 p36-38">
+                  Each stage waits for the carry from the stage below, 2t more per stage. For n bits, Sn is stable at ((n-1)∙2+2)t and Cn+1 at ((n-1)∙2+3)t.
+                </Callout>
+                <Callout kind="trap" title="Not from a truth table" cite="L17 p19">
+                  A 4-bit adder has 9 inputs, so a truth table needs 512 rows. Build it from blocks: full adders, or 4-bit adders chained through their carries (L17 p24).
+                </Callout>
+              </div>
+            ),
+          },
+        ]}
+      />
     </Workspace>
   )
 }
@@ -403,6 +419,7 @@ function FaGates({ half, x, y, z, t, focus }: { half: boolean; x: 0 | 1; y: 0 | 
           </g>
         )
       })}
+      <Flow id={t} paths={nets.filter((nt) => nt.time === t).flatMap((nt) => nt.lines.map(polyD))} />
       {['X', 'Y', ...(half ? [] : ['Z'])].map((v, i) => (
         <text key={v} x={8} y={[44, 74, 176][i]} className="ms-label">
           {v}
@@ -463,6 +480,16 @@ function RippleSvg({
   const H = TOP + BH + 62
   const val = (s: NetState, v: 0 | 1) => (s === 'wait' ? '?' : String(v))
   const vcls = (s: NetState, v: 0 | 1) => `ms-val v-${s === 'wait' ? 'x' : v}`
+  // The wires that settle at this step: the inputs at t = 0, then each carry as it ripples and each sum.
+  const flow = trace.stages.flatMap((st, k) => {
+    const bx = x0(k)
+    return [
+      ...(t === 0 ? [seg(bx + 30, 20, bx + 30, TOP), seg(bx + 66, 20, bx + 66, TOP)] : []),
+      ...(st.timing.cin === t ? [seg(k === 0 ? bx + BW + 40 : x0(k - 1), CY, bx + BW, CY)] : []),
+      ...(st.timing.s === t ? [seg(bx + BW / 2, TOP + BH, bx + BW / 2, TOP + BH + 26)] : []),
+      ...(k === n - 1 && st.timing.cout === t ? [seg(bx, CY, bx - 40, CY)] : []),
+    ]
+  })
   return (
     <svg className="ms-svg" viewBox={`0 0 ${VW} ${H}`} width={VW} height={H} role="img" aria-label={`${n}-bit ripple-carry adder`}>
       <title>{`${n}-bit ripple-carry adder at t = ${T(t)}`}</title>
@@ -526,6 +553,7 @@ function RippleSvg({
           </g>
         )
       })}
+      <Flow id={t} paths={flow} />
     </svg>
   )
 }
