@@ -262,6 +262,7 @@ export function Button({
   variant = 'plain',
   title,
   disabled,
+  ariaLabel,
 }: {
   children: ReactNode
   onClick: () => void
