@@ -43,4 +43,12 @@ export function useUrlState<T>(key: string, initial: T): [T, (next: T | ((prev: 
   return [value, set]
 }
 
+/** Build a link to a route with some URL state already filled in (same encoding as useUrlState). */
+export function linkWithState(path: string, state: Record<string, unknown> = {}): string {
+  const q = new URLSearchParams()
+  for (const [k, v] of Object.entries(state)) q.set(k, encode(v))
+  const qs = q.toString()
+  return `#${path}${qs ? `?${qs}` : ''}`
+}
+
 export const __test = { encode, decode }

@@ -6,7 +6,7 @@ import {
 } from '../../core/datapath'
 import { hex, parseMemInit, parseRegInit, regName } from '../../core/mips'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, Chip, CodeEditor, DataTable, Panel, Presets, Segmented, Select, TextField, Toggle, Workspace } from '../../ui/kit'
+import { Callout, Chip, CodeEditor, DataTable, Panel, Presets, Segmented, Select, Tabs, TextField, Toggle, Workspace } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import {
   AluCodeTable, AluControlTable, AluopTable, DatapathLegend, ExplainText, MainControlTable, W, mainRowName, parseNum, useUrlStepper, type NumMode,
@@ -53,25 +53,36 @@ function InputPanel({ x }: { x: TraceInputs }) {
   const ins = x.result.instr
   const reads = t ? [...new Set([t.ports.RR1.used ? t.instr.rs : -1, t.ports.RR2.used ? t.instr.rt : -1])].filter((n) => n > 0) : []
   return (
-    <Panel title="Instruction and machine state">
+    <div className="dp-command">
+      <div className="dp-command-bar glow-input">
+        <label className="dp-command-label" htmlFor="dp-src">
+          Instruction
+        </label>
+        <input
+          id="dp-src"
+          className="dp-command-input mono"
+          value={x.src}
+          onChange={(e) => x.setSrc(e.target.value)}
+          placeholder="add $t2, $t0, $t1"
+          spellCheck={false}
+          autoComplete="off"
+        />
+        {ins ? <span className="dp-command-word mono" title="The 32-bit word this assembles to">{hex(ins.word)}</span> : null}
+      </div>
+      {!x.result.ok && !x.result.support ? (
+        <ul className="code-errors">
+          {x.result.errors.map((e, i) => (
+            <li key={i}>{e.message}</li>
+          ))}
+        </ul>
+      ) : null}
+      {x.pcError ? <p className="dp-err">PC: {x.pcError}</p> : null}
+      <details className="dp-machine">
+        <summary>Registers, memory and options</summary>
       <div className="dp-inputs">
         <div className="dp-input-row">
-          <TextField label="Instruction (assembly or hex word)" value={x.src} onChange={x.setSrc} placeholder="add $t2, $t0, $t1" width="20em" />
           <TextField label="PC" value={x.pc} onChange={x.setPc} width="8.5em" />
         </div>
-        {!x.result.ok && !x.result.support ? (
-          <ul className="code-errors">
-            {x.result.errors.map((e, i) => (
-              <li key={i}>{e.message}</li>
-            ))}
-          </ul>
-        ) : null}
-        {x.pcError ? <p className="dp-err">PC: {x.pcError}</p> : null}
-        {ins ? (
-          <p className="dp-decoded mono">
-            {hex(ins.word)} = {ins.text}
-          </p>
-        ) : null}
         <div className="dp-input-row">
           <CodeEditor label="Registers (one $reg = value per line)" value={x.regs} onChange={x.setRegs} rows={3} errors={lineErrors(x.regErrors)} />
           <CodeEditor label="Memory words (address: word, word)" value={x.mem} onChange={x.setMem} rows={3} errors={lineErrors(x.memErrors)} />
@@ -104,7 +115,8 @@ function InputPanel({ x }: { x: TraceInputs }) {
           ) : null}
         </div>
       </div>
-    </Panel>
+      </details>
+    </div>
   )
 }
 
@@ -144,7 +156,8 @@ function StagePanel({ t, k, num }: { t: DatapathTrace; k: number; num: NumMode }
   if (k === WHOLE) {
     const c = t.commit
     return (
-      <Panel title="Whole cycle: what the clock edge writes" actions={<span className="dp-cite">L11 p18, p23, p40</span>}>
+      <div className="dp-step-body">
+        <p className="dp-does">The clock edge writes the results. <span className="dp-cite">L11 p18, p23, p40</span></p>
         <ul className="dp-commit">
           <li>
             <span className="dp-commit-k">PC</span> <W e={c.pc.why}><span className="mono">{num === 'dec' ? String(c.pc.value | 0) : hex(c.pc.value)}</span></W>
@@ -179,19 +192,21 @@ function StagePanel({ t, k, num }: { t: DatapathTrace; k: number; num: NumMode }
             {n}
           </p>
         ))}
-        <p className="dp-hint">Every unit computed a value this cycle. The dashed wires carry values that a mux or an enable threw away (T04 Answers p3).</p>
-      </Panel>
+        <p className="dp-hint">Dashed wires carry values that a mux or an enable threw away (T04 Answers p3).</p>
+      </div>
     )
   }
   const f = t.frames[k]
   return (
-    <Panel title={`Stage ${k + 1} of 5: ${f.title}`} actions={<span className="dp-cite">{f.cite}</span>}>
+    <div className="dp-step-body">
       {f.idle ? (
         <p className="dp-idle">
           <Chip signal="stall">idle</Chip> This instruction does nothing useful in this stage.
         </p>
       ) : null}
-      <p className="dp-does">{f.does}</p>
+      <p className="dp-does">
+        {f.does} <span className="dp-cite">{f.cite}</span>
+      </p>
       {f.signals.length ? (
         <div className="dp-signals" aria-label="Control signals acting in this stage">
           {f.signals.map((s) => (
@@ -214,7 +229,7 @@ function StagePanel({ t, k, num }: { t: DatapathTrace; k: number; num: NumMode }
           </div>
         ))}
       </dl>
-    </Panel>
+    </div>
   )
 }
 
@@ -351,9 +366,22 @@ function WireTable({ t, num, onPick }: { t: DatapathTrace; num: NumMode; onPick:
   )
 }
 
+type DetailTab = 't04' | 'signals' | 'main' | 'alu' | 'fields' | 'wires' | 'notes'
+
+const DETAIL_TABS: { value: DetailTab; label: string }[] = [
+  { value: 'signals', label: 'Control signals' },
+  { value: 't04', label: 'T04 Q3 table' },
+  { value: 'main', label: 'Main control table' },
+  { value: 'alu', label: 'ALU control' },
+  { value: 'fields', label: 'Instruction fields' },
+  { value: 'wires', label: 'All wires' },
+  { value: 'notes', label: 'Traps and conventions' },
+]
+
 export default function TraceTab({ intro, x }: { intro: ReactNode; x: TraceInputs }) {
   const [num, setNum] = useUrlState<NumMode>('num', 'hex')
   const [focus, setFocus] = useUrlState('focus', false)
+  const [detail, setDetail] = useUrlState<DetailTab>('dt', 'signals')
   const [sel, setSel] = useState<string | null>(null)
   const res = x.result
   const t = res.ok ? res : null
@@ -363,7 +391,13 @@ export default function TraceTab({ intro, x }: { intro: ReactNode; x: TraceInput
   const support = res.support
   const row = t ? mainRowName(t.instr.opcode, t.instr.mnemonic) : null
   const marks = t ? [...t.frames.map((f) => (f.idle ? 'stall' : 'path')), 'dirty'] : []
-  const describe = t ? (k === WHOLE ? 'whole cycle, clock edge' : `${t.frames[k].title}${t.frames[k].idle ? ' (idle)' : ''}`) : undefined
+  const describe = t ? (k === WHOLE ? 'Whole cycle: the clock edge writes' : `${t.frames[k].title}${t.frames[k].idle ? ' (idle)' : ''}`) : undefined
+  const atEnd = k >= WHOLE
+  const playLabel = stepper.playing ? 'Pause' : atEnd ? 'Trace it again' : k === 0 ? 'Trace this instruction' : 'Play from here'
+  const onPlay = () => {
+    if (atEnd && !stepper.playing) stepper.first()
+    stepper.toggle()
+  }
 
   return (
     <Workspace
@@ -371,23 +405,18 @@ export default function TraceTab({ intro, x }: { intro: ReactNode; x: TraceInput
       lectures="L11 to L12, T04 to T05, R05 to R06"
       intro={intro}
       toolbar={
-        <>
-          <Presets
-            presets={TRACE_PRESETS.map((p) => ({ name: p.name, source: p.source, value: p }))}
-            onPick={(p) => {
-              x.load(p)
-              stepper.set(WHOLE)
-              setSel(null)
-            }}
-          />
-        </>
+        <Presets
+          presets={TRACE_PRESETS.map((p) => ({ name: p.name, source: p.source, value: p }))}
+          onPick={(p) => {
+            x.load(p)
+            stepper.set(0)
+            setSel(null)
+          }}
+        />
       }
       transport={t ? <Transport stepper={stepper} label="step" marks={marks} describe={describe} /> : undefined}
     >
-      <div className="dp-top">
-        <InputPanel x={x} />
-        {t ? <StagePanel t={t} k={k} num={num} /> : null}
-      </div>
+      <InputPanel x={x} />
       {support ? <SupportCallouts support={support} ok={res.ok} /> : null}
       {t && t.control.faults.length ? (
         <Callout kind="trap" title="Hardware fault in effect" cite="AY15/16 Q9b, AY17/18 Q4c">
@@ -395,73 +424,112 @@ export default function TraceTab({ intro, x }: { intro: ReactNode; x: TraceInput
         </Callout>
       ) : null}
 
-      <Panel
-        title={t ? `${t.instr.text} at ${hex(t.pc)}: ${STEP_TITLES[k].toLowerCase()}` : 'Single-cycle datapath with control (L12 p30)'}
-        actions={
-          <div className="dp-diagram-actions">
-            <Segmented label="Numbers" value={num} onChange={setNum} options={[{ value: 'hex', label: 'Hex' }, { value: 'dec', label: 'Decimal' }]} />
-            <Toggle label="Show only what this instruction uses" checked={focus} onChange={setFocus} hint="Hide every unit and wire whose value is thrown away, and anything after the current stage" />
+      <div className="dp-stage">
+        <div className="dp-board canvas">
+          <div className="dp-board-bar">
+            <p className="dp-board-title">
+              {t ? (
+                <>
+                  <span className="mono">{t.instr.text}</span>
+                  <span className="dp-board-step">{STEP_TITLES[k]}</span>
+                </>
+              ) : (
+                'Single-cycle datapath with control (L12 p30)'
+              )}
+            </p>
+            <div className="dp-diagram-actions">
+              <Segmented label="Numbers" value={num} onChange={setNum} options={[{ value: 'hex', label: 'Hex' }, { value: 'dec', label: 'Decimal' }]} />
+              <Toggle label="Show only what this instruction uses" checked={focus} onChange={setFocus} hint="Hide every unit and wire whose value is thrown away, and anything after the current stage" />
+            </div>
           </div>
-        }
-        flush
-      >
-        <div className="dp-scroll">
-          <Diagram model={model} selected={sel} onSelect={(id) => setSel((s) => (s === id ? null : id))} label={t ? `Datapath for ${t.instr.text}, ${STEP_TITLES[k]}` : 'Datapath without values'} />
+          <div className="dp-scroll">
+            <Diagram model={model} step={k} flow={k === WHOLE ? ['now', 'past'] : ['now']} selected={sel} onSelect={(id) => setSel((s) => (s === id ? null : id))} label={t ? `Datapath for ${t.instr.text}, ${STEP_TITLES[k]}` : 'Datapath without values'} />
+          </div>
+          {t ? (
+            <div className="dp-board-play">
+              <button type="button" className="dp-play" onClick={onPlay} data-playing={stepper.playing}>
+                {stepper.playing ? (
+                  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3h3v10H4zM9 3h3v10H9z" /></svg>
+                ) : (
+                  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2.8l9 5.2-9 5.2z" /></svg>
+                )}
+                {playLabel}
+              </button>
+              {!atEnd ? (
+                <button type="button" className="dp-next" onClick={stepper.next}>
+                  Next: {STEP_TITLES[k + 1]}
+                  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" /></svg>
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="dp-diagram-foot">
+            <DatapathLegend />
+          </div>
         </div>
-        <div className="dp-diagram-foot">
-          <DatapathLegend />
-          <p className="dp-hint">Click or Tab to any wire or unit to see how its value is worked out. MemToReg has input 1 on top (L12 p15). Drawing after L11 p48 and L12 p30.</p>
-        </div>
-      </Panel>
-      {t && sel ? <SelectedPanel t={t} sel={sel} num={num} onClear={() => setSel(null)} /> : null}
+
+        {t ? (
+          <aside className="dp-story" aria-label="What happens at each step">
+            <ol className="dp-steps">
+              {STEP_TITLES.map((title, i) => (
+                <li key={title} className={i === k ? 'is-now' : i < k ? 'is-past' : 'is-next'}>
+                  <button type="button" className="dp-step-btn" onClick={() => stepper.set(i)} aria-current={i === k ? 'step' : undefined}>
+                    <span className="dp-step-dot" aria-hidden="true" />
+                    <span>{title}</span>
+                    {i < WHOLE && t.frames[i].idle ? <span className="dp-step-idle">idle</span> : null}
+                  </button>
+                  {i === k ? <StagePanel t={t} k={k} num={num} /> : null}
+                </li>
+              ))}
+            </ol>
+            {sel ? <SelectedPanel t={t} sel={sel} num={num} onClear={() => setSel(null)} /> : <p className="dp-tip">Click any wire or unit to see how its value was worked out.</p>}
+          </aside>
+        ) : null}
+      </div>
 
       {t ? (
-        <div className="dp-grid">
-          <Panel title="T04 Q3 table">
-            <T04Table t={t} num={num} />
-          </Panel>
-          <Panel title="Control signals">
-            <SignalsTable t={t} />
-            <p className="dp-hint">
-              PCSrc = <W e={t.control.pcSrcWhy}>{t.control.pcSrc}</W>, ALUcontrol = <span className="mono">{t.control.aluControl}</span> ({t.control.aluAction})
-            </p>
-          </Panel>
-          <Panel title="Main control table">
-            <MainControlTable active={row} />
-          </Panel>
-          <Panel title="ALU control, two levels">
-            <AluopTable aluop={t.control.aluop} />
-            <AluControlTable aluop={t.control.aluop} funct={t.instr.funct} instr={t.instr.mnemonic} />
-            <AluCodeTable code={t.control.aluControl} />
-          </Panel>
-          <Panel title="Instruction fields">
-            <FieldsTable t={t} />
-          </Panel>
-          <Panel title="Traps for this instruction">
-            <Callout kind="trap">
-              <ul className="dp-traps">
-                {t.traps.map((tr) => (
-                  <li key={tr.rule}>
-                    {tr.rule}. <span className="dp-cite">{tr.cite}</span>
-                  </li>
-                ))}
-              </ul>
-            </Callout>
-            <Callout kind="course" title="Course conventions">
-              <ul className="dp-traps">
-                <li>RegDst 0 picks rt, 1 picks rd; ALUSrc 0 picks RD2, 1 picks the sign-extended immediate (L12 p10, p12).</li>
-                <li>The MemToReg mux is drawn with 1 (memory data) on top (L12 p15).</li>
-                <li>Where the ALUSrc mux sits differs: L11 p31 puts it in decode, L12 p5 in the ALU stage. Switch it above.</li>
-                <li>Stages differ between lectures: L12 p5 puts RegDst and RegWrite in decode, while the pipeline uses RegDst in EX and RegWrite in WB (L20 p27). The control signals table shows both.</li>
-              </ul>
-            </Callout>
-          </Panel>
-          <Panel title="All wire values" className="dp-span">
-            <WireTable t={t} num={num} onPick={setSel} />
-          </Panel>
-        </div>
+        <section className="dp-details" aria-label="Tables for this instruction">
+          <Tabs label="Tables" value={detail} onChange={setDetail} tabs={DETAIL_TABS} />
+          <div className="dp-detail-body">
+            {detail === 't04' ? <T04Table t={t} num={num} /> : null}
+            {detail === 'signals' ? (
+              <>
+                <SignalsTable t={t} />
+                <p className="dp-hint">
+                  PCSrc = <W e={t.control.pcSrcWhy}>{t.control.pcSrc}</W>, ALUcontrol = <span className="mono">{t.control.aluControl}</span> ({t.control.aluAction})
+                </p>
+              </>
+            ) : null}
+            {detail === 'main' ? <MainControlTable active={row} /> : null}
+            {detail === 'alu' ? (
+              <div className="dp-alu-tables">
+                <AluopTable aluop={t.control.aluop} />
+                <AluControlTable aluop={t.control.aluop} funct={t.instr.funct} instr={t.instr.mnemonic} />
+                <AluCodeTable code={t.control.aluControl} />
+              </div>
+            ) : null}
+            {detail === 'fields' ? <FieldsTable t={t} /> : null}
+            {detail === 'wires' ? <WireTable t={t} num={num} onPick={setSel} /> : null}
+            {detail === 'notes' ? (
+              <div className="dp-notes">
+                <ul className="dp-traps">
+                  {t.traps.map((tr) => (
+                    <li key={tr.rule}>
+                      {tr.rule}. <span className="dp-cite">{tr.cite}</span>
+                    </li>
+                  ))}
+                </ul>
+                <ul className="dp-traps">
+                  <li>RegDst 0 picks rt, 1 picks rd; ALUSrc 0 picks RD2, 1 picks the sign-extended immediate (L12 p10, p12).</li>
+                  <li>The MemToReg mux is drawn with 1 (memory data) on top (L12 p15).</li>
+                  <li>Where the ALUSrc mux sits differs: L11 p31 puts it in decode, L12 p5 in the ALU stage. Switch it under Registers, memory and options.</li>
+                  <li>RegDst and RegWrite act in decode in L12 p5, but in EX and WB in the pipeline (L20 p27). The control signals table shows both.</li>
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        </section>
       ) : null}
     </Workspace>
   )
 }
-

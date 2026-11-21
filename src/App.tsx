@@ -2,6 +2,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { href, useLocation } from './lib/router'
 import { GROUPS, MODULES } from './modules/registry'
 import { Home } from './pages/Home'
+import { rememberModule } from './pages/recent'
 
 type Theme = 'system' | 'light' | 'dark'
 
@@ -26,13 +27,20 @@ function useTheme(): [Theme, (t: Theme) => void] {
       /* storage blocked: theme still applies for this visit */
     }
   }, [theme])
-  // PDFs always print in the light theme, whatever is on screen.
+  // PDFs always print in the light theme, whatever is on screen, with folded notes opened.
   useEffect(() => {
     const root = document.documentElement
-    const before = () => root.setAttribute('data-theme', 'light')
+    let opened: HTMLDetailsElement[] = []
+    const before = () => {
+      root.setAttribute('data-theme', 'light')
+      opened = [...document.querySelectorAll<HTMLDetailsElement>('details:not([open])')]
+      opened.forEach((d) => (d.open = true))
+    }
     const after = () => {
       if (theme === 'system') root.removeAttribute('data-theme')
       else root.setAttribute('data-theme', theme)
+      opened.forEach((d) => (d.open = false))
+      opened = []
     }
     window.addEventListener('beforeprint', before)
     window.addEventListener('afterprint', after)
@@ -42,6 +50,20 @@ function useTheme(): [Theme, (t: Theme) => void] {
     }
   }, [theme])
   return [theme, setTheme]
+}
+
+/** While a module loads: a small chip draws itself, pin by pin. */
+function Loader({ what }: { what: string }) {
+  return (
+    <div className="loader" role="status">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="16" y="16" width="32" height="32" rx="4" pathLength={1} />
+        <path className="ld-2" d="M24 16V9M32 16V9M40 16V9M24 48v7M32 48v7M40 48v7M16 24H9M16 32H9M16 40H9M48 24h7M48 32h7M48 40h7" pathLength={1} />
+        <path className="ld-3" d="M24 38h8V26h8" pathLength={1} />
+      </svg>
+      <span>Loading {what}</span>
+    </div>
+  )
 }
 
 export function BrandMark() {
@@ -65,6 +87,7 @@ export default function App() {
 
   useEffect(() => {
     setRailOpen(false)
+    if (mod) rememberModule(mod.id)
     document.title = mod ? `${mod.title} | CS2100 Tracer` : 'CS2100 Tracer'
     window.scrollTo(0, 0)
   }, [path, mod])
@@ -121,11 +144,15 @@ export default function App() {
       </nav>
       <main className="app-main" id="main">
         {Page ? (
-          <Suspense fallback={<p className="loading">Loading {mod.title}…</p>}>
-            <Page />
+          <Suspense fallback={<Loader what={mod.title} />}>
+            <div className="page-enter" key={path}>
+              <Page />
+            </div>
           </Suspense>
         ) : path === '/' ? (
-          <Home />
+          <div className="page-enter">
+            <Home />
+          </div>
         ) : (
           <div className="workspace">
             <h1>No page at {path}</h1>

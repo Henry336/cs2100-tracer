@@ -151,6 +151,21 @@ function Diagram({ t, f, bug, focus }: { t: PipelineTrace; f: CycleFrame | undef
         const on = !!(o.ctl && o.ins && w.need(o.ctl, o.ins))
         return <path key={i} d={bug && w.d === WB_WRITE_REG ? BUG_WRITE_REG : w.d} className={`pl-wire${w.ctl ? ' pl-wire-ctl' : ''}${on ? ' pl-on' : ''}${on && o.status === 'wrong' ? ' pl-on-wrong' : ''}`} />
       })}
+      {/* Light along the data wires each stage uses this cycle: draws in, then packets flow (decorative). */}
+      {(() => {
+        const lit = WIRES.map((w, i) => ({ w, i, o: occ[w.stage] })).filter(({ w, o }) => !w.ctl && o.status !== 'wrong' && !!(o.ctl && o.ins && w.need(o.ctl, o.ins)))
+        const d = (w: (typeof WIRES)[number]) => (bug && w.d === WB_WRITE_REG ? BUG_WRITE_REG : w.d)
+        return lit.length ? (
+          <>
+            <g className="flow-draw" key={`d${f?.cycle ?? 0}`} aria-hidden="true">
+              {lit.map(({ w, i }) => <path key={i} d={d(w)} pathLength={1} />)}
+            </g>
+            <g className="flow-packets" key={`p${f?.cycle ?? 0}`} aria-hidden="true">
+              {lit.map(({ w, i }, n) => <path key={i} d={d(w)} pathLength={1} style={{ animationDelay: `${0.7 + (n % 5) * 0.18}s` }} />)}
+            </g>
+          </>
+        ) : null
+      })()}
 
       {/* Units */}
       <g className={`pl-part${occ.IF.ins ? ' pl-unit-on' : ''}`}>

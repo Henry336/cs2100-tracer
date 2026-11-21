@@ -1,19 +1,21 @@
 /*
   Design tokens. Signal colours carry meaning and must be used for that meaning only,
   in every module (datapath, pipeline, cache, logic), so a colour reads the same everywhere.
+  Surfaces are neutral graphite (dark) or cool paper (light) so the signals are the only colour.
 */
 :root {
   color-scheme: light;
 
-  /* Surfaces: cool vellum, like engineering drawing film. */
-  --paper: #eef1ee;
-  --panel: #f8faf8;
-  --sunken: #e3e8e4;
-  --grid: #d5ddd7;
-  --rule: #c3ccc6;
-  --ink: #1f2a30;
-  --ink-2: #4a5961;
-  --ink-3: #74838a;
+  /* Surfaces: cool paper. */
+  --paper: #f3f4f5;
+  --panel: #ffffff;
+  --sunken: #eceef0;
+  --raised: #ffffff;
+  --grid: #e1e4e7;
+  --rule: #d9dce0;
+  --ink: #1a1c1f;
+  --ink-2: #50555c;
+  --ink-3: #868b92;
 
   /* Signal colours (wire-insulation inspired). */
   --sig-path: #d9531e;      /* active datapath / the thing that is happening now */
@@ -40,6 +42,14 @@
 
   --focus: #1f63c6;
 
+  /* The primary action is ink on paper, inverted: never a signal colour. */
+  --primary: #1a1c1f;
+  --primary-ink: #ffffff;
+
+  /* Glow used for focus and the "running" state: the signal palette, as on a probe. */
+  --glow: conic-gradient(from var(--glow-a, 0deg), var(--sig-forward), var(--sig-data), var(--sig-control), var(--sig-flush), var(--sig-dirty), var(--sig-forward));
+
+  --font-display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
   --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
@@ -50,6 +60,7 @@
   --fs-lg: 1.125rem;
   --fs-xl: 1.35rem;
   --fs-2xl: 1.62rem;
+  --fs-display: clamp(2rem, 1.3rem + 2.6vw, 3.1rem);
 
   --sp-1: 4px;
   --sp-2: 8px;
@@ -57,35 +68,38 @@
   --sp-4: 16px;
   --sp-5: 24px;
   --sp-6: 32px;
+  --sp-7: 48px;
 
-  /* Radii encode hierarchy: controls are slightly round, panels are square-ish, chips are pills. */
-  --r-control: 5px;
-  --r-panel: 3px;
+  /* Radii encode hierarchy: controls are round, panels are softly round, chips are pills. */
+  --r-control: 8px;
+  --r-panel: 12px;
   --r-pill: 999px;
 
-  --rail-w: 232px;
+  --rail-w: 220px;
   --inspector-w: 360px;
-  --transport-h: 56px;
+  --transport-h: 64px;
 
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* Shadows and the print page. */
-  --shadow-pop: 0 6px 20px rgb(20 30 35 / 0.16);
-  --shadow-bar: 0 -4px 16px rgb(20 30 35 / 0.06);
+  --shadow-pop: 0 10px 30px rgb(15 20 25 / 0.16);
+  --shadow-bar: 0 12px 40px rgb(15 20 25 / 0.18);
   --print-bg: #fff;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --paper: #151b20;
-    --panel: #1b232a;
-    --sunken: #11161a;
-    --grid: #26313a;
-    --rule: #33414c;
-    --ink: #e3e9ec;
-    --ink-2: #a9b6bd;
-    --ink-3: #7d8c94;
+    --paper: #17181a;
+    --panel: #1d1e21;
+    --sunken: #131416;
+    --raised: #25272a;
+    --grid: #26282c;
+    --rule: #2e3034;
+    --ink: #ececed;
+    --ink-2: #a4a6ab;
+    --ink-3: #707379;
     --sig-path: #f07a45;
     --sig-data: #6ea2f0;
     --sig-control: #a888ee;
@@ -96,29 +110,34 @@
     --sig-miss: #ef6b73;
     --sig-dirty: #e3a84a;
     --sig-dontcare: #5d6a72;
-    --tint-path: #3a2419;
-    --tint-data: #1a2b44;
-    --tint-control: #2a2240;
-    --tint-forward: #133430;
-    --tint-stall: #222b31;
-    --tint-flush: #3c1d21;
-    --tint-hit: #173323;
-    --tint-miss: #3c1d21;
-    --tint-dirty: #3a2c14;
+    --tint-path: #35221a;
+    --tint-data: #1a263a;
+    --tint-control: #262038;
+    --tint-forward: #142e2a;
+    --tint-stall: #222428;
+    --tint-flush: #371d20;
+    --tint-hit: #162d20;
+    --tint-miss: #371d20;
+    --tint-dirty: #33281a;
     --focus: #6ea2f0;
+    --primary: #ececed;
+    --primary-ink: #17181a;
+    --shadow-pop: 0 10px 30px rgb(0 0 0 / 0.45);
+    --shadow-bar: 0 14px 44px rgb(0 0 0 / 0.55);
   }
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --paper: #151b20;
-  --panel: #1b232a;
-  --sunken: #11161a;
-  --grid: #26313a;
-  --rule: #33414c;
-  --ink: #e3e9ec;
-  --ink-2: #a9b6bd;
-  --ink-3: #7d8c94;
+  --paper: #17181a;
+  --panel: #1d1e21;
+  --sunken: #131416;
+  --raised: #25272a;
+  --grid: #26282c;
+  --rule: #2e3034;
+  --ink: #ececed;
+  --ink-2: #a4a6ab;
+  --ink-3: #707379;
   --sig-path: #f07a45;
   --sig-data: #6ea2f0;
   --sig-control: #a888ee;
@@ -129,14 +148,18 @@
   --sig-miss: #ef6b73;
   --sig-dirty: #e3a84a;
   --sig-dontcare: #5d6a72;
-  --tint-path: #3a2419;
-  --tint-data: #1a2b44;
-  --tint-control: #2a2240;
-  --tint-forward: #133430;
-  --tint-stall: #222b31;
-  --tint-flush: #3c1d21;
-  --tint-hit: #173323;
-  --tint-miss: #3c1d21;
-  --tint-dirty: #3a2c14;
+  --tint-path: #35221a;
+  --tint-data: #1a263a;
+  --tint-control: #262038;
+  --tint-forward: #142e2a;
+  --tint-stall: #222428;
+  --tint-flush: #371d20;
+  --tint-hit: #162d20;
+  --tint-miss: #371d20;
+  --tint-dirty: #33281a;
   --focus: #6ea2f0;
+  --primary: #ececed;
+  --primary-ink: #17181a;
+  --shadow-pop: 0 10px 30px rgb(0 0 0 / 0.45);
+  --shadow-bar: 0 14px 44px rgb(0 0 0 / 0.55);
 }

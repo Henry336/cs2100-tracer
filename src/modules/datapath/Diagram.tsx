@@ -28,9 +28,26 @@ function activate(e: KeyboardEvent, f: () => void) {
   }
 }
 
-export function Diagram({ model, selected, onSelect, label }: { model: DiagramModel; selected?: string | null; onSelect?: (id: string) => void; label: string }) {
+export function Diagram({
+  model,
+  selected,
+  onSelect,
+  label,
+  step,
+  flow = ['now'],
+}: {
+  model: DiagramModel
+  selected?: string | null
+  onSelect?: (id: string) => void
+  label: string
+  /** Changes when the step changes, so the light animations restart. */
+  step?: number
+  /** Which wire tones get travelling light. */
+  flow?: Tone[]
+}) {
   const wireIds = Object.keys(WIRE_PATH).filter((id) => model.wires[id] && model.wires[id].tone !== 'hidden' && (id !== 'c-branchne' || model.bne))
   const order = [...wireIds].sort((a, b) => RANK[model.wires[a].tone] - RANK[model.wires[b].tone])
+  const flowing = step === undefined ? [] : order.filter((id) => flow.includes(model.wires[id].tone))
   const tone = (id: string): Tone => (wireIds.includes(id) ? model.wires[id].tone : 'hidden')
   const busTone = tone('inst-op')
   const pick = (id: string) => onSelect?.(id)
@@ -51,6 +68,22 @@ export function Diagram({ model, selected, onSelect, label }: { model: DiagramMo
         {busTone !== 'hidden' ? <text x={60} y={420} className="dp-t-field" transform="rotate(-90 60 420)" textAnchor="middle">Instruction [31:0]</text> : null}
         {tone('four') !== 'hidden' ? <text x={326} y={144} className="dp-t-port" textAnchor="end">4</text> : null}
       </g>
+
+      {/* Light along the wires that carry a value in this step: each draws in from its source, then packets keep flowing (decorative). */}
+      {flowing.length ? (
+        <>
+          <g className="flow-draw" key={`d${step}`} aria-hidden="true">
+            {flowing.filter((id) => model.wires[id].tone === 'now').map((id) => (
+              <path key={id} d={WIRE_PATH[id]} pathLength={1} className={model.wires[id].control ? 'ctl' : undefined} />
+            ))}
+          </g>
+          <g className="flow-packets" key={`p${step}`} aria-hidden="true">
+            {flowing.map((id, i) => (
+              <path key={id} d={WIRE_PATH[id]} pathLength={1} className={model.wires[id].control ? 'ctl' : undefined} style={{ animationDelay: `${0.7 + (i % 5) * 0.18}s` }} />
+            ))}
+          </g>
+        </>
+      ) : null}
 
       {/* Units */}
       <g className="dp-units">

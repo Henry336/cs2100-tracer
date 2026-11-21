@@ -26,6 +26,7 @@ export function Workspace({
   inspector?: ReactNode
   transport?: ReactNode
 }) {
+  const [more, setMore] = useState(false)
   return (
     <div className={`workspace${inspector ? ' has-inspector' : ''}${transport ? ' has-transport' : ''}`}>
       <header className="ws-head">
@@ -37,7 +38,14 @@ export function Workspace({
           {toolbar}
           <ExportPdfButton />
         </div>
-        {intro ? <div className="ws-intro">{intro}</div> : null}
+        {intro ? (
+          <div className={`ws-intro${more ? ' is-open' : ''}`}>
+            {intro}
+            <button type="button" className="ws-more" aria-expanded={more} onClick={() => setMore((m) => !m)}>
+              {more ? 'Less' : 'About this view'}
+            </button>
+          </div>
+        ) : null}
       </header>
       <section className="ws-main" aria-label={`${title} workspace`}>
         {children}
@@ -447,14 +455,30 @@ export function Callout({
   children: ReactNode
   cite?: string
 }) {
+  // Notes stay open; traps, course conventions and beyond-the-course asides fold to one line
+  // so a page never opens on a wall of text. Printing opens them (see App).
+  if (kind === 'note') {
+    return (
+      <div className={`callout callout-${kind}`}>
+        {title ? <p className="callout-title">{title}</p> : null}
+        <div className="callout-body">{children}</div>
+        {cite ? <p className="callout-cite">{cite}</p> : null}
+      </div>
+    )
+  }
   return (
-    <div className={`callout callout-${kind}`}>
-      {title ? <p className="callout-title">{title}</p> : null}
+    <details className={`callout callout-${kind}`}>
+      <summary className="callout-title">
+        <span className="callout-kind">{CALLOUT_KIND[kind]}</span>
+        {title ? <span>{title}</span> : null}
+      </summary>
       <div className="callout-body">{children}</div>
       {cite ? <p className="callout-cite">{cite}</p> : null}
-    </div>
+    </details>
   )
 }
+
+const CALLOUT_KIND = { note: 'Note', trap: 'Watch out', course: 'Course rule', beyond: 'Beyond the course' } as const
 
 /* ---------- Signals ---------- */
 

@@ -700,3 +700,331 @@
   gap: var(--sp-2) var(--sp-3);
   margin: var(--sp-3) 0;
 }
+
+/* ---------- Calm layout: command bar, board with the player inside, step story beside it ---------- */
+
+.dp-command {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.dp-command-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  max-width: 640px;
+  padding: 6px 8px 6px 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-pill);
+  background: var(--panel);
+}
+
+.dp-command-label {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.dp-command-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--fs-md);
+  padding: 6px 0;
+}
+
+.dp-command-word {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: var(--sunken);
+}
+
+.dp-machine > summary {
+  cursor: pointer;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+  width: max-content;
+  padding: 2px 4px;
+}
+
+.dp-machine[open] > summary {
+  margin-bottom: var(--sp-3);
+  color: var(--ink);
+}
+
+.dp-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.dp-board {
+  position: relative;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
+  overflow: hidden;
+}
+
+.dp-board-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  padding: 12px 16px 0;
+}
+
+.dp-board-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  font-size: var(--fs-md);
+}
+
+.dp-board-step {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  color: var(--sig-path);
+}
+
+.dp-board .dp-svg {
+  padding: 4px 8px;
+}
+
+.dp-board-play {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  padding: 0 16px 14px;
+}
+
+.dp-play,
+.dp-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: var(--r-pill);
+  font: 600 var(--fs-sm) / 1 var(--font-sans);
+  cursor: pointer;
+  transition: transform 0.25s var(--ease-spring), background-color 0.15s var(--ease);
+}
+
+.dp-play {
+  position: relative;
+  border: 0;
+  background: var(--primary);
+  color: var(--primary-ink);
+}
+
+.dp-play svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.dp-play:hover {
+  transform: scale(1.03);
+}
+
+.dp-play[data-playing='true']::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  padding: 2px;
+  background: var(--glow);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  animation: glow-spin 2.4s linear infinite;
+}
+
+.dp-next {
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.dp-next svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dp-next:hover {
+  border-color: var(--ink-3);
+}
+
+.dp-board .dp-diagram-foot {
+  border-top: 1px solid var(--grid);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+}
+
+/* The story: steps in order; the one being shown is bright and opened, the rest stay one line. */
+.dp-story {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  position: sticky;
+  top: var(--sp-4);
+}
+
+.dp-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dp-steps li {
+  position: relative;
+  padding-left: 22px;
+}
+
+.dp-steps li::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--rule);
+}
+
+.dp-steps li:first-child::before {
+  top: 16px;
+}
+
+.dp-steps li:last-child::before {
+  bottom: calc(100% - 16px);
+}
+
+.dp-step-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 7px 0;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.dp-step-dot {
+  position: absolute;
+  left: 0;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid var(--rule);
+  background: var(--paper);
+}
+
+.dp-steps .is-past .dp-step-btn {
+  color: var(--ink-2);
+}
+
+.dp-steps .is-past .dp-step-dot {
+  background: var(--ink-3);
+  border-color: var(--ink-3);
+}
+
+.dp-steps .is-now .dp-step-btn {
+  color: var(--ink);
+  font-weight: 600;
+  font-size: var(--fs-md);
+}
+
+.dp-steps .is-now .dp-step-dot {
+  border-color: var(--sig-path);
+  background: var(--sig-path);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--sig-path) 25%, transparent);
+}
+
+.dp-step-idle {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  font-weight: 400;
+}
+
+.dp-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: 4px 0 14px;
+  font-size: var(--fs-sm);
+  animation: rise 0.35s var(--ease) both;
+}
+
+.dp-step-body .dp-does {
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+.dp-tip {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+
+.dp-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.dp-detail-body {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
+  background: var(--panel);
+  padding: var(--sp-3);
+  overflow-x: auto;
+}
+
+.dp-alu-tables {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--sp-4);
+}
+
+.dp-notes {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+@media (max-width: 1180px) {
+  .dp-stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dp-story {
+    position: static;
+  }
+}
+
+@media print {
+  .dp-board-play,
+  .dp-machine > summary {
+    display: none;
+  }
+}
