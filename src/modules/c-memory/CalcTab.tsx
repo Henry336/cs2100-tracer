@@ -450,7 +450,7 @@ function BytesPanel(p: { value: string; setValue: (v: string) => void; base: str
     return (
       <div>
         <h3 className="cm-h3">{endian === 'big' ? 'Big-endian' : 'Little-endian'}</h3>
-        <table className="dtable dtable-compact">
+        <div className="table-wrap"><table className="dtable dtable-compact">
           <thead>
             <tr>
               <th>Address</th>
@@ -469,7 +469,7 @@ function BytesPanel(p: { value: string; setValue: (v: string) => void; base: str
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
     )
   }
@@ -492,7 +492,7 @@ function BytesPanel(p: { value: string; setValue: (v: string) => void; base: str
         <TextField label="Read bytes back (lowest address first)" value={p.bytes} onChange={p.setBytes} placeholder="43 61 74 73" width="12em" />
       </div>
       {bytesOk ? (
-        <table className="dtable dtable-compact">
+        <div className="table-wrap"><table className="dtable dtable-compact">
           <thead>
             <tr>
               <th>Read as</th>
@@ -518,7 +518,7 @@ function BytesPanel(p: { value: string; setValue: (v: string) => void; base: str
               )
             })}
           </tbody>
-        </table>
+        </table></div>
       ) : (
         <p className="cm-err">Give 1 to 4 bytes in hex, separated by spaces.</p>
       )}
