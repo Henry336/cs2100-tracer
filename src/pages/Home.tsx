@@ -95,7 +95,7 @@ function Ask() {
             ))}
           </ul>
         ) : (
-          <p className="ask-empty">No tracer takes that yet. Try an instruction like lw $t0, 4($s1), a list of addresses, or a word like cache.</p>
+          <p className="ask-empty">Nothing matches that yet. Try an instruction such as lw $t0, 4($s1), or a word like cache.</p>
         )
       ) : (
         <Starters />
@@ -190,8 +190,8 @@ export function Home() {
             <div>
               <h3>Where the rules come from</h3>
               <p>
-                Every simulator follows the simplified model taught in CS2100 and is tested against the slides and answer keys. Where two sources disagree,
-                you pick, and the tool says which source uses which.
+                Each simulator follows the simplified model from the CS2100 slides and is tested against the answer keys. Where two sources disagree,
+                you choose, and the tool names the source for each option.
               </p>
             </div>
           </div>

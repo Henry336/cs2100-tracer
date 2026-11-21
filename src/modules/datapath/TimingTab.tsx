@@ -88,7 +88,7 @@ export default function TimingTab({ intro }: { intro: ReactNode }) {
               <NumberField key={k} label={DELAY_LABELS[k]} value={delays.values[k]} min={0} suffix={u} onChange={(v) => setCustom({ ...custom, [k]: v })} />
             ))}
           </div>
-          <p className="dp-hint">{base.title}. Edit any value; a blank or negative delay counts as 0.</p>
+          <p className="dp-hint">{base.title}. A blank or negative delay counts as 0.</p>
         </Panel>
         <Panel title={`Critical path of ${CLASSES.find((c) => c.value === cls)!.label}`}>
           <p className="dp-total">
@@ -136,7 +136,7 @@ export default function TimingTab({ intro }: { intro: ReactNode }) {
             <li><span className="dp-sw dp-sw-past" aria-hidden="true" />needed, off the path</li>
             <li><span className="dp-sw dp-sw-future" aria-hidden="true" />not needed</li>
           </ul>
-          <p className="dp-hint">Each unit shows when it starts and finishes, in {u}. Click a unit for its slack.</p>
+          <p className="dp-hint">Times are in {u}. Click a unit to see its slack.</p>
           {sel ? (
             <p className="dp-hint">
               {selNodes.length

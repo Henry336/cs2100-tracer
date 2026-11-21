@@ -170,7 +170,7 @@ export default function ControlTab({ intro, x }: { intro: ReactNode; x: TraceInp
         </div>
         <div className="dp-diagram-foot">
           <Legend items={[{ signal: 'hit', label: 'line carrying 1' }, { signal: 'control', label: 'connection (dot) or gate' }]} />
-          <p className="dp-hint">A dot on an AND row means that literal is an input of the term. An output is the OR of the terms it has a dot for.</p>
+          <p className="dp-hint">A dot on an AND row marks an input of that term. Each output ORs the terms it has dots for.</p>
         </div>
       </Panel>
 
