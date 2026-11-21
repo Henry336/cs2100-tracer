@@ -21,10 +21,11 @@ import {
   type RunResult,
 } from '../../core/mips'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, Chip, CodeEditor, DataTable, Legend, Presets, Segmented, Tabs, TextField, Workspace, type Column } from '../../ui/kit'
+import { Board, Details, Options, PlayBar, Stage, Story } from '../../ui/board'
+import { Callout, Chip, CodeEditor, DataTable, Legend, Presets, Segmented, TextField, Workspace, type Column } from '../../ui/kit'
 import { useStepper } from '../../ui/stepper'
 import { Transport } from '../../ui/Transport'
-import { BoardPlay, Facts, Steps, W, parseAddress } from './common'
+import { Facts, Steps, W, parseAddress } from './common'
 import { ProgramFlow } from './diagrams'
 import { RUN_PRESETS } from './presets'
 
@@ -33,17 +34,6 @@ const MAX_MEM_ROWS = 96
 const START = RUN_PRESETS[0].value
 
 type Radix = 'hex' | 'dec'
-
-type Detail = 'regs' | 'mem' | 'trace' | 'lines' | 'counts' | 'notes'
-
-const DETAIL_TABS: { value: Detail; label: string }[] = [
-  { value: 'regs', label: 'Registers' },
-  { value: 'mem', label: 'Memory' },
-  { value: 'trace', label: 'Trace' },
-  { value: 'lines', label: 'Line counts' },
-  { value: 'counts', label: 'Counts' },
-  { value: 'notes', label: 'Course notes' },
-]
 
 const errorMap = (errors: AsmError[]) => {
   const out: Record<number, string> = {}
@@ -89,7 +79,6 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
   const [jal, setJal] = useUrlState<'pc+4' | 'pc+8'>('jal', 'pc+4')
   const [radix, setRadix] = useUrlState<Radix>('radix', 'hex')
   const [stepQ, setStepQ] = useUrlState('step', 0)
-  const [detail, setDetail] = useUrlState<Detail>('rdt', 'regs')
 
   const base = parseAddress(baseText)
   const sim = useMemo(() => {
@@ -281,7 +270,7 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
   ) : null
 
   const stepBody = f ? (
-    <div className="mp-step-body">
+    <>
       <p className="mp-does mono">{f.note}</p>
       <Facts
         items={[
@@ -312,7 +301,7 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
         Show the encoding
       </button>
       {stepTraps}
-    </div>
+    </>
   ) : null
 
   // Narrate only the current instruction; the one before and after stay one line each.
@@ -335,8 +324,7 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
     >
       <div className="mp-command">
         <p className="mp-status">{status}</p>
-        <details className="mp-options" open={editOpen}>
-          <summary>Edit the program, registers and memory</summary>
+        <Options summary="Edit the program, registers and memory" open={editOpen}>
           <div className="mp-prog">
             <CodeEditor
               label="MIPS code"
@@ -367,34 +355,16 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
               <CodeEditor label="Initial memory (address: words, 4 bytes each)" value={memText} onChange={setMem} rows={3} errors={errorMap(sim.memErrors)} />
             </div>
           </div>
-        </details>
+        </Options>
       </div>
 
-      <div className="mp-stage">
-        <div className="mp-board canvas">
-          <div className="mp-board-bar">
-            <p className="mp-board-title">
-              {f ? (
-                <>
-                  <span className="mp-board-step">Step {i + 1}</span>
-                  <span className="mp-muted">of {frames.length}</span>
-                  <span className="mono">{f.instr.text}</span>
-                </>
-              ) : (
-                'Nothing has run'
-              )}
-            </p>
-            <div className="mp-board-actions">
-              <Segmented label="Numbers" value={radix} onChange={setRadix} options={[{ value: 'hex', label: 'Hex' }, { value: 'dec', label: 'Decimal' }]} />
-            </div>
-          </div>
-          {program.instructions.length ? (
-            <ProgramFlow program={program} f={f} step={i} />
-          ) : (
-            <p className="mp-pad mp-muted">No instructions yet. Write or load a program.</p>
-          )}
-          {frames.length ? <BoardPlay stepper={stepper} start="Run this program" next="Next instruction" /> : null}
-          <div className="mp-board-foot">
+      <Stage>
+        <Board
+          title={f ? <span className="mono">{f.instr.text}</span> : 'Nothing has run'}
+          step={f ? <>Step {i + 1} <span className="mp-muted">of {frames.length}</span></> : undefined}
+          tools={<Segmented label="Numbers" value={radix} onChange={setRadix} options={[{ value: 'hex', label: 'Hex' }, { value: 'dec', label: 'Decimal' }]} />}
+          play={<PlayBar stepper={stepper} start="Run this program" next={(k) => frames[k]?.instr.text ?? ''} />}
+          foot={
             <Legend
               items={[
                 { signal: 'path', label: 'current instruction and where the PC goes next' },
@@ -402,67 +372,80 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
                 { signal: 'dirty', label: 'memory written this step' },
               ]}
             />
-          </div>
-        </div>
+          }
+        >
+          {program.instructions.length ? (
+            <ProgramFlow program={program} f={f} step={i} />
+          ) : (
+            <p className="mp-muted">No instructions yet. Write or load a program.</p>
+          )}
+        </Board>
 
         {f ? (
-          <aside className="mp-story" aria-label="The current instruction">
-            <ol className="mp-story-steps">
-              {storyRows.map((k) => (
-                <li key={k} className={k === i ? 'is-now' : k < i ? 'is-past' : 'is-next'}>
-                  <button type="button" className="mp-story-btn" onClick={() => stepper.set(k)} aria-current={k === i ? 'step' : undefined}>
-                    <span className="mp-story-dot" aria-hidden="true" />
-                    <span className="mp-story-n">{k + 1}</span>
-                    <span className="mono">{frames[k].instr.text}</span>
-                  </button>
-                  {k === i ? stepBody : null}
-                </li>
-              ))}
-            </ol>
-          </aside>
+          <Story
+            label="The current instruction"
+            titles={storyRows.map((k) => (
+              <>
+                <span className="mp-story-n">{k + 1}</span>
+                <span className="mono">{frames[k].instr.text}</span>
+              </>
+            ))}
+            index={storyRows.indexOf(i)}
+            onPick={(n) => stepper.set(storyRows[n])}
+            body={stepBody}
+          />
         ) : null}
-      </div>
+      </Stage>
 
-      <section className="mp-details" aria-label="Registers, memory and tables">
-        <Tabs label="Tables" value={detail} onChange={setDetail} tabs={DETAIL_TABS} />
-        <div className="mp-detail-body">
-          {detail === 'regs' ? regPanel : null}
-          {detail === 'mem' ? memPanel : null}
-          {detail === 'trace' ? (
-            frames.length ? (
+      <Details
+        urlKey="rdt"
+        label="Registers, memory and tables"
+        tabs={[
+          { value: 'regs', label: 'Registers', body: regPanel },
+          { value: 'mem', label: 'Memory', body: memPanel },
+          {
+            value: 'trace',
+            label: 'Trace',
+            body: frames.length ? (
               <>
                 <p className="mp-muted">Newest first, last 40 steps</p>
                 <DataTable columns={traceCols} rows={traceRows} rowSignal={(r) => (r.step === i ? 'path' : undefined)} compact />
               </>
             ) : (
               <p className="mp-muted">No instructions executed.</p>
-            )
-          ) : null}
-          {detail === 'lines' ? (
-            sim.profile.length ? (
+            ),
+          },
+          {
+            value: 'lines',
+            label: 'Line counts',
+            body: sim.profile.length ? (
               <DataTable compact rows={sim.profile} rowSignal={(r) => (f && r.line === f.instr.line ? 'path' : undefined)} columns={lineCols} />
             ) : (
               <p className="mp-muted">No instructions executed.</p>
-            )
-          ) : null}
-          {detail === 'counts' ? countsPanel : null}
-          {detail === 'notes' ? (
-            <div className="mp-callouts">
-              <Callout kind="course" title="Byte order" cite="R02 p8, L10 p17-18">
-                The course&apos;s MIPS is big-endian; QtSpim on a PC is little-endian. Only words and halfwords change: strings and byte arrays look the same in both.
-              </Callout>
-              <Callout kind="course" title="Return address of jal" cite="L08 p8, Lab 5 p3">
-                The lecture summary and QtSpim save PC+4 in $ra. The green card says PC+8. Pick the one your question uses.
-              </Callout>
-              {usesLab ? (
-                <Callout kind="beyond" title="Beyond the lectures: syscall, .data and jal">
-                  These come from the labs (Lab 3 to 5), not the lecture slides. The tracer runs them as QtSpim does.
+            ),
+          },
+          { value: 'counts', label: 'Counts', body: countsPanel },
+          {
+            value: 'notes',
+            label: 'Course notes',
+            body: (
+              <div className="mp-callouts">
+                <Callout kind="course" title="Byte order" cite="R02 p8, L10 p17-18">
+                  The course&apos;s MIPS is big-endian; QtSpim on a PC is little-endian. Only words and halfwords change: strings and byte arrays look the same in both.
                 </Callout>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      </section>
+                <Callout kind="course" title="Return address of jal" cite="L08 p8, Lab 5 p3">
+                  The lecture summary and QtSpim save PC+4 in $ra. The green card says PC+8. Pick the one your question uses.
+                </Callout>
+                {usesLab ? (
+                  <Callout kind="beyond" title="Beyond the lectures: syscall, .data and jal">
+                    These come from the labs (Lab 3 to 5), not the lecture slides. The tracer runs them as QtSpim does.
+                  </Callout>
+                ) : null}
+              </div>
+            ),
+          },
+        ]}
+      />
     </Workspace>
   )
 }

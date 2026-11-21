@@ -18,14 +18,13 @@ import {
   type Instr,
 } from '../../core/mips'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, Chip, CodeEditor, DataTable, Legend, Presets, Segmented, Tabs, TextField, Workspace, type Column } from '../../ui/kit'
+import { Board, Details, Options } from '../../ui/board'
+import { Callout, Chip, CodeEditor, DataTable, Legend, Presets, Segmented, TextField, Workspace, type Column } from '../../ui/kit'
 import { Facts, Steps, W, parseAddress } from './common'
 import { BranchRuler, FieldGrid, JumpSplice } from './diagrams'
 import { ENCODE_PRESETS } from './presets'
 
 const START = ENCODE_PRESETS[0].value
-
-type EncDetail = 'work' | 'check' | 'nums' | 'list' | 'traps'
 
 /** Encode tab inputs live in the URL; the Run tab also writes them to open an instruction here. */
 export function useEncodeState() {
@@ -59,7 +58,6 @@ const errorMap = (errors: AsmError[]) => Object.fromEntries(errors.filter((e) =>
 export default function EncodeTab({ intro }: { intro: ReactNode }) {
   const s = useEncodeState()
   const [answer, setAnswer] = useUrlState('eans', '')
-  const [detail, setDetail] = useUrlState<EncDetail>('edt', 'work')
   const base = parseAddress(s.base)
   const { instrs, errors } = useMemo(() => {
     const b = base ?? 0
@@ -292,14 +290,6 @@ export default function EncodeTab({ intro }: { intro: ReactNode }) {
     </div>
   ) : null
 
-  const tabs: { value: EncDetail; label: string }[] = [
-    { value: 'work', label: 'Working' },
-    ...(s.mode === 'asm' ? [{ value: 'check' as const, label: 'Check your answer' }] : []),
-    { value: 'nums', label: 'All numbers' },
-    ...(instrs.length > 1 ? [{ value: 'list' as const, label: 'Instructions' }] : []),
-    { value: 'traps', label: 'Watch out' },
-  ]
-  const tab = tabs.some((t) => t.value === detail) ? detail : tabs[0].value
   const lineCount = (s.mode === 'asm' ? s.asmText : s.hexText).split('\n').length
 
   return (
@@ -307,8 +297,7 @@ export default function EncodeTab({ intro }: { intro: ReactNode }) {
       <div className="mp-command">
         <div className="mp-command-row">
           <Segmented label="Input" value={s.mode} onChange={s.setMode} options={[{ value: 'asm', label: 'Encode assembly' }, { value: 'hex', label: 'Decode hex words' }]} />
-          <details className="mp-options">
-            <summary>Start address and options</summary>
+          <Options summary="Start address and options">
             <div className="mp-row">
               <TextField label="First instruction at" value={s.base} onChange={s.setBase} width="8.5em" />
               {s.mode === 'asm' ? (
@@ -320,7 +309,7 @@ export default function EncodeTab({ intro }: { intro: ReactNode }) {
                 />
               ) : null}
             </div>
-          </details>
+          </Options>
         </div>
         {optionErrors.length ? <p className="mp-err">{optionErrors.join('; ')}</p> : null}
         <div className="mp-editor">
@@ -332,21 +321,11 @@ export default function EncodeTab({ intro }: { intro: ReactNode }) {
         </div>
       </div>
 
-      <div className="mp-board canvas">
-        <div className="mp-board-bar">
-          <p className="mp-board-title">
-            {ins && ex ? (
-              <>
-                <span className="mono">{ins.text}</span>
-                <span className="mp-board-step mono">
-                  <W e={ex.steps[3]}>{ex.hex}</W>
-                </span>
-              </>
-            ) : (
-              'Type an instruction or a word'
-            )}
-          </p>
-          {instrs.length > 1 ? (
+      <Board
+        title={ins && ex ? <span className="mono">{ins.text}</span> : 'Type an instruction or a word'}
+        step={ins && ex ? <span className="mono"><W e={ex.steps[3]}>{ex.hex}</W></span> : undefined}
+        tools={
+          instrs.length > 1 ? (
             <div className="mp-picks" role="group" aria-label="Instruction to show">
               {instrs.map((x, k) => (
                 <button key={k} type="button" className="mp-pick mono" aria-pressed={k === sel} onClick={() => s.setSel(k)}>
@@ -354,39 +333,47 @@ export default function EncodeTab({ intro }: { intro: ReactNode }) {
                 </button>
               ))}
             </div>
-          ) : null}
-        </div>
+          ) : null
+        }
+        foot={
+          <div className="mp-foot">
+            <Legend
+              items={[
+                { signal: 'control', label: 'opcode and funct' },
+                { signal: 'data', label: 'immediate, shamt, target' },
+                { signal: 'path', label: 'PC and where it goes next' },
+                ...(check?.given !== undefined && !check.ok ? [{ signal: 'miss' as const, label: 'field that differs in your answer' }] : []),
+              ]}
+            />
+            <span className="mp-muted">Dashed fields are fixed at 0.</span>
+          </div>
+        }
+      >
         {ins && ex ? (
-          <div className="mp-board-body">
+          <>
             <FieldGrid ex={ex} />
             {b ? <BranchRuler b={b} /> : null}
             {jx ? <JumpSplice jx={jx} instr={ins} /> : null}
-          </div>
+          </>
         ) : null}
-        <div className="mp-board-foot">
-          <Legend
-            items={[
-              { signal: 'control', label: 'opcode and funct' },
-              { signal: 'data', label: 'immediate, shamt, target' },
-              { signal: 'path', label: 'PC and where it goes next' },
-              ...(check?.given !== undefined && !check.ok ? [{ signal: 'miss' as const, label: 'field that differs in your answer' }] : []),
-            ]}
-          />
-          <span className="mp-muted">Dashed fields are fixed at 0.</span>
-        </div>
-      </div>
+      </Board>
 
       {ins && ex ? (
-        <section className="mp-details" aria-label="Working and checks for this instruction">
-          <Tabs label="Details" value={tab} onChange={setDetail} tabs={tabs} />
-          <div className="mp-detail-body">
-            {tab === 'work' ? <Steps steps={ex.steps} label="Encoding steps" /> : null}
-            {tab === 'check' ? checkPanel : null}
-            {tab === 'nums' ? numbers : null}
-            {tab === 'list' ? <DataTable columns={cols} rows={instrs} rowSignal={(_, k) => (k === sel ? 'path' : undefined)} compact /> : null}
-            {tab === 'traps' ? traps : null}
-          </div>
-        </section>
+        <Details
+          urlKey="edt"
+          label="Working and checks for this instruction"
+          tabs={[
+            { value: 'work', label: 'Working', body: <Steps steps={ex.steps} label="Encoding steps" /> },
+            { value: 'check', label: 'Check your answer', body: s.mode === 'asm' ? checkPanel : null },
+            { value: 'nums', label: 'All numbers', body: numbers },
+            {
+              value: 'list',
+              label: 'Instructions',
+              body: instrs.length > 1 ? <DataTable columns={cols} rows={instrs} rowSignal={(_, k) => (k === sel ? 'path' : undefined)} compact /> : null,
+            },
+            { value: 'traps', label: 'Watch out', body: traps },
+          ]}
+        />
       ) : null}
     </Workspace>
   )

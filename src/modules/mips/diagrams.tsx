@@ -1,5 +1,6 @@
 import { OP_BY_NAME, bin, hex, type BranchOffsetExplain, type EncodingExplain, type ExecFrame, type Instr, type JumpTargetExplain, type Program } from '../../core/mips'
-import { Flow, W } from './common'
+import { Flow } from '../../ui/board'
+import { W } from './common'
 
 type Role = 'control' | 'data' | 'reg' | 'zero'
 
@@ -113,7 +114,7 @@ export function BranchRuler({ b }: { b: BranchOffsetExplain }) {
         {imm === 0 ? null : (
           <>
             <path d={`M${from} 62 C${from} ${peak} ${to} ${peak} ${to} 60`} className="mp-arc" markerEnd="url(#mp-arrow)" />
-            <Flow k={`${b.pc}-${imm}`} paths={[`M${from} 62 C${from} ${peak} ${to} ${peak} ${to} 60`]} />
+            <Flow id={`${b.pc}-${imm}`} paths={[`M${from} 62 C${from} ${peak} ${to} ${peak} ${to} 60`]} />
             <text x={(from + to) / 2} y={peak + 12} className="mp-t mp-t-mid mp-t-path mono">imm = {imm}</text>
           </>
         )}
@@ -153,10 +154,8 @@ export function JumpSplice({ jx, instr }: { jx: JumpTargetExplain; instr: Instr 
       <svg className="mp-svg" width={width} height={232} viewBox={`0 0 ${width} 232`} role="img" aria-label={`Jump target ${hex(jx.target)} built from PC+4 bits 31 to 28, the 26-bit target field and 00`}>
         <polygon points={`${cx(31)},${yA + 20} ${cx(28) + BW},${yA + 20} ${cx(28) + BW},${yB} ${cx(31)},${yB}`} className="mp-flow-path" />
         <polygon points={`${cx(25)},${yC} ${cx(0) + BW},${yC} ${cx(2) + BW},${yB + 20} ${cx(27)},${yB + 20}`} className="mp-flow-data" />
-        <Flow
-          k={`${jx.pcPlus4}-${jx.target}`}
-          paths={[`M${cx(29)} ${yA + 20} V${yB}`, `M${cx(13) + BW / 2} ${yC} L${cx(15) + BW / 2} ${yB + 20}`]}
-        />
+        <Flow id={`${jx.pcPlus4}-${jx.target}`} paths={[`M${cx(29)} ${yA + 20} V${yB}`]} />
+        <Flow id={`${jx.pcPlus4}-${jx.target}`} paths={[`M${cx(13) + BW / 2} ${yC} L${cx(15) + BW / 2} ${yB + 20}`]} tone="data" />
         <BitRow y={yA} bits={bin(jx.pcPlus4, 32)} label="PC+4" value={hex(jx.pcPlus4)} role={(b) => (b >= 28 ? 'mp-cell-path' : 'mp-cell-off')} />
         <BitRow y={yB} bits={bin(jx.target, 32)} label="New PC" value={hex(jx.target)} role={(b) => (b >= 28 ? 'mp-cell-path' : b >= 2 ? 'mp-cell-data' : 'mp-cell-zero')} />
         <BitRow y={yC} bits={bin(instr.word, 32)} label={`${instr.mnemonic} word`} value={hex(instr.word)} role={(b) => (b >= 26 ? 'mp-cell-control' : 'mp-cell-data')} />
@@ -197,7 +196,7 @@ export function ProgramFlow({ program, f, step }: { program: Program; f?: ExecFr
   const why =
     !f ? '' : kind === 'branch' ? (f.taken ? 'branch taken' : 'not taken: PC+4') : kind === 'jump' ? 'jump' : kind === 'jr' ? 'jr: PC = rs' : 'PC+4'
   return (
-    <div className="mp-scroll mp-board-scroll">
+    <div className="mp-scroll">
       <svg
         className="mp-svg mp-prog-svg"
         width={PW}
@@ -237,7 +236,7 @@ export function ProgramFlow({ program, f, step }: { program: Program; f?: ExecFr
         {f ? (
           <>
             <path d={arc(cur, nxt)} className="mp-arc" markerEnd="url(#mp-run-arrow)" />
-            <Flow k={step} paths={[arc(cur, nxt)]} />
+            <Flow id={step} paths={[arc(cur, nxt)]} />
           </>
         ) : null}
       </svg>
@@ -287,7 +286,8 @@ export function ConstPicture({ value, upper, lower, reg, second, result }: { val
         <path d={paths[0]} className="mp-wire" />
         <path d={paths[1]} className="mp-wire" />
         <path d={paths[2]} className="mp-wire mp-wire-data" />
-        <Flow k={`${v}-${second}`} paths={paths} />
+        <Flow id={`${v}-${second}`} paths={paths.slice(0, 2)} />
+        <Flow id={`${v}-${second}`} paths={paths.slice(2)} tone="data" />
         <Bits y={yA} value={v} label="Value" role={(b) => (b >= 16 ? 'mp-cell-path' : 'mp-cell-data')} />
         <Bits y={yB} value={upper * 0x10000} label={`lui ${reg}, ${hex(upper, 4)}`} role={(b) => (b >= 16 ? 'mp-cell-path' : 'mp-cell-zero')} />
         <Bits
@@ -315,7 +315,6 @@ export function BranchFlow({ a, b, lines, tmp, slt, swap, taken, label }: { a: s
   const pYes = 'M590 66 C606 66 600 34 622 34'
   const pNo = 'M590 86 C606 86 600 118 622 118'
   const ins = swap ? [pAx, pBx] : [pA, pB]
-  const live = [...ins, pT, taken ? pYes : pNo]
   return (
     <div className="mp-scroll">
       <svg className="mp-svg" width={width} height={156} viewBox={`0 0 ${width} 156`} role="img" aria-label={`${lines[0]} gives ${tmp} = ${slt}; ${lines[1]} is ${taken ? 'taken' : 'not taken'}`}>
@@ -323,7 +322,8 @@ export function BranchFlow({ a, b, lines, tmp, slt, swap, taken, label }: { a: s
         <path d={pT} className="mp-wire mp-wire-data" />
         <path d={pYes} className={taken ? 'mp-wire mp-wire-path' : 'mp-wire mp-wire-off'} />
         <path d={pNo} className={taken ? 'mp-wire mp-wire-off' : 'mp-wire mp-wire-path'} />
-        <Flow k={`${lines.join()}-${slt}`} paths={live} />
+        <Flow id={`${lines.join()}-${slt}`} paths={[...ins, pT]} tone="data" />
+        <Flow id={`${lines.join()}-${slt}`} paths={[taken ? pYes : pNo]} />
         <rect x={8} y={22} width={124} height={36} rx={4} className="mp-box" />
         <text x={70} y={45} className="mp-t mp-t-mid mono">a: {a}</text>
         <rect x={8} y={98} width={124} height={36} rx={4} className="mp-box" />

@@ -18,13 +18,13 @@ describe('MIPS page renders', () => {
 
   it('picture first: Run puts its Play pill and the travelling light inside the board', () => {
     const run = renderToString(<MipsPage />)
-    const board = run.indexOf('mp-board canvas')
+    const board = run.indexOf('board canvas')
     expect(board).toBeGreaterThan(-1)
     expect(run.indexOf('Run this program')).toBeGreaterThan(board)
-    expect(run).toContain('Next instruction')
+    expect(run).toContain('Next: ')
     expect(run).toContain('flow-draw')
     for (const html of [renderToString(<BranchCondTab intro={null} />), renderToString(<ConstTab intro={null} />)]) {
-      expect(html).toContain('mp-board canvas')
+      expect(html).toContain('board canvas')
       expect(html).toContain('flow-packets')
     }
   })
