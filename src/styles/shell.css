@@ -614,6 +614,16 @@ details.callout-beyond {
   animation-duration: 2.2s;
 }
 
+/* Colour variants: the light takes the colour of what the wire carries. */
+.flow-draw path.data { stroke: var(--sig-data); }
+.flow-draw path.fwd { stroke: var(--sig-forward); }
+.flow-draw path.dirty { stroke: var(--sig-dirty); }
+.flow-draw path.miss { stroke: var(--sig-miss); }
+.flow-packets path.data { stroke: color-mix(in srgb, #fff 75%, var(--sig-data)); filter: drop-shadow(0 0 3px var(--sig-data)); }
+.flow-packets path.fwd { stroke: color-mix(in srgb, #fff 75%, var(--sig-forward)); filter: drop-shadow(0 0 3px var(--sig-forward)); }
+.flow-packets path.dirty { stroke: color-mix(in srgb, #fff 75%, var(--sig-dirty)); filter: drop-shadow(0 0 3px var(--sig-dirty)); }
+.flow-packets path.miss { stroke: color-mix(in srgb, #fff 75%, var(--sig-miss)); filter: drop-shadow(0 0 3px var(--sig-miss)); }
+
 @keyframes packet {
   0% {
     stroke-dashoffset: 1;

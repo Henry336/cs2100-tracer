@@ -470,7 +470,7 @@ export function Callout({
     <details className={`callout callout-${kind}`}>
       <summary className="callout-title">
         <span className="callout-kind">{CALLOUT_KIND[kind]}</span>
-        {title ? <span>{title}</span> : null}
+        {title && title.toLowerCase() !== CALLOUT_KIND[kind].toLowerCase() ? <span>{title}</span> : null}
       </summary>
       <div className="callout-body">{children}</div>
       {cite ? <p className="callout-cite">{cite}</p> : null}
