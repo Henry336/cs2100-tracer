@@ -259,7 +259,7 @@ export default function OpcodeTab({ intro }: { intro: ReactNode }) {
               <p className="mp-err">{r.error}</p>
             ) : (
               <table className="dtable mp-fit mp-levels">
-                <caption>Prefix tree, shortest opcode first</caption>
+                <caption>Shortest opcode first</caption>
                 <thead>
                   <tr>
                     <th className="mp-r">Opcode bits</th>

@@ -120,13 +120,13 @@ export default function BranchCondTab({ intro }: { intro: ReactNode }) {
           {detail === 'traps' ? (
             <div className="mp-callouts">
               <Callout kind="trap" title="There is no real blt" cite="L07 p28-29">
-                blt, bgt, ble and bge are pseudo-instructions. The assembler turns each into slt plus beq or bne, so each counts as 2 instructions.
+                The assembler turns blt, bgt, ble and bge into slt plus beq or bne, so each counts as 2 instructions.
               </Callout>
               <Callout kind="trap" title="An if branches on the opposite test" cite="L07 p22">
-                The branch jumps over the body, so it tests the condition that makes the body not run.
+                The branch jumps over the body, so it tests when the body should not run.
               </Callout>
               <Callout kind="course" title="Write the real pair in exams" cite="Lab 3 p7, T02 p1">
-                Pseudo-instructions are usually not allowed in tests, so answers use slt with beq or bne.
+                Pseudo-instructions are usually not allowed in tests.
               </Callout>
             </div>
           ) : null}

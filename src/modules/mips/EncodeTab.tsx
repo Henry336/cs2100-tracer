@@ -133,7 +133,7 @@ export default function EncodeTab({ intro }: { intro: ReactNode }) {
     <div className="mp-callouts">
       {kind === 'arith' ? (
         <Callout kind="trap" title="Destination first in assembly, third in the bits" cite="L08 p12">
-          You write rd, rs, rt, but the fields are ordered rs, rt, rd. Putting rd in the rs slot is the most common encoding error.
+          You write rd, rs, rt, but the bits go rs, rt, rd.
         </Callout>
       ) : null}
       {kind === 'shift' ? (
@@ -147,14 +147,12 @@ export default function EncodeTab({ intro }: { intro: ReactNode }) {
             In beq and bne the register written first goes in rs, the second in rt.
           </Callout>
           <Callout kind="trap" title="Count from PC+4, in words" cite="L08 p27-28">
-            The immediate is (target - (PC+4)) / 4. Counting from the branch itself is one off; forgetting the / 4 makes it 4 times too big.
+            The immediate is (target - (PC+4)) / 4.{' '}
+            {b && b.aligned && b.imm !== 0
+              ? `Counting from the branch gives ${b.mistakes.fromPc}. Forgetting the / 4 gives ${b.mistakes.bytes}.`
+              : 'Counting from the branch is one off. Forgetting the / 4 makes it 4 times too big.'}
           </Callout>
         </>
-      ) : null}
-      {b && b.aligned && b.imm !== 0 ? (
-        <Callout kind="trap" title="Two wrong answers to avoid" cite="L08 p27-28">
-          Counting from the branch instead of PC+4 gives {b.mistakes.fromPc}. Forgetting to divide by 4 gives {b.mistakes.bytes}. The right immediate is {b.imm}.
-        </Callout>
       ) : null}
       {kind === 'logicImm' ? (
         <Callout kind="trap" title="andi, ori and xori zero-extend" cite="L06 p46, L08 p19">
@@ -168,17 +166,17 @@ export default function EncodeTab({ intro }: { intro: ReactNode }) {
       ) : null}
       {kind === 'load' || kind === 'store' ? (
         <Callout kind="trap" title="The offset counts bytes" cite="L07 p10, L08 p22">
-          A[3] is 12 bytes from A[0]. A load or store offset is in bytes, while a branch immediate is in words.
+          A[3] is 12 bytes from A[0]. A branch immediate counts words instead.
         </Callout>
       ) : null}
       {kind === 'jump' ? (
         <Callout kind="trap" title="Only bits 27 to 2 are stored" cite="L08 p37-40">
-          The top 4 bits come from PC+4 when the jump runs, not from PC, and they never replace the opcode. A j in the last word of a 256 MB block lands in the next block.
+          The top 4 bits come from PC+4 when the jump runs, not from PC. They never replace the opcode. A j in the last word of a 256 MB block lands in the next block.
         </Callout>
       ) : null}
       {jx?.blockEdge ? (
         <Callout kind="trap" title="This j sits at the end of a block" cite="L08 p39-40">
-          PC+4 is already in the next 256 MB block, so the jump lands there, not in the block of the j itself.
+          PC+4 is already in the next 256 MB block, so the jump lands there.
         </Callout>
       ) : null}
       {negImm ? (
@@ -218,7 +216,7 @@ export default function EncodeTab({ intro }: { intro: ReactNode }) {
               [
                 'Zero-extended',
                 <>
-                  <W e={{ rule: 'Fill bits 31 to 16 with 0: the bits are used as they are', working: `${hex(raw16)} = ${raw16}`, cite: 'L06 p46, L08 p19' }}>{hex(raw16)}</W>
+                  <W e={{ rule: 'Fill bits 31 to 16 with 0', working: `${hex(raw16)} = ${raw16}`, cite: 'L06 p46, L08 p19' }}>{hex(raw16)}</W>
                   {usedChip('zero')}
                 </>,
               ],
@@ -279,7 +277,7 @@ export default function EncodeTab({ intro }: { intro: ReactNode }) {
           </p>
           <DataTable compact columns={diffCols} rows={check.fields} rowSignal={(f) => (f.ok ? undefined : 'miss')} />
           {check.mistake ? (
-            <Callout kind="trap" title={`This matches a known mistake: ${check.mistake.label}`} cite={check.mistake.why.cite}>
+            <Callout kind="trap" title={`Known mistake: ${check.mistake.label}`} cite={check.mistake.why.cite}>
               {check.mistake.why.rule}.
             </Callout>
           ) : null}
@@ -287,7 +285,7 @@ export default function EncodeTab({ intro }: { intro: ReactNode }) {
       ) : null}
       {mistakes.length ? (
         <>
-          <p className="control-label mp-gap">Common wrong answers for this instruction</p>
+          <p className="control-label mp-gap">Common wrong answers</p>
           <Facts items={mistakes.map((m): [ReactNode, ReactNode] => [m.label, <W e={m.why}>{hex(m.word)}</W>])} />
         </>
       ) : null}
@@ -364,14 +362,12 @@ export default function EncodeTab({ intro }: { intro: ReactNode }) {
             {b ? <BranchRuler b={b} /> : null}
             {jx ? <JumpSplice jx={jx} instr={ins} /> : null}
           </div>
-        ) : (
-          <p className="mp-pad mp-muted">Nothing to show yet.</p>
-        )}
+        ) : null}
         <div className="mp-board-foot">
           <Legend
             items={[
-              { signal: 'control', label: 'opcode and funct, read by the control unit' },
-              { signal: 'data', label: 'constants: immediate, shamt, target' },
+              { signal: 'control', label: 'opcode and funct' },
+              { signal: 'data', label: 'immediate, shamt, target' },
               { signal: 'path', label: 'PC and where it goes next' },
               ...(check?.given !== undefined && !check.ok ? [{ signal: 'miss' as const, label: 'field that differs in your answer' }] : []),
             ]}

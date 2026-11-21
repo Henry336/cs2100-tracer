@@ -42,7 +42,7 @@ export function constantPlan(value: number, reg = '$t0'): ConstantPlan {
       result: addiResult,
       ok: addiResult === v,
       why: {
-        rule: 'addi sign-extends its immediate, so when bit 15 of the lower half is 1 it adds a negative number and the upper half drops by 1. ori zero-extends, so it is the safe choice',
+        rule: 'addi sign-extends, so when bit 15 of the lower half is 1 it adds a negative number and the upper half drops by 1. ori zero-extends, so it is safe',
         working: `lui gives ${hex(upper << 16)}; addi adds ${signedLower} -> ${hex(addiResult)}${addiResult === v ? ' (correct here)' : `, not ${hex(v)}`}`,
         cite: 'L06 p41, p44',
       },

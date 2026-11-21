@@ -99,7 +99,7 @@ export function explainEncoding(instr: Instr): EncodingExplain {
     },
     { rule: 'Fields in decimal', working: fields.map((f) => `${f.name} ${f.value}`).join(' | '), cite: 'L08 p12' },
     { rule: 'Fields in binary', working: fields.map((f) => f.binary).join(' '), cite: 'L08 p12' },
-    { rule: 'Regroup the 32 bits into groups of 4, then read each group as a hex digit', working: `${nibbles.join(' ')} = ${h}`, cite: 'L08 p12' },
+    { rule: 'Read the 32 bits 4 at a time, one hex digit per group', working: `${nibbles.join(' ')} = ${h}`, cite: 'L08 p12' },
   ]
   if (op?.kind === 'branch') {
     steps.push({ rule: 'If taken, target = (PC+4) + immediate x 4', working: `${hex(u32(instr.address + 4))} + ${instr.imm} x 4 = ${hex(instr.targetAddress ?? 0)}`, cite: 'L08 p28' })

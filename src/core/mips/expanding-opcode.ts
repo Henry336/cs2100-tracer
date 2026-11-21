@@ -93,11 +93,11 @@ export function expandingOpcode(input: ExpandingOpcodeInput): ExpandingOpcodeRes
 
   const free = [...cls].filter((c) => c.fixed === undefined).sort((a, b) => a.opcodeBits - b.opcodeBits)
   const absorber = free[free.length - 1]
-  out.steps.push({ rule: 'Work with the most constrained class first: shortest opcode (most operand bits) first', cite: 'L10 p30' })
+  out.steps.push({ rule: 'Start with the shortest opcode (most operand bits)', cite: 'L10 p30' })
   if (input.objective === 'max') {
     out.steps.push({ rule: 'Maximum: give every shorter-opcode class its minimum and let the longest-opcode class take every pattern left', cite: 'R04 p45' })
   } else {
-    out.steps.push({ rule: 'Minimum: give the shorter-opcode classes as many codes as possible, keeping just enough prefixes to expand for the later classes; the space is fully used', cite: 'R04 p45' })
+    out.steps.push({ rule: 'Minimum: give the shorter-opcode classes every code except the prefixes the later classes need. The space is fully used', cite: 'R04 p45' })
     for (const c of free.slice(0, -1)) c.count += Math.floor((B - used()) / cost(c))
   }
   if (absorber) absorber.count += Math.floor((B - used()) / cost(absorber))

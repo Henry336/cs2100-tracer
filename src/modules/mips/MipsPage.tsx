@@ -11,11 +11,11 @@ import './mips.css'
 type Tab = 'run' | 'encode' | 'const' | 'branch' | 'opcode'
 
 const TABS: { value: Tab; label: string; blurb: string }[] = [
-  { value: 'run', label: 'Run', blurb: 'Step through a program one instruction at a time and watch registers and memory change.' },
-  { value: 'encode', label: 'Encode and decode', blurb: 'Split any instruction or 32-bit word into its fields, with the branch offset and jump target worked out.' },
-  { value: 'const', label: '32-bit constants', blurb: 'Split a 32-bit value into lui and ori, see why lui then addi can go wrong, and check which immediate kinds hold it.' },
-  { value: 'branch', label: 'Branch conditions', blurb: 'Build blt, bgt, ble and bge from slt with beq or bne, and see whether the branch is taken.' },
-  { value: 'opcode', label: 'Expanding opcode', blurb: 'Share an opcode space between instruction types and find the maximum or minimum number of instructions.' },
+  { value: 'run', label: 'Run', blurb: 'Step through a program and watch registers and memory change.' },
+  { value: 'encode', label: 'Encode and decode', blurb: 'Split an instruction or 32-bit word into its fields.' },
+  { value: 'const', label: '32-bit constants', blurb: 'Load a 32-bit value with lui and ori, and see why lui then addi can go wrong.' },
+  { value: 'branch', label: 'Branch conditions', blurb: 'Build blt, bgt, ble and bge from slt with beq or bne.' },
+  { value: 'opcode', label: 'Expanding opcode', blurb: 'Find the maximum or minimum number of instructions when types share an opcode space.' },
 ]
 
 export default function MipsPage() {
@@ -25,7 +25,7 @@ export default function MipsPage() {
 
   const intro = (
     <div className="mp-intro">
-      <p>{current.blurb} Click any underlined value to see how it was worked out.</p>
+      <p>{current.blurb} Click an underlined value to see its working.</p>
       <Tabs label="MIPS tools" value={current.value} onChange={setTab} tabs={TABS} />
     </div>
   )

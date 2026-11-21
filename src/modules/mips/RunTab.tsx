@@ -65,7 +65,7 @@ function nextPcWhy(f: ExecFrame): Explain {
 
 function pcWhy(r: RunResult, i: number, hasMain: boolean): Explain {
   if (i === 0) return hasMain
-    ? { rule: 'Execution starts at the label main, as QtSpim calls main after its startup code', cite: 'Lab 3 SPIM-assembler p1' }
+    ? { rule: 'Execution starts at main: QtSpim calls it after its startup code', cite: 'Lab 3 SPIM-assembler p1' }
     : { rule: 'Execution starts at the first instruction' }
   const p = r.frames[i - 1]
   return { rule: 'The previous instruction set this PC', working: `${p.instr.text}: next PC = ${hex(p.nextPc)}` }
@@ -168,7 +168,7 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
           ? { rule: '$zero always holds 0; writes to it are discarded', cite: 'L06 p34' }
           : k >= 0
             ? { rule: `Written at step ${k + 1} by ${frames[k].instr.text}`, working: frames[k].note, cite: OP_BY_NAME[frames[k].instr.mnemonic]?.cite }
-            : { rule: 'Not written yet: this is the initial value', working: v ? `set in Initial registers: ${regName(r)} = ${v}` : 'registers start at 0' }
+            : { rule: 'Initial value, not written yet', working: v ? `set in Initial registers: ${regName(r)} = ${v}` : 'registers start at 0' }
         return (
           <div key={on ? `${r}-${i}` : r} className={`mp-reg${on ? ' mp-reg-on' : ''}`}>
             <span className="mp-reg-num mono">{r}</span>
@@ -182,7 +182,7 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
   )
 
   const memPanel = sim.rows.length === 0 ? (
-    <p className="mp-muted">This program does not use memory. Add words under Initial memory or a .data section.</p>
+    <p className="mp-muted">No memory used. Add words under Initial memory or a .data section.</p>
   ) : (
     <>
       <p className="mp-muted">{endian === 'big' ? 'Big' : 'Little'}-endian, word view</p>
@@ -217,7 +217,7 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
                 <td className="mono mp-r">
                   <W
                     e={{
-                      rule: endian === 'big' ? 'Big-endian: the byte at +0 is the most significant' : 'Little-endian: the byte at +0 is the least significant; the online MIPS interpreter uses it (L10 p18). QtSpim on a PC also shows words this way, but that is a lab observation, not a slide fact',
+                      rule: endian === 'big' ? 'Big-endian: the byte at +0 is the most significant' : 'Little-endian: the byte at +0 is the least significant. The online MIPS interpreter uses it (L10 p18). QtSpim on a PC shows words this way too, a lab observation, not a slide fact',
                       working: `${order.map((k) => bytes[k].toString(16).toUpperCase().padStart(2, '0')).join(' ')} = ${hex(w)} = ${w}`,
                       cite: endian === 'big' ? 'R02 p8' : 'L10 p17-18',
                     }}
@@ -255,7 +255,7 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
         ]}
       />
       <Callout kind="trap" title="Pseudo-instructions are not free" cite="L06 p8">
-        bge, blt, li, la and move are not real instructions. The assembler expands them, and only real instructions count.
+        The assembler expands bge, blt, li, la and move, and only the real instructions count.
       </Callout>
     </>
   )
@@ -274,7 +274,7 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
       ) : null}
       {op?.kind === 'load' || op?.kind === 'store' ? (
         <Callout kind="trap" title="Addresses step by 4" cite="L07 p10, p15">
-          A[i] sits at base + 4i, so walking a word array adds 4 to the address, not 1. lw and sw need an address that is a multiple of 4.
+          A[i] sits at base + 4i, so walking a word array adds 4, not 1. lw and sw need an address that is a multiple of 4.
         </Callout>
       ) : null}
     </div>
@@ -295,7 +295,7 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
                 </>,
               ] as [ReactNode, ReactNode]]
             : []),
-          ['Machine word', <W e={{ rule: 'The 32-bit encoding of this instruction; Show the encoding splits it into fields', cite: 'L08 p12' }}>{hex(f.instr.word)}</W>],
+          ['Machine word', <W e={{ rule: 'The 32-bit encoding of this instruction', cite: 'L08 p12' }}>{hex(f.instr.word)}</W>],
           ...(f.taken === undefined ? [] : [['Branch', f.taken ? <Chip signal="hit">taken</Chip> : <span>not taken</span>] as [ReactNode, ReactNode]]),
           ['Next PC', <W e={nextPcWhy(f)}>{hex(f.nextPc)}</W>],
           ...f.changedRegs.map((r) => [regName(r), `${fmt(prev[r], radix)} -> ${fmt(regs[r], radix)}`] as [ReactNode, ReactNode]),
