@@ -2,9 +2,10 @@ import { useMemo, type ReactNode } from 'react'
 import { EXCITATION, FF_INPUTS, FLIP_FLOPS, excite, ffNext, type Bit, type FFType, type Sig, type StateGraph } from '../../core/sequential'
 import { useUrlState } from '../../lib/url-state'
 import { Callout, Chip, DataTable, Legend, Segmented, Select, Workspace, type Column } from '../../ui/kit'
+import { Board, PlayBar, Stage, Story } from '../../ui/board'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { Bitv, Board, PlayBar, Scroll, Story, TabStrip, W, pick } from './common'
+import { Bitv, Scroll, TabStrip, W, pick } from './common'
 import { StateDiagram } from './StateDiagram'
 
 const FF_TYPES: FFType[] = ['D', 'T', 'JK', 'SR']
@@ -96,11 +97,11 @@ export function TablesView({ intro, switcher }: { intro: ReactNode; switcher: Re
         />
       </div>
 
-      <div className="seq-stage">
+      <Stage>
         <Board
           title={`${info.name}, characteristic to excitation`}
           step={`Move ${moveText(q, n)}`}
-          play={<PlayBar stepper={stepper} label="Merge the rows" next={`Next: ${moveText(...MOVES[Math.min(k + 1, MOVES.length - 1)])}`} />}
+          play={<PlayBar stepper={stepper} start="Merge the rows" next={moveText(...MOVES[Math.min(k + 1, MOVES.length - 1)])} />}
           foot={<Legend items={[{ signal: 'path', label: 'rows that make this move' }, { signal: 'dontcare', label: 'X: either value' }]} />}
         >
           <div className="seq-cols">
@@ -123,17 +124,23 @@ export function TablesView({ intro, switcher }: { intro: ReactNode; switcher: Re
             />
           </div>
         </Board>
-        <Story items={MOVES.map(([a, b], i) => ({ title: `Q ${moveText(a, b)}`, state: i === k ? 'now' : i < k ? 'past' : 'next', onPick: () => stepper.set(i) }))}>
-          <div className="seq-explain">
-            <p>
-              {merged.rows.length === 1 ? 'Only one row' : `${merged.rows.length} rows`} of the characteristic table move Q from {q} to {n}.
-              {merged.inputs.includes('X') ? ' An input that differs between them is free, so it becomes X.' : ' Every input is fixed.'}
-            </p>
-            <p className="mono seq-working">{ex.why.working}</p>
-            <p className="seq-cite">{ex.why.cite}</p>
-          </div>
-        </Story>
-      </div>
+        <Story
+          label="What happens at this step"
+          titles={MOVES.map(([a, b]) => `Q ${moveText(a, b)}`)}
+          index={k}
+          onPick={stepper.set}
+          body={
+            <div className="seq-explain">
+              <p>
+                {merged.rows.length === 1 ? 'Only one row' : `${merged.rows.length} rows`} of the characteristic table move Q from {q} to {n}.
+                {merged.inputs.includes('X') ? ' An input that differs between them is free, so it becomes X.' : ' Every input is fixed.'}
+              </p>
+              <p className="mono seq-working">{ex.why.working}</p>
+              <p className="seq-cite">{ex.why.cite}</p>
+            </div>
+          }
+        />
+      </Stage>
 
       <TabStrip
         label="Tables and notes"
@@ -229,13 +236,13 @@ export function MatchView({ intro, switcher }: { intro: ReactNode; switcher: Rea
         title="Which flip-flop is each diagram?"
         step={checked ? <Chip signal={right === 4 ? 'hit' : 'miss'}>{right} of 4 right</Chip> : undefined}
         play={
-          <div className="seq-board-play">
-            <button type="button" className="seq-play" onClick={() => setChecked(true)} disabled={missing} title={missing ? 'Pick a flip-flop for every diagram first' : undefined}>
+          <div className="board-play">
+            <button type="button" className="play-pill" onClick={() => setChecked(true)} disabled={missing} title={missing ? 'Pick a flip-flop for every diagram first' : undefined}>
               Check my answers
             </button>
             <button
               type="button"
-              className="seq-next"
+              className="next-pill"
               onClick={() => {
                 setOrder((idx + 1 + Math.floor(Math.random() * (PERMS.length - 1))) % PERMS.length)
                 setAns([])

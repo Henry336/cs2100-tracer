@@ -2,10 +2,11 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { bin, design, parseSequence, FF_INPUTS, FLIP_FLOPS, type Design, type DesignFrame, type DesignFunction, type DesignPhase, type DesignRow, type FFType, type Sig, type TableRow, type UnusedTransition } from '../../core/sequential'
 import { useUrlState } from '../../lib/url-state'
 import { Button, Callout, Chip, DataTable, Legend, Presets, Segmented, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Board, PlayBar, Stage, Story } from '../../ui/board'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
 import { Checks } from './AnalysisTab'
-import { Bitv, Board, Fold, Issues, Narrate, PlayBar, Scroll, Story, TabStrip, W, bool, parseOverrides, pick, plural, splitNames, str } from './common'
+import { Bitv, Fold, Issues, Narrate, Scroll, TabStrip, W, bool, parseOverrides, pick, plural, splitNames, str } from './common'
 import { KMap } from './KMap'
 import { DESIGN_PRESETS } from './presets'
 import { StateDiagram, type EdgeRef } from './StateDiagram'
@@ -147,7 +148,7 @@ export default function DesignTab({ intro }: { intro: ReactNode }) {
       <Board
         title={`K-map for ${d.functions[fnIndex]?.label ?? ''}`}
         step={frame?.title}
-        play={<PlayBar stepper={stepper} label="Design it step by step" next="Next step" />}
+        play={<PlayBar stepper={stepper} start="Design it step by step" />}
         foot={<Legend items={[{ signal: 'dontcare', label: "X: don't care, d(1) or d(0) once committed" }]} />}
       >
         <KMapView d={d} {...kmapProps} step={k} />
@@ -161,8 +162,8 @@ export default function DesignTab({ intro }: { intro: ReactNode }) {
       <Board
         title="State diagram of the built circuit"
         step={frame?.title}
-        actions={<Toggle label="Show only what this step uses" checked={focus} onChange={setFocus} hint="Hides every arrow this step does not use." />}
-        play={<PlayBar stepper={stepper} label="Design it step by step" next="Next step" />}
+        tools={<Toggle label="Show only what this step uses" checked={focus} onChange={setFocus} hint="Hides every arrow this step does not use." />}
+        play={<PlayBar stepper={stepper} start="Design it step by step" />}
         foot={<Legend items={[{ signal: 'path', label: phase === 'verdict' ? 'paths back to a used state' : 'this transition' }, { signal: 'dontcare', label: 'unused state (dashed, hatched)' }]} />}
       >
         <Scroll label="State diagram of the designed circuit">
@@ -175,7 +176,7 @@ export default function DesignTab({ intro }: { intro: ReactNode }) {
       <Board
         title="Excitation table"
         step={frame?.title}
-        play={<PlayBar stepper={stepper} label="Design it step by step" next="Next step" />}
+        play={<PlayBar stepper={stepper} start="Design it step by step" />}
         foot={<Legend items={[{ signal: 'path', label: 'this row' }, { signal: 'dontcare', label: "don't care (X)" }]} />}
       >
         <ExciteTable d={d} frame={frame} reached={reached} fnIndex={kmapFn} />
@@ -318,17 +319,20 @@ export default function DesignTab({ intro }: { intro: ReactNode }) {
         {result && !result.ok ? <Issues issues={result.errors} /> : null}
       </Fold>
 
-      <div className="seq-stage">
+      <Stage>
         {board}
         <Story
-          items={PHASES.map((p) => {
-            const state = p.phase === 'table' ? 'past' : !phase ? 'next' : p.phase === phase ? 'now' : reached(p.phase) ? 'past' : 'next'
-            return { title: p.label, state, onPick: p.phase === 'table' || !d ? undefined : () => stepper.set(firstOf(p.phase as DesignPhase)) }
-          })}
-        >
-          {frame ? <Narrate e={frame.why} head={<Chip signal="path">{frame.title}</Chip>} /> : null}
-        </Story>
-      </div>
+          label="What happens at this step"
+          titles={PHASES.map((p) => p.label)}
+          index={phase ? PHASES.findIndex((p) => p.phase === phase) : -1}
+          onPick={(i) => {
+            const p = PHASES[i].phase
+            if (p === 'table') stepper.first()
+            else stepper.set(firstOf(p))
+          }}
+          body={frame ? <Narrate e={frame.why} head={<Chip signal="path">{frame.title}</Chip>} /> : null}
+        />
+      </Stage>
 
       {d ? (
         <TabStrip

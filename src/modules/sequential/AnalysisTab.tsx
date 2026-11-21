@@ -20,9 +20,10 @@ import {
 } from '../../core/sequential'
 import { useUrlState } from '../../lib/url-state'
 import { Callout, Chip, CodeEditor, DataTable, Legend, NumberField, Presets, Segmented, Select, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Board, PlayBar, Stage } from '../../ui/board'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { Bitv, Board, Fold, Issues, Narrate, PlayBar, Scroll, Story, TabStrip, W, bool, int, lineErrors, parseStates, pick, plural, splitNames, str } from './common'
+import { Bitv, Fold, Issues, Narrate, Scroll, StepNote, TabStrip, W, bool, int, lineErrors, parseStates, pick, plural, splitNames, str } from './common'
 import { ANALYSIS_PRESETS } from './presets'
 import { StateDiagram } from './StateDiagram'
 
@@ -239,12 +240,12 @@ export default function AnalysisTab({ intro }: { intro: ReactNode }) {
 
       {model ? (
         <>
-          <div className="seq-stage">
+          <Stage>
             <Board
               title="State diagram"
               step={simFrame ? `Clock ${simFrame.clock}` : rowNow && a ? `Row ${rowNow.index}` : undefined}
-              actions={<Toggle label="Show only what this step uses" checked={focus} onChange={setFocus} hint="Hides every arrow except this step's transition." />}
-              play={count ? <PlayBar stepper={stepper} label={mode === 'rows' ? 'Build the state table' : 'Clock the circuit'} next={mode === 'rows' ? 'Next row' : 'Next clock'} /> : null}
+              tools={<Toggle label="Show only what this step uses" checked={focus} onChange={setFocus} hint="Hides every arrow except this step's transition." />}
+              play={count ? <PlayBar stepper={stepper} start={mode === 'rows' ? 'Build the state table' : 'Clock the circuit'} next={(i) => (mode === 'rows' ? `row ${a?.rows[a.frames[i]?.row ?? 0]?.index ?? i}` : `clock ${sim?.frames[i]?.clock ?? i}`)} /> : null}
               foot={
                 <>
                   <Legend
@@ -264,10 +265,10 @@ export default function AnalysisTab({ intro }: { intro: ReactNode }) {
                 <StateDiagram graph={model.graph} current={count ? current : null} next={nextState} active={active} path={pathEdges} focus={focus} step={`${k}-${shownPath?.state ?? ''}`} label={`State diagram, ${plural(model.graph.nodes.length, 'state')}`} />
               </Scroll>
             </Board>
-            <Story>
+            <StepNote>
               {why ? <Narrate e={why} head={describe ? <span>{describe}</span> : undefined} /> : <p className="seq-muted">{nIn ? 'Type an input sequence to clock the circuit.' : 'Set the number of clocks.'}</p>}
-            </Story>
-          </div>
+            </StepNote>
+          </Stage>
 
           <TabStrip
             label="Tables for this circuit"

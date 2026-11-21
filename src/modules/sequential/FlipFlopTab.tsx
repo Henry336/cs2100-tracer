@@ -16,9 +16,10 @@ import {
 } from '../../core/sequential'
 import { useUrlState } from '../../lib/url-state'
 import { Button, Callout, Chip, DataTable, Legend, Presets, Segmented, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Board, Options, PlayBar, Stage, Story } from '../../ui/board'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { BitToggle, Bitv, Board, Fold, Issues, Narrate, PlayBar, Scroll, Story, TabStrip, W, bool, int, pick, plural } from './common'
+import { BitToggle, Bitv, Issues, Narrate, Scroll, StepNote, TabStrip, W, bool, int, pick, plural } from './common'
 import { LatchSvg } from './LatchSvg'
 import { TIMING_PRESETS } from './presets'
 import { TimingDiagram, type WaveRow } from './TimingDiagram'
@@ -235,7 +236,7 @@ function TimingView({ intro, setView }: { intro: ReactNode; setView: (v: View) =
           options={ELEMENTS.map((e) => ({ value: e, label: ELEMENT_LABEL[e], title: isLatch(e) ? 'Level-triggered (L19 p13-15)' : `${FLIP_FLOPS[e as FFType].name} (${FLIP_FLOPS[e as FFType].cite})` }))}
         />
       </div>
-      <Fold summary="Clock edge, start value, PRE and CLR, length">
+      <Options summary="Clock edge, start value, PRE and CLR, length">
         <div className="seq-row">
           {!latch ? (
             <Segmented
@@ -288,13 +289,13 @@ function TimingView({ intro, setView }: { intro: ReactNode; setView: (v: View) =
           <Button onClick={() => setWaves({ ...waves, CLK: square(ticks) })}>Square {clockName}</Button>
           <span className="seq-muted">{plural(ticks, 'tick')}</span>
         </div>
-      </Fold>
+      </Options>
 
-      <div className="seq-stage">
+      <Stage>
         <Board
           title={title}
           step={trace ? `Tick ${t}` : undefined}
-          play={trace ? <PlayBar stepper={stepper} label="Clock it through" next={`Next: tick ${t + 1}`} /> : null}
+          play={trace ? <PlayBar stepper={stepper} start="Clock it through" next={`tick ${t + 1}`} /> : null}
           foot={
             <Legend
               items={[
@@ -315,7 +316,7 @@ function TimingView({ intro, setView }: { intro: ReactNode; setView: (v: View) =
           )}
         </Board>
         {frame ? (
-          <Story tip="Click a cell of any input row to flip it.">
+          <StepNote tip="Click a cell of any input row to flip it.">
             <Narrate
               e={frame.why}
               head={
@@ -324,9 +325,9 @@ function TimingView({ intro, setView }: { intro: ReactNode; setView: (v: View) =
                 </>
               }
             />
-          </Story>
+          </StepNote>
         ) : null}
-      </div>
+      </Stage>
 
       <TabStrip
         label="Tables for this flip-flop"
@@ -481,28 +482,36 @@ function LatchView({ intro, setView }: { intro: ReactNode; setView: (v: View) =>
           </div>
         </div>
       </div>
-      <Fold summary="Options">
+      <Options>
         <Toggle label="Q' starts equal to Q" checked={same} onChange={setSame} hint="As after S = R = 1 on the NOR latch, then both inputs released together" />
-      </Fold>
+      </Options>
 
-      <div className="seq-stage">
+      <Stage>
         <Board
           title={info.name}
           step={`Round ${round.round}${last ? (settle.stable ? ', stable' : ', still changing') : ''}`}
-          play={<PlayBar stepper={stepper} label="Settle the gates" next={`Next: round ${round.round + 1}`} />}
+          play={<PlayBar stepper={stepper} start="Settle the gates" next={`round ${round.round + 1}`} />}
           foot={<Legend items={[{ signal: 'path', label: 'changed this round' }, { signal: 'data', label: 'feedback' }, { signal: 'control', label: 'enable' }]} />}
         >
           <Scroll label="Latch gate diagram">
             <LatchSvg type={type} values={values} settle={settle} round={k} />
           </Scroll>
         </Board>
-        <Story items={settle.rounds.map((_, i) => ({ title: roundTitle(i), state: i === k ? 'now' : i < k ? 'past' : 'next', onPick: () => stepper.set(i) }))}>
-          <p>
-            Q = {String(round.q)}, Q' = {String(round.qBar)}
-          </p>
-          {last ? verdict : null}
-        </Story>
-      </div>
+        <Story
+          label="What happens at this step"
+          titles={settle.rounds.map((_, i) => roundTitle(i))}
+          index={k}
+          onPick={stepper.set}
+          body={
+            <>
+              <p>
+                Q = {String(round.q)}, Q' = {String(round.qBar)}
+              </p>
+              {last ? verdict : null}
+            </>
+          }
+        />
+      </Stage>
 
       <TabStrip
         label="Tables for this latch"
@@ -572,14 +581,14 @@ function ConvertView({ intro, setView }: { intro: ReactNode; setView: (v: View) 
         <Segmented label="Behaviour you want" value={want} onChange={setWant} options={FF_TYPES.map((v) => ({ value: v, label: FF_LABEL[v] }))} />
       </div>
 
-      <div className="seq-stage">
-        <Board title={`Drive a ${FLIP_FLOPS[have].name} so it acts as a ${FLIP_FLOPS[want].name}`} step={`Row ${k}`} play={<PlayBar stepper={stepper} label="Fill in the rows" next={`Next: row ${k + 1}`} />}>
+      <Stage>
+        <Board title={`Drive a ${FLIP_FLOPS[have].name} so it acts as a ${FLIP_FLOPS[want].name}`} step={`Row ${k}`} play={<PlayBar stepper={stepper} start="Fill in the rows" next={`row ${k + 1}`} />}>
           <DataTable compact columns={cols} rows={conv.rows} rowSignal={(_, i) => (i === k ? 'path' : undefined)} />
         </Board>
-        <Story>
+        <StepNote>
           <Narrate e={row.why} head={<span className="mono">{rowText(row)}</span>} />
-        </Story>
-      </div>
+        </StepNote>
+      </Stage>
 
       <TabStrip
         label="Result and notes"

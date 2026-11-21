@@ -30,7 +30,7 @@ describe('sequential page renders', () => {
   it('stepping views put the picture on a board with a Play pill inside it', () => {
     for (const el of [<FlipFlopTab intro={null} />, <AnalysisTab intro={null} />, <DesignTab intro={null} />]) {
       const html = renderToString(el)
-      expect(html).toMatch(/class="seq-board canvas"[\s\S]*class="seq-board-play"[\s\S]*class="seq-play"/)
+      expect(html).toMatch(/class="board canvas"[\s\S]*class="board-play"[\s\S]*class="play-pill"/)
       expect(html).toContain('role="tablist"')
     }
   })

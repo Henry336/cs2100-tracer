@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import type { StateGraph } from '../../core/sequential'
+import { Flow } from '../../ui/board'
 
 export interface EdgeRef {
   from: number
@@ -187,20 +188,7 @@ export function StateDiagram({
         ),
       )}
       {/* Light along the arrows this step takes: each draws in from its source state, then packets follow it. */}
-      {step !== undefined && drawn.some((e) => e.lit && !e.hidden) ? (
-        <>
-          <g className="flow-draw" key={`d${step}`} aria-hidden="true">
-            {drawn.filter((e) => e.lit && !e.hidden).map((e) => (
-              <path key={e.key} d={e.d} pathLength={1} />
-            ))}
-          </g>
-          <g className="flow-packets" key={`p${step}`} aria-hidden="true">
-            {drawn.filter((e) => e.lit && !e.hidden).map((e, i) => (
-              <path key={e.key} d={e.d} pathLength={1} style={{ animationDelay: `${0.7 + (i % 5) * 0.18}s` }} />
-            ))}
-          </g>
-        </>
-      ) : null}
+      {step !== undefined ? <Flow id={step} paths={drawn.filter((e) => e.lit && !e.hidden).map((e) => e.d)} /> : null}
       {graph.nodes.map((node) => {
         const p = pos[node.id]
         const now = current === node.id

@@ -1,4 +1,5 @@
 import type { Bit, LatchSettle, LatchType } from '../../core/sequential'
+import { Flow } from '../../ui/board'
 
 const GW = 56
 const GH = 40
@@ -97,20 +98,7 @@ export function LatchSvg({ type, values, settle, round }: { type: LatchType; val
       <path d={fbTop} className="lt-wire lt-fb" />
       <path d={fbBot} className="lt-wire lt-fb" />
       {/* Light on what changed this round: the new output, and the feedback wire that carries it to the other gate. */}
-      {lit.length ? (
-        <>
-          <g className="flow-draw" key={`d${r.round}`} aria-hidden="true">
-            {lit.map((d) => (
-              <path key={d} d={d} pathLength={1} />
-            ))}
-          </g>
-          <g className="flow-packets" key={`p${r.round}`} aria-hidden="true">
-            {lit.map((d, i) => (
-              <path key={d} d={d} pathLength={1} style={{ animationDelay: `${0.7 + i * 0.2}s` }} />
-            ))}
-          </g>
-        </>
-      ) : null}
+      <Flow id={r.round} paths={lit} />
       <circle cx={outX + 14} cy={topY} r={2.5} className="lt-dot" />
       <circle cx={outX + 14} cy={botY} r={2.5} className="lt-dot" />
       <text x={outX + 64} y={topY + 4} className={`lt-out${changedQ ? ' is-active' : ''}`}>

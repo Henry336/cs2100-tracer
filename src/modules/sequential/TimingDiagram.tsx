@@ -1,5 +1,6 @@
 import { useId, type KeyboardEvent } from 'react'
 import type { Bit, Sig, TimingTrace } from '../../core/sequential'
+import { Flow } from '../../ui/board'
 
 const TW = 32
 const RH = 32
@@ -149,16 +150,7 @@ export function TimingDiagram({
       {sigWave(q, qTop, 'Q')}
       {sigWave(qBar, qTop + RH, "Q'")}
       {/* Light for this tick: from the input the edge reads (or PRE, CLR) down the edge line into Q, then along Q. */}
-      {flow ? (
-        <>
-          <g className="flow-draw" key={`d${upto}`} aria-hidden="true">
-            <path d={flow} pathLength={1} />
-          </g>
-          <g className="flow-packets" key={`p${upto}`} aria-hidden="true">
-            <path d={flow} pathLength={1} />
-          </g>
-        </>
-      ) : null}
+      {flow ? <Flow id={upto} paths={[flow]} /> : null}
       {/* Triggering edges up to now. */}
       {trace.edges
         .filter((t) => t <= upto)

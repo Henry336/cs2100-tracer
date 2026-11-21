@@ -3,8 +3,9 @@ import { parseExpr, type Expr } from '../../core/boolean'
 import { analyse, bin, comboText, parseCircuit, parseStateTable, totalGates, type Analysis, type Issue, type Sig } from '../../core/sequential'
 import { useUrlState } from '../../lib/url-state'
 import { Callout, Chip, CodeEditor, DataTable, Legend, Presets, TextField, Workspace, type Column } from '../../ui/kit'
+import { Board, Options } from '../../ui/board'
 import { Checks } from './AnalysisTab'
-import { Board, Fold, Issues, Scroll, TabStrip, W, lineErrors, plural, splitNames, str } from './common'
+import { Issues, Scroll, TabStrip, W, lineErrors, plural, splitNames, str } from './common'
 import { CHECK_PRESETS } from './presets'
 import { StateDiagram } from './StateDiagram'
 
@@ -112,7 +113,7 @@ export default function CheckTab({ intro }: { intro: ReactNode }) {
         </div>
       </div>
       <Issues issues={errors.filter((e) => !e.line)} />
-      <Fold summary="Options">
+      <Options>
         <div className="seq-row">
           <TextField label="Inputs, MSB first" value={inText} onChange={setIn} placeholder="auto" width="11em" />
           {a ? (
@@ -121,7 +122,7 @@ export default function CheckTab({ intro }: { intro: ReactNode }) {
             </span>
           ) : null}
         </div>
-      </Fold>
+      </Options>
 
       {a ? (
         <>

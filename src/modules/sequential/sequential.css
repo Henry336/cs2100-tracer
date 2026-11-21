@@ -722,7 +722,7 @@ p.seq-muted + .seq-row {
   min-width: 0;
 }
 
-/* ---------- Calm layout (docs/design.md): command row, board with Play inside, story beside, one tab strip ---------- */
+/* ---------- Calm layout: shared kit classes (src/styles/shell.css) plus what is specific to this module ---------- */
 
 .seq-command {
   display: flex;
@@ -731,328 +731,28 @@ p.seq-muted + .seq-row {
   align-items: end;
 }
 
-.seq-fold > summary {
-  cursor: pointer;
-  color: var(--ink-3);
-  font-size: var(--fs-sm);
-  max-width: 100%;
-  padding: 2px 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.seq-fold[open] > summary {
-  color: var(--ink);
-  margin-bottom: var(--sp-3);
-}
-
 .seq-fold-sum {
   color: var(--ink-2);
 }
 
-.seq-fold-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  padding: var(--sp-3);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-panel);
-  background: var(--panel);
-}
-
-.seq-fold-body > .seq-row + .seq-row,
-.seq-fold-body > .seq-split + .seq-row,
-.seq-fold-body > .seq-row + .seq-split,
-.seq-fold-body > p.seq-muted {
+/* The options body is a flex column with its own gap, so the row spacing above is not added twice. */
+.seq-root .options-body > .seq-row + .seq-row,
+.seq-root .options-body > .seq-split + .seq-row,
+.seq-root .options-body > .seq-row + .seq-split,
+.seq-root .options-body > p.seq-muted {
   margin-top: 0;
 }
 
-.seq-stage {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: var(--sp-4);
-  align-items: start;
-}
-
-.seq-stage > :only-child {
-  grid-column: 1 / -1;
-}
-
-.seq-board {
-  position: relative;
-  min-width: 0;
-  border: 1px solid var(--rule);
-  border-radius: var(--r-panel);
-  overflow: hidden;
-}
-
-.seq-board-bar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--sp-2) var(--sp-4);
-  padding: 12px 16px 0;
-}
-
-.seq-board-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--sp-1) var(--sp-3);
-  font-size: var(--fs-md);
-}
-
-.seq-board-step {
-  font-family: var(--font-display);
-  font-size: var(--fs-xl);
-  color: var(--sig-path);
-}
-
-.seq-board-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-3);
-  align-items: center;
-}
-
-.seq-board-body {
-  padding: 10px 16px 12px;
-  min-width: 0;
-}
-
 /* Tables sit on the board as cards, so the dot grid does not run through the numbers. */
-.seq-board-body .table-wrap {
+.seq-root .board-scroll .table-wrap {
   background: var(--panel);
   border: 1px solid var(--rule);
   border-radius: var(--r-control);
 }
 
-.seq-board-play {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  padding: 0 16px 14px;
-}
-
-.seq-play,
-.seq-next {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 40px;
-  padding: 0 18px;
-  border-radius: var(--r-pill);
-  font: 600 var(--fs-sm) / 1 var(--font-sans);
-  cursor: pointer;
-  transition: transform 0.25s var(--ease-spring), background-color 0.15s var(--ease);
-}
-
-.seq-play {
-  position: relative;
-  border: 0;
-  background: var(--primary);
-  color: var(--primary-ink);
-}
-
-.seq-play svg {
-  width: 14px;
-  height: 14px;
-  fill: currentColor;
-}
-
-.seq-play:hover:not(:disabled) {
-  transform: scale(1.03);
-}
-
-.seq-play:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.seq-play[data-playing='true']::before {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: inherit;
-  padding: 2px;
-  background: var(--glow);
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box exclude,
-    linear-gradient(#000 0 0);
-  animation: glow-spin 2.4s linear infinite;
-}
-
-.seq-next {
-  border: 1px solid var(--rule);
-  background: var(--panel);
-  color: var(--ink);
-}
-
-.seq-next svg {
-  width: 14px;
-  height: 14px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.seq-next:hover {
-  border-color: var(--ink-3);
-}
-
-.seq-play:focus-visible,
-.seq-next:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
-
-.seq-board-foot {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2) var(--sp-4);
-  align-items: center;
-  padding: 8px 16px;
-  border-top: 1px solid var(--grid);
-  background: color-mix(in srgb, var(--panel) 70%, transparent);
-}
-
-/* The story: steps in order; the current one is bright and narrated, the rest stay one line. */
-.seq-story {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  position: sticky;
-  top: var(--sp-4);
-  min-width: 0;
-}
-
-.seq-story-steps {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.seq-story-steps li {
-  position: relative;
-  padding-left: 22px;
-}
-
-.seq-story-steps li::before {
-  content: '';
-  position: absolute;
-  left: 5px;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--rule);
-}
-
-.seq-story-steps li:first-child::before {
-  top: 16px;
-}
-
-.seq-story-steps li:last-child::before {
-  bottom: calc(100% - 16px);
-}
-
-.seq-story-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  width: 100%;
-  border: 0;
-  background: none;
-  padding: 7px 0;
-  color: var(--ink-3);
-  font: inherit;
-  font-size: var(--fs-sm);
-  text-align: left;
-}
-
-button.seq-story-btn {
-  cursor: pointer;
-}
-
-button.seq-story-btn:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 1px;
-  border-radius: 2px;
-}
-
-.seq-story-dot {
-  position: absolute;
-  left: 0;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  border: 1.5px solid var(--rule);
-  background: var(--paper);
-}
-
-.seq-story-steps .is-past .seq-story-btn {
-  color: var(--ink-2);
-}
-
-.seq-story-steps .is-past .seq-story-dot {
-  background: var(--ink-3);
-  border-color: var(--ink-3);
-}
-
-.seq-story-steps .is-now .seq-story-btn {
-  color: var(--ink);
-  font-weight: 600;
-  font-size: var(--fs-md);
-}
-
-.seq-story-steps .is-now .seq-story-dot {
-  border-color: var(--sig-path);
-  background: var(--sig-path);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--sig-path) 25%, transparent);
-}
-
-.seq-story-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  padding: 4px 0 14px;
-  font-size: var(--fs-sm);
-  line-height: 1.55;
-  animation: rise 0.35s var(--ease) both;
-}
-
 .seq-tip {
   font-size: var(--fs-xs);
   color: var(--ink-3);
-}
-
-/* One tab strip for the secondary tables; every panel is rendered, only the chosen one shows on screen. */
-.seq-details {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  min-width: 0;
-}
-
-.seq-detail-body {
-  border: 1px solid var(--rule);
-  border-radius: var(--r-panel);
-  background: var(--panel);
-  padding: var(--sp-3);
-  overflow-x: auto;
-}
-
-.seq-detail-body[hidden] {
-  display: none;
 }
 
 .seq-notes,
@@ -1093,45 +793,28 @@ button.seq-story-btn:focus-visible {
   }
 }
 
-@media (max-width: 1100px) {
-  .seq-stage {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .seq-story {
-    position: static;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .seq-play[data-playing='true']::before,
-  .seq-story-body {
-    animation: none;
-  }
   .seq-km-draw {
     display: none;
   }
 }
 
 @media print {
-  .seq-board-play,
   .seq-km-draw,
   .seq-details > .tabs {
     display: none;
   }
-  .seq-story {
-    position: static;
-  }
-  /* Every table prints, each under its tab name. */
-  .seq-detail-body[hidden] {
+  /* Every table prints, each under its tab name (TabStrip renders every panel). */
+  .seq-details > .detail-body[hidden] {
     display: block;
   }
-  .seq-detail-body::before {
+  .seq-details > .detail-body::before {
     content: attr(data-label);
     display: block;
     font-weight: 600;
     margin-bottom: var(--sp-2);
   }
-  .seq-detail-body {
+  .seq-details > .detail-body {
     break-inside: avoid;
   }
 }
