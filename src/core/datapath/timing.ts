@@ -111,12 +111,12 @@ export interface TimingResult {
 
 const NOT_NEEDED: Record<NodeId, string> = {
   IM: '', ADD4: '', CTRL: '', RFR: '', ALUCTL: '', ALU: '', AND: '', PCSRC: '',
-  REGDST: 'no register is written, so WR is not needed',
+  REGDST: 'no register is written',
   SEXT: 'the ALUSrc mux selects RD2 and the branch target is discarded',
   ALUSRC: '',
   SHIFT: 'only a branch needs the shifted offset',
   BADD: 'only a branch needs the target',
-  DM: 'data memory is not used by this instruction',
+  DM: 'no load or store',
   MTR: 'no register is written',
   RFW: 'no register is written',
 }

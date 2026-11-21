@@ -127,7 +127,7 @@ function build(ins: Instr, row: ControlRow, rowWhy: Explain, support: ReturnType
   add(P('RR2', 'RR2', rt, R(rt), R(rt), u('inst-rt-rr2'), { rule: 'RR2 = Inst[20:16] (rt), for every format', working: `Inst[20:16] = ${bin(rt, 5)} = ${rt}`, cite: 'L11 p24' }))
   add(P('WR', 'WR', wr, wr === null ? `$${rt} or $${rd}` : R(wr), wr === null ? `${R(rt)} or ${R(rd)}` : R(wr), u('wr'),
     row.RegDst === 'X'
-      ? { rule: 'RegDst is X, so the mux passes either Inst[20:16] or Inst[15:11]; it does not matter because RegWrite is 0', working: `rt = ${rt}, rd = ${rd}`, cite: 'L12 p34, T04 Answers p3' }
+      ? { rule: 'RegDst is X: the mux passes Inst[20:16] or Inst[15:11], and RegWrite is 0 so neither is written', working: `rt = ${rt}, rd = ${rd}`, cite: 'L12 p34, T04 Answers p3' }
       : { rule: row.RegDst === 1 ? 'RegDst = 1 selects Inst[15:11] (rd) as the write register' : 'RegDst = 0 selects Inst[20:16] (rt) as the write register', working: `WR = ${wr}`, cite: 'L11 p26, L12 p10' }))
   add(P('RD1', 'RD1', rd1, hex(rd1), C(rs), u('rd1'), { rule: 'RD1 = contents of register RR1', working: `[$${rs}] = ${show(rd1)}`, cite: 'L11 p23' }))
   add(P('RD2', 'RD2', rd2, hex(rd2), C(rt), u('rd2-alusrc', 'rd2-dm'), { rule: 'RD2 = contents of register RR2 (read even when not needed)', working: `[$${rt}] = ${show(rd2)}`, cite: 'L11 p23' }))
@@ -143,7 +143,7 @@ function build(ins: Instr, row: ControlRow, rowWhy: Explain, support: ReturnType
   add(P('isZero', 'isZero', isZero, String(isZero), `(${aluSym}) == 0`, u('iszero'), { rule: 'isZero is 1 when the ALU result is 0', working: `result ${hex(alu.result)}, so isZero = ${isZero}`, cite: 'L11 p34' }))
   add(P('dmAddress', 'Data memory Address', addr, hex(addr), aluSym, u('alu-dm'), { rule: 'The ALU result always goes to the data memory address input', working: hex(addr), cite: 'L11 p40' }))
   add(P('dmWriteData', 'Data memory Write Data', rd2, hex(rd2), C(rt), u('rd2-dm'), { rule: 'RD2 always goes to Write Data; it is stored only if MemWrite = 1', working: `[$${rt}] = ${show(rd2)}`, cite: 'L11 p42' }))
-  add(P('dmReadData', 'Data memory Read Data', readData, readData === null ? 'none' : hex(readData), readData === null ? 'nothing read (MemRead = 0), so the output is a random value' : memSym, u('dm-mtr'),
+  add(P('dmReadData', 'Data memory Read Data', readData, readData === null ? 'none' : hex(readData), readData === null ? 'random (MemRead = 0)' : memSym, u('dm-mtr'),
     readData === null
       ? { rule: 'With MemRead = 0 the memory returns nothing defined', cite: 'L11 p40, T04 Answers p3' }
       : { rule: 'MemRead = 1 reads the word at Address (big-endian)', working: `Mem(${hex(addr)}) = ${show(readData)}${addr % 4 ? `; ${hex(addr)} is not a multiple of 4, so a real lw would fault` : ''}`, cite: 'L11 p40, R02 p8' }))
@@ -232,7 +232,7 @@ function build(ins: Instr, row: ControlRow, rowWhy: Explain, support: ReturnType
   const STATE: UnitId[] = ['pc', 'rf', 'dm']
   const units = UNITS.map((un) => {
     const active = un.id === 'pc' || wires.some((w) => w.status === 'used' && (w.from === un.id || (STATE.includes(un.id) && w.to === un.id && w.kind === 'data')))
-    return { id: un.id, label: un.label, active, stage: unitStage(un.id, policy), why: active ? `${un.label} produces a value this instruction keeps (${un.cite})` : `${un.label} still computes, but its output is discarded (${un.cite})` }
+    return { id: un.id, label: un.label, active, stage: unitStage(un.id, policy), why: active ? `Output kept (${un.cite})` : `Still runs; output discarded (${un.cite})` }
   })
 
   const fields = fieldList(ins)
@@ -398,13 +398,12 @@ function trapsFor(ins: Instr, row: ControlRow, isR: boolean, shamt: number): Exp
   const m = ins.mnemonic
   if (row.RegDst === 'X') t.push({ rule: 'RegDst and MemToReg are X, but RegWrite must be 0: a signal that changes state is never X', cite: 'L12 p34' })
   if (isR) {
-    t.push({ rule: 'The opcode alone does not give ALUcontrol for R-type; ALU control also needs funct (two-level decoding)', cite: 'L12 p18, p23' })
+    t.push({ rule: 'For R-type, ALUcontrol needs funct as well as the opcode (two-level decoding)', cite: 'L12 p18, p23' })
     t.push({ rule: 'Sign extend still outputs SignExt(Inst[15:0]) for an R-type; the ALUSrc mux discards it', cite: 'T04 Answers p3, AY25/26 midterm Q23' })
     if (shamt) t.push({ rule: `shamt is ${shamt} but the datapath never reads Inst[10:6]`, cite: 'L11 p48' })
   }
   if (!isR) t.push({ rule: 'For I-format instructions the destination register is rt (Inst[20:16]), which is why the RegDst mux exists', cite: 'L11 p25-26' })
   if (m === 'lw') {
-    t.push({ rule: 'The MemToReg mux is drawn with its inputs swapped: 1 (memory data) is on top', cite: 'L12 p15' })
     t.push({ rule: 'lw still sends [rt] to Write Data; it is not stored because MemWrite is 0', cite: 'T04 Answers p3' })
   }
   if (m === 'sw') {
@@ -416,6 +415,5 @@ function trapsFor(ins: Instr, row: ControlRow, isR: boolean, shamt: number): Exp
     t.push({ rule: 'Target = (PC+4) + offset×4, not PC + offset', cite: 'L08 p28, L11 p37' })
     t.push({ rule: 'WR still receives a register number and WD a junk value; nothing is written because RegWrite = 0', cite: 'T04 Answers p3' })
   }
-  if (m === 'addi') t.push({ rule: 'The addi row is derived: L12 has no addi row and its PLA has no term for opcode 001000', cite: 'L12 p33 (derived)' })
   return t
 }

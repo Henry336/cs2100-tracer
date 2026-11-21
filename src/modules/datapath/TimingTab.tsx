@@ -88,7 +88,7 @@ export default function TimingTab({ intro }: { intro: ReactNode }) {
               <NumberField key={k} label={DELAY_LABELS[k]} value={delays.values[k]} min={0} suffix={u} onChange={(v) => setCustom({ ...custom, [k]: v })} />
             ))}
           </div>
-          <p className="dp-hint">{base.title}. A blank or negative delay counts as 0.</p>
+          <p className="dp-hint">A blank or negative delay counts as 0.</p>
         </Panel>
         <Panel title={`Critical path of ${CLASSES.find((c) => c.value === cls)!.label}`}>
           <p className="dp-total">
@@ -111,7 +111,7 @@ export default function TimingTab({ intro }: { intro: ReactNode }) {
           <ExplainText e={r.why} />
           {r.ties.length ? (
             <Callout kind="note" title="An equally long path">
-              {r.ties.map((t) => `${t.label} ends at ${t.finish} ${u} with no slack`).join('; ')}. Either path gives the same total.
+              {r.ties.map((t) => `${t.label} ends at ${t.finish} ${u} with no slack`).join('; ')}.
             </Callout>
           ) : null}
         </Panel>
@@ -121,7 +121,7 @@ export default function TimingTab({ intro }: { intro: ReactNode }) {
         title="Path on the datapath"
         actions={
           <>
-            <Toggle label="Show only what this instruction uses" checked={focus} onChange={setFocus} hint="Hides the units and wires this instruction class does not need" />
+            <Toggle label="Show only what this instruction uses" checked={focus} onChange={setFocus} hint="Hides the units and wires this instruction does not need" />
             <span className="dp-cite">R06 p42</span>
           </>
         }
@@ -209,9 +209,6 @@ export default function TimingTab({ intro }: { intro: ReactNode }) {
           </Callout>
           <Callout kind="trap" cite="R06 p42">
             For addi, sign extend and the ALUSrc mux (20 + 30 = 50 ps) run in parallel with the 200 ps register read, so they are not on the path. For an R-type, RD2 goes through the ALUSrc mux, so that 30 ps does count.
-          </Callout>
-          <Callout kind="course" cite="R06 p41">
-            Delays in series add; delays in parallel take the max. The critical path is the longest path from start to finish.
           </Callout>
           <Callout kind="course" cite="L12 p36">
             The single-cycle clock must fit the slowest instruction, so every instruction pays lw's time.

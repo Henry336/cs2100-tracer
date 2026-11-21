@@ -214,7 +214,7 @@ export function gradeControlRow(key: ControlRow, keyAluControl: string, answer: 
       if (k === 'X') {
         return g === 'X'
           ? { ...base, verdict: 'right' as const, why: { rule: `${s} is X: nothing this instruction keeps passes through what it selects`, cite: 'L12 p34' } }
-          : { ...base, verdict: 'accepted' as const, why: { rule: `${g} works too, since nothing this instruction keeps passes through what ${s} selects, but the table writes X`, cite: 'L12 p34' } }
+          : { ...base, verdict: 'accepted' as const, why: { rule: `${g} works too. The table has X because nothing this instruction keeps passes through what ${s} selects`, cite: 'L12 p34' } }
       }
       if (g === k) return { ...base, verdict: 'right' as const, why: { rule: `${s} = ${k}: ${meaning(k)}`, cite: m.cite } }
       if (g === 'X') {

@@ -248,13 +248,13 @@ export default function ControlTab({ intro, x }: { intro: ReactNode; x: TraceInp
         <RawAlu code={rawCode} setCode={setRawCode} a={ra} setA={setRa} b={rb} setB={setRb} fromGates={gates.code} />
         <Panel title="Traps and conventions">
           <Callout kind="trap" cite="L12 p18, p23; AY23/24 S2 Q9">
-            For R-type the opcode alone does not fix ALUcontrol: ALUop 10 hands the choice to funct. Every other signal comes from the opcode alone.
+            For R-type, ALUop 10 hands the choice of ALUcontrol to funct. Every other signal comes from the opcode alone.
           </Callout>
           <Callout kind="trap" cite="L12 p33, AY15/16 Q9a">
             The L12 PLA has no term for addi (001000) or bne (000101): every output is 0, so as drawn the control unit cannot run them.
           </Callout>
           <Callout kind="trap" cite="R06 p20, L11 p34">
-            ALUcontrol3 is always 0, so the ALU control unit can never ask for NOR (1100), even though the ALU has it.
+            ALUcontrol3 is always 0, so ALU control can never ask for NOR (1100). The ALU itself has NOR.
           </Callout>
           <Callout kind="course" cite="L12 p22, p27">
             The 4 ALUcontrol bits are Ainvert, Binvert and Operation[1:0]. L12 p27 shrinks the table with X entries: beq is ALUop X1, R-type 1X, and F5 F4 are X.

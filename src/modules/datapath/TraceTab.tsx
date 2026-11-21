@@ -105,7 +105,7 @@ function InputPanel({ x }: { x: TraceInputs }) {
             ]}
           />
           <Select
-            label="Stuck-at fault (what if)"
+            label="Stuck-at fault"
             value={x.fault ? x.fault.s : 'none'}
             onChange={(s) => x.setFault(s === 'none' ? null : { s: s as keyof ControlRow, v: x.fault?.v ?? 1 })}
             options={[{ value: 'none', label: 'No fault' }, ...FAULT_SIGNALS.map((s) => ({ value: s, label: `${s} stuck` }))]}
@@ -126,7 +126,7 @@ function SupportCallouts({ support, ok }: { support: SupportInfo; ok: boolean })
     return (
       <>
         {support.notes.map((n, i) => (
-          <Callout key={i} kind={i === 0 ? 'course' : support.notInCourseDatapath ? 'beyond' : 'course'} title={i === 0 ? 'Outside the L12 control table' : support.notInCourseDatapath ? 'Extra hardware, beyond the course datapath' : 'Derived control row'} cite={n.cite}>
+          <Callout key={i} kind={i === 0 ? 'course' : support.notInCourseDatapath ? 'beyond' : 'course'} title={i === 0 ? 'Outside the L12 control table' : support.notInCourseDatapath ? 'Needs extra hardware' : 'Derived control row'} cite={n.cite}>
             {n.rule}.
           </Callout>
         ))}
@@ -138,7 +138,7 @@ function SupportCallouts({ support, ok }: { support: SupportInfo; ok: boolean })
       <p>{support.notes.map((n) => n.rule).join('. ')}.</p>
       {support.missing.length ? (
         <>
-          <p>What the L11 p48 hardware would need:</p>
+          <p>The L11 p48 datapath would need:</p>
           <ul>
             {support.missing.map((m) => (
               <li key={m}>{m}</li>
@@ -147,7 +147,7 @@ function SupportCallouts({ support, ok }: { support: SupportInfo; ok: boolean })
         </>
       ) : null}
       {support.fieldUse ? <p>Register fields: {support.fieldUse.why.rule} ({support.fieldUse.why.cite}).</p> : null}
-      {!ok ? <p>The diagram below is drawn without values because there is no control row to run it.</p> : null}
+      {!ok ? <p>With no control row, the diagram has no values.</p> : null}
     </Callout>
   )
 }
@@ -192,7 +192,6 @@ function StagePanel({ t, k, num }: { t: DatapathTrace; k: number; num: NumMode }
             {n}
           </p>
         ))}
-        <p className="dp-hint">Dashed wires carry values that a mux or an enable threw away (T04 Answers p3).</p>
       </div>
     )
   }
@@ -201,7 +200,7 @@ function StagePanel({ t, k, num }: { t: DatapathTrace; k: number; num: NumMode }
     <div className="dp-step-body">
       {f.idle ? (
         <p className="dp-idle">
-          <Chip signal="stall">idle</Chip> This instruction does nothing useful in this stage.
+          <Chip signal="stall">idle</Chip> Nothing useful happens in this stage.
         </p>
       ) : null}
       <p className="dp-does">
@@ -361,7 +360,7 @@ function WireTable({ t, num, onPick }: { t: DatapathTrace; num: NumMode; onPick:
       ]}
       rows={t.wires}
       rowSignal={(w) => (w.status === 'used' ? undefined : 'stall')}
-      caption="Every wire this cycle. Discarded rows are greyed (T04 Answers p3)"
+      caption="Discarded rows are greyed (T04 Answers p3)"
     />
   )
 }
@@ -420,7 +419,7 @@ export default function TraceTab({ intro, x }: { intro: ReactNode; x: TraceInput
       {support ? <SupportCallouts support={support} ok={res.ok} /> : null}
       {t && t.control.faults.length ? (
         <Callout kind="trap" title="Hardware fault in effect" cite="AY15/16 Q9b, AY17/18 Q4c">
-          {t.control.faults.map((f) => `${f.signal} is stuck at ${f.forced}; the control table gives ${f.table ?? 'no such signal'}.`).join(' ')} Compare with the fault turned off to see which wires change.
+          {t.control.faults.map((f) => `${f.signal} is stuck at ${f.forced}; the control table gives ${f.table ?? 'no such signal'}.`).join(' ')} Turn the fault off to see which wires change.
         </Callout>
       ) : null}
 
@@ -439,7 +438,7 @@ export default function TraceTab({ intro, x }: { intro: ReactNode; x: TraceInput
             </p>
             <div className="dp-diagram-actions">
               <Segmented label="Numbers" value={num} onChange={setNum} options={[{ value: 'hex', label: 'Hex' }, { value: 'dec', label: 'Decimal' }]} />
-              <Toggle label="Show only what this instruction uses" checked={focus} onChange={setFocus} hint="Hide every unit and wire whose value is thrown away, and anything after the current stage" />
+              <Toggle label="Show only what this instruction uses" checked={focus} onChange={setFocus} hint="Hides discarded units and wires, and anything after the current stage" />
             </div>
           </div>
           <div className="dp-scroll">
@@ -482,7 +481,7 @@ export default function TraceTab({ intro, x }: { intro: ReactNode; x: TraceInput
                 </li>
               ))}
             </ol>
-            {sel ? <SelectedPanel t={t} sel={sel} num={num} onClear={() => setSel(null)} /> : <p className="dp-tip">Click any wire or unit to see how its value was worked out.</p>}
+            {sel ? <SelectedPanel t={t} sel={sel} num={num} onClear={() => setSel(null)} /> : <p className="dp-tip">Click a wire or unit for its working.</p>}
           </aside>
         ) : null}
       </div>
@@ -522,8 +521,8 @@ export default function TraceTab({ intro, x }: { intro: ReactNode; x: TraceInput
                 <ul className="dp-traps">
                   <li>RegDst 0 picks rt, 1 picks rd; ALUSrc 0 picks RD2, 1 picks the sign-extended immediate (L12 p10, p12).</li>
                   <li>The MemToReg mux is drawn with 1 (memory data) on top (L12 p15).</li>
-                  <li>Where the ALUSrc mux sits differs: L11 p31 puts it in decode, L12 p5 in the ALU stage. Switch it under Registers, memory and options.</li>
-                  <li>RegDst and RegWrite act in decode in L12 p5, but in EX and WB in the pipeline (L20 p27). The control signals table shows both.</li>
+                  <li>L11 p31 puts the ALUSrc mux in decode; L12 p5 puts it in the ALU stage. Switch it under Registers, memory and options.</li>
+                  <li>RegDst and RegWrite act in decode in L12 p5, and in EX and WB in the pipeline (L20 p27).</li>
                 </ul>
               </div>
             ) : null}

@@ -61,7 +61,7 @@ export function DatapathLegend({ extra = true }: { extra?: boolean }) {
     <div className="dp-legend">
       <Legend
         items={[
-          { signal: 'path', label: 'used, happening in this step' },
+          { signal: 'path', label: 'used in this step' },
           { signal: 'data', label: 'value on a wire' },
           { signal: 'control', label: 'control signal or control logic' },
           { signal: 'dontcare', label: "X, don't care" },
@@ -69,7 +69,7 @@ export function DatapathLegend({ extra = true }: { extra?: boolean }) {
       />
       {extra ? (
         <ul className="legend dp-legend-extra" aria-label="Line styles">
-          <li><span className="dp-sw dp-sw-past" aria-hidden="true" />used, set in an earlier step</li>
+          <li><span className="dp-sw dp-sw-past" aria-hidden="true" />used in an earlier step</li>
           <li><span className="dp-sw dp-sw-disc" aria-hidden="true" />computed but discarded</li>
           <li><span className="dp-sw dp-sw-future" aria-hidden="true" />not reached yet</li>
         </ul>

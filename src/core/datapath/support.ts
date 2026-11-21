@@ -43,7 +43,7 @@ const UNSUPPORTED: Record<string, { missing: string[]; note: Explain }> = {
   },
   lui: {
     missing: ['a unit that places Inst[15:0] in the upper half (imm << 16): the datapath only sign-extends'],
-    note: { rule: 'lui is not in the L11 p6 subset (add, sub, and, or, addi, andi, ori, slt, lw, sw, beq, bne), so the course datapath has no path for it', cite: 'L11 p6' },
+    note: { rule: 'lui is not in the L11 p6 subset, so the course datapath has no path for it', cite: 'L11 p6' },
   },
   slti: {
     missing: ['an ALUop value that asks for slt with an immediate (00 gives add, 01 subtract, 10 defers to funct, which an I-format has none of)'],
