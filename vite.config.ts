@@ -8,5 +8,7 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     environment: 'node',
+    // Low-RAM machine: never spawn more than 2 test workers.
+    maxWorkers: 2,
   },
 })
