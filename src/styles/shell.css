@@ -1059,3 +1059,14 @@ details.callout-beyond {
     position: static;
   }
 }
+
+@media (max-width: 600px) {
+  .command-bar {
+    flex-wrap: wrap;
+    border-radius: 18px;
+    padding: 8px 12px;
+  }
+  .command-input {
+    flex-basis: 100%;
+  }
+}

@@ -74,6 +74,7 @@ export function Board({
   foot,
   children,
   className,
+  label,
 }: {
   title: ReactNode
   /** What the board shows now, in the display font. */
@@ -85,9 +86,11 @@ export function Board({
   foot?: ReactNode
   children: ReactNode
   className?: string
+  /** Name for screen readers when the title is not plain text. */
+  label?: string
 }) {
   return (
-    <section className={`board canvas${className ? ` ${className}` : ''}`}>
+    <section className={`board canvas${className ? ` ${className}` : ''}`} aria-label={label ?? (typeof title === 'string' ? title : undefined)}>
       <div className="board-bar">
         <p className="board-title">
           <span>{title}</span>
