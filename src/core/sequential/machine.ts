@@ -235,11 +235,11 @@ export function selfCorrection(m: Machine): SelfCorrection {
   const determined = blank.length === 0
   const open = unused.flatMap((state) => (m.next[state] ?? []).flatMap((n, combo) => (n === null || !m.next[n] ? [{ state, combo }] : [])))
   const openText = open.map((o) => `${name(o.state)}${m.inputs.length ? ` on ${m.inputs.join('')} = ${comboText(m, o.combo)}` : ''}`).join(', ')
-  const openNote = open.length && determined ? ` Note: the transition${open.length > 1 ? 's' : ''} out of ${openText} ${open.length > 1 ? 'are' : 'is'} unpredictable or unspecified, so this answer only follows the transitions that are known.` : ''
+  const openNote = open.length && determined ? ` The transition${open.length > 1 ? 's' : ''} out of ${openText} ${open.length > 1 ? 'are' : 'is'} unpredictable or unspecified, so this answer follows only the known ones.` : ''
   const sentence = !applicable
     ? 'Every state is used, so there is no unused state to check.'
     : !determined
-      ? `Not determined yet: the table leaves every transition out of ${blank.map(name).join(', ')} open. Fix the equations (commit the don't-cares) first, then check where the unused states go.`
+      ? `Not determined yet: the table leaves every transition out of ${blank.map(name).join(', ')} open. Commit the don't-cares first.`
       : (course
       ? `Yes: every unused state reaches a used state (${paths.map((p) => p.text).join('; ')}).`
       : `No: ${paths

@@ -10,10 +10,10 @@ import './sequential.css'
 type Tab = 'ff' | 'analysis' | 'design' | 'check'
 
 const TABS: { value: Tab; label: string; blurb: string }[] = [
-  { value: 'ff', label: 'Flip-flops', blurb: 'Draw a timing diagram tick by tick for a latch or an edge-triggered flip-flop, watch characteristic rows merge into the excitation table, match flip-flops to their state diagrams, settle a latch gate by gate, or convert one flip-flop into another.' },
-  { value: 'analysis', label: 'Analysis', blurb: 'Turn flip-flop input equations into the state table and state diagram, then clock the circuit through an input sequence.' },
-  { value: 'design', label: 'Design wizard', blurb: 'From a state table and flip-flop types: excitation table, K-maps, equations, where the unused states go, and whether the circuit is self-correcting.' },
-  { value: 'check', label: 'Checker', blurb: 'Paste your flip-flop equations and the state table they should give, and see every entry that matches or differs.' },
+  { value: 'ff', label: 'Flip-flops', blurb: 'Latches and flip-flops, tick by tick and gate by gate.' },
+  { value: 'analysis', label: 'Analysis', blurb: 'Flip-flop equations become a state table and state diagram, then the circuit runs an input sequence.' },
+  { value: 'design', label: 'Design wizard', blurb: 'A state table becomes flip-flop equations, then the unused states are checked.' },
+  { value: 'check', label: 'Checker', blurb: 'Your flip-flop equations, checked against the state table they should give.' },
 ]
 
 export default function SequentialPage() {
@@ -22,7 +22,7 @@ export default function SequentialPage() {
   const current = TABS.find((t) => t.value === tab)!
   const intro = (
     <div className="seq-intro">
-      <p>{current.blurb} Click any underlined value to see how it was worked out.</p>
+      <p>{current.blurb} Click an underlined value to see the working.</p>
       <Tabs label="Sequential circuit tools" value={tab} onChange={setTab} tabs={TABS} />
     </div>
   )

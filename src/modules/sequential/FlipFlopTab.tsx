@@ -91,7 +91,7 @@ function ViewSwitch({ value, onChange }: { value: View; onChange: (v: View) => v
       options={[
         { value: 'timing', label: 'timing diagram', title: 'Clock, inputs and Q, tick by tick (L19 p7-25)' },
         { value: 'tables', label: 'tables', title: 'Characteristic rows merging into excitation rows (L19 p27, p44-45)' },
-        { value: 'match', label: 'match the diagrams', title: 'Which flip-flop is each two-state diagram? (T09 SE2)' },
+        { value: 'match', label: 'match the diagrams', title: 'Name the flip-flop of each two-state diagram (T09 SE2)' },
         { value: 'latch', label: 'latch gates', title: 'Settle a latch gate by gate (L19 p9-15; R10 p6)' },
         { value: 'convert', label: 'conversion', title: 'Make one flip-flop behave like another (beyond the course)' },
       ]}
@@ -301,7 +301,7 @@ function TimingView({ intro, setView }: { intro: ReactNode; setView: (v: View) =
                 { signal: 'path', label: 'this tick' },
                 { signal: 'control', label: latch ? 'clock, transparent window' : 'clock, triggering edge' },
                 { signal: 'data', label: 'inputs the edge reads' },
-                { signal: 'dontcare', label: asyncOn ? 'Q unknown (X); hatched behind Q: PRE or CLR overrides the clock' : 'Q unknown (X)' },
+                { signal: 'dontcare', label: asyncOn ? 'Q unknown (X); hatched: PRE or CLR overrides the clock' : 'Q unknown (X)' },
               ]}
             />
           }
@@ -366,7 +366,7 @@ function TimingView({ intro, setView }: { intro: ReactNode; setView: (v: View) =
             body: (
               <div className="seq-notes">
                 <Callout kind="trap" title="Latch or flip-flop" cite="L19 p8, p14-16">
-                  A gated latch follows its input for the whole time EN = 1, glitches included. An edge-triggered flip-flop only looks at its inputs at the clock edge. Load the two D presets to compare.
+                  A gated latch follows its input while EN = 1, glitches included. An edge-triggered flip-flop reads its inputs only at the clock edge. Compare the two D presets.
                 </Callout>
                 {!latch ? (
                   <Callout kind="course" title="Reading the symbol" cite="L19 p17">
@@ -375,12 +375,12 @@ function TimingView({ intro, setView }: { intro: ReactNode; setView: (v: View) =
                 ) : null}
                 {asyncOn ? (
                   <Callout kind="course" title="Active level of PRE and CLR" cite="L19 p24-25">
-                    L19 p24 describes PRE and CLR as active-high, but the p25 figure draws them active-low with bubbles. Check the bubble before you assume HIGH sets. Both act at once, whatever the clock.
+                    L19 p24 calls PRE and CLR active-high. The p25 figure draws them active-low, with bubbles. Check for a bubble before you assume HIGH sets. Both act at once, whatever the clock.
                   </Callout>
                 ) : null}
                 {type === 'SR' ? (
                   <Callout kind="trap" title="S = R = 1" cite="L19 p18, p27">
-                    S = R = 1 is not allowed: the next state is unpredictable, drawn here as X (hatched).
+                    S = R = 1 is not allowed. The next state is unpredictable, drawn as a hatched X.
                   </Callout>
                 ) : null}
               </div>
@@ -482,7 +482,7 @@ function LatchView({ intro, setView }: { intro: ReactNode; setView: (v: View) =>
         </div>
       </div>
       <Fold summary="Options">
-        <Toggle label="Q' starts equal to Q" checked={same} onChange={setSame} hint="As after S = R = 1 on the NOR latch: then release both inputs together" />
+        <Toggle label="Q' starts equal to Q" checked={same} onChange={setSame} hint="As after S = R = 1 on the NOR latch, then both inputs released together" />
       </Fold>
 
       <div className="seq-stage">
@@ -517,7 +517,7 @@ function LatchView({ intro, setView }: { intro: ReactNode; setView: (v: View) =>
             body: (
               <div className="seq-notes">
                 <Callout kind="course" title="Trace a few rounds" cite="R10 p6">
-                  Evaluate both gates from the previous round's outputs, and repeat until nothing changes. About three rounds is enough for these latches.
+                  Evaluate both gates from the previous round's outputs. Repeat until nothing changes, about three rounds for these latches.
                 </Callout>
                 <Callout kind="trap" title="Active-high or active-low" cite="L19 p9-12; R10 p8">
                   NOR latch: S = R = 1 is invalid (Q = Q' = 0) and S = R = 0 is no change. NAND latch: S' = R' = 0 is invalid (Q = Q' = 1) and S' = R' = 1 is no change.
@@ -608,7 +608,7 @@ function ConvertView({ intro, setView }: { intro: ReactNode; setView: (v: View) 
             body: (
               <div className="seq-notes">
                 <Callout kind="beyond" title="Not a slide topic">
-                  Converting one flip-flop into another is not a slide topic. It is the design procedure of L19 p46 with a single flip-flop: the wanted characteristic table gives Q+, and the excitation table of the flip-flop you have gives its inputs.
+                  This is the design procedure of L19 p46 with one flip-flop. The wanted characteristic table gives Q+. The excitation table of the flip-flop you have gives its inputs.
                 </Callout>
                 {have === 'JK' && want === 'T' ? (
                   <Callout kind="course" title="J and K tied together" cite="AY25/26 Q13">
@@ -616,7 +616,7 @@ function ConvertView({ intro, setView }: { intro: ReactNode; setView: (v: View) 
                   </Callout>
                 ) : null}
                 <Callout kind="trap" title="Which table" cite="L19 p44; R10 p23">
-                  Characteristic tables are for analysis (inputs to Q+). Excitation tables are for design (Q to Q+, then the inputs).
+                  Characteristic tables are for analysis: inputs give Q+. Excitation tables are for design: Q and Q+ give the inputs.
                 </Callout>
               </div>
             ),

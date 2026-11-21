@@ -119,7 +119,7 @@ export function TablesView({ intro, switcher }: { intro: ReactNode; switcher: Re
               ]}
               rows={[...merged.rows.map((r) => ({ label: `${r.comment} row`, inputs: r.inputs as Sig[] })), { label: 'Excitation row', inputs: merged.inputs }]}
               rowSignal={(_, i) => (i === merged.rows.length ? 'path' : undefined)}
-              caption={`Merging the rows for ${moveText(q, n)}: where they agree the input is fixed; where they differ it is X.`}
+              caption={`Merging the rows for ${moveText(q, n)}`}
             />
           </div>
         </Board>
@@ -276,7 +276,7 @@ export function MatchView({ intro, switcher }: { intro: ReactNode; switcher: Rea
       </Board>
 
       <Callout kind="course" title="Reading these diagrams" cite="L19 p45; T09 SE2">
-        Each diagram has the two states of one flip-flop, Q = 0 and Q = 1. An arrow label lists the flip-flop inputs that make that move, X for don't care. Two-input labels follow the order of the excitation table.
+        Each diagram has the two states of one flip-flop, Q = 0 and Q = 1. An arrow label lists the inputs that make that move, X for don't care, in excitation table order.
       </Callout>
     </Workspace>
   )

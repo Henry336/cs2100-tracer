@@ -166,7 +166,7 @@ export default function CheckTab({ intro }: { intro: ReactNode }) {
                 body: (
                   <div className="seq-notes">
                     <Callout kind="course" title="Only the specified entries count" cite="L19 p50; T09 Q2">
-                      Your equation can differ from the K-map answer on don't-cares. It only has to give the table's next state and output on every entry the table specifies. X entries in the table are skipped.
+                      Your equation can differ from the K-map answer on don't-cares. It has to match only the entries the table specifies. X entries are skipped.
                     </Callout>
                     <Callout kind="trap" title="Then check the unused states" cite="T09 Ans p3">
                       Two correct answers can send the unused states to different places. The Checks tab uses your equations, so the self-correcting verdict is for your circuit.

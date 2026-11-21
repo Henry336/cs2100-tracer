@@ -18,7 +18,7 @@ const PHASES: { phase: DesignPhase | 'table'; label: string; cite: string }[] = 
   { phase: 'kmap', label: 'K-maps and equations', cite: 'L19 p50, p56' },
   { phase: 'commit', label: "Commit the don't-cares", cite: 'T09 Ans p3' },
   { phase: 'unused', label: 'Where unused states go', cite: 'L19 p55-57' },
-  { phase: 'verdict', label: 'Self-correcting?', cite: 'R10 p40-43' },
+  { phase: 'verdict', label: 'Self-correcting check', cite: 'R10 p40-43' },
 ]
 const ORDER: DesignPhase[] = ['excite', 'kmap', 'commit', 'unused', 'verdict']
 const SOURCE_TEXT = { sop: 'minimal SOP', 'single-gate': 'one gate', yours: 'yours' } as const
@@ -139,7 +139,7 @@ export default function DesignTab({ intro }: { intro: ReactNode }) {
   if (!d) {
     board = (
       <Board title="Design wizard">
-        <p className="seq-muted">Open the state table above and fill it in to start.</p>
+        <p className="seq-muted">Fill in the state table above to start.</p>
       </Board>
     )
   } else if (phase === 'kmap' || phase === 'commit') {
@@ -161,7 +161,7 @@ export default function DesignTab({ intro }: { intro: ReactNode }) {
       <Board
         title="State diagram of the built circuit"
         step={frame?.title}
-        actions={<Toggle label="Show only what this step uses" checked={focus} onChange={setFocus} hint="Hides every arrow the current step does not use. Off draws them quietly." />}
+        actions={<Toggle label="Show only what this step uses" checked={focus} onChange={setFocus} hint="Hides every arrow this step does not use." />}
         play={<PlayBar stepper={stepper} label="Design it step by step" next="Next step" />}
         foot={<Legend items={[{ signal: 'path', label: phase === 'verdict' ? 'paths back to a used state' : 'this transition' }, { signal: 'dontcare', label: 'unused state (dashed, hatched)' }]} />}
       >
@@ -284,7 +284,7 @@ export default function DesignTab({ intro }: { intro: ReactNode }) {
             </table>
           </Scroll>
         ) : null}
-        <p className="seq-muted">Next states are decimal; X means the table leaves it open. Untick a state to make it unused (all its entries become don't-cares).</p>
+        <p className="seq-muted">Next states are decimal; X leaves an entry open. Untick a state to make it unused.</p>
         {n === 0 ? (
           <div className="seq-row">
             <TextField label="Or type a sequence" value={str(rawSeq, '')} onChange={setSeq} placeholder="1→3→5→7→1" width="16em" />
@@ -348,7 +348,7 @@ export default function DesignTab({ intro }: { intro: ReactNode }) {
               body: (
                 <div className="seq-notes">
                   <Callout kind="trap" title="Don't-cares become real arrows" cite="T09 Ans p3; L19 p55-57">
-                    The don't-cares make the equations smaller, but once the equations are fixed every X has a value, and that decides where each unused state goes. Check the unused states after the equations, not before.
+                    The don't-cares make the equations smaller. Once the equations are fixed, every X has a value, and that decides where each unused state goes. Check the unused states after the equations.
                   </Callout>
                   <Callout kind="course" title="Counting gates" cite="AY23/24 S1 Ans p13; T09 Q2">
                     Each flip-flop gives Q' for free, so a complemented state variable needs no inverter. Fewest gates is not always the simplest SOP: try one XOR or XNOR, or a constant.
@@ -397,7 +397,7 @@ function ExciteTable({ d, frame, reached, fnIndex }: { d: Design; frame?: Design
       columns={cols}
       rows={d.rows}
       rowSignal={(r) => (excite && r.index === frame?.row ? 'path' : !r.specified ? 'dontcare' : undefined)}
-      caption={`${plural(d.rows.length, 'row')}: ${d.used.length} used state${d.used.length === 1 ? '' : 's'}${d.unused.length ? `, unused ${d.unused.join(', ')} (don't-cares)` : ''}. Flip-flops: ${bits.map((b, i) => `${b} ${FF_LABEL[d.spec.types[i]]}`).join(', ')}.`}
+      caption={`${plural(d.rows.length, 'row')}: ${d.used.length} used state${d.used.length === 1 ? '' : 's'}${d.unused.length ? `, unused ${d.unused.join(', ')} (don't-cares)` : ''}.`}
     />
   )
 }
@@ -423,7 +423,7 @@ function KMapView({ d, index, driven, committed, onPick, step }: { d: Design; in
       <p className="seq-eqline mono">
         {f.label} = <W e={f.chosen.why}>{f.chosen.text}</W> <Chip signal={f.chosen.source === 'yours' ? (f.check?.ok ? 'hit' : 'miss') : 'control'}>{SOURCE_TEXT[f.chosen.source]}</Chip>
       </p>
-      {loops.length ? <p className="seq-muted">Loops: {loops.map((l) => l.term).join(', ')}. Dashes tell the loops apart.</p> : f.kmap ? <p className="seq-muted">This equation is not read off the map as one SOP, so no loops are drawn.</p> : null}
+      {loops.length ? <p className="seq-muted">Loops: {loops.map((l) => l.term).join(', ')}.</p> : f.kmap ? <p className="seq-muted">No loops: this equation is not one SOP read off the map.</p> : null}
       {f.sop.length > 1 ? <p className="seq-muted">Other minimal SOPs: {f.sop.filter((s) => s !== f.chosen.text).join('; ')}</p> : null}
       {comm && f.committed.length ? (
         <p className="seq-muted">
@@ -462,9 +462,7 @@ function EquationsTable({ d, upto, now }: { d: Design; upto: number; now: number
               Total: <W e={d.total.why}>{plural(d.total.gates, 'gate')}</W>, with Q' free.{' '}
               {d.verified ? <Chip signal="hit">every specified transition reproduced</Chip> : <Chip signal="miss">{plural(d.mismatches.length, 'mismatch', 'mismatches')}</Chip>}
             </>
-          ) : (
-            'One equation per flip-flop input and output.'
-          )
+          ) : undefined
         }
       />
       {d.mismatches.length ? <Issues issues={d.mismatches.map((message) => ({ code: 'mismatch', message, at: [0, 0] as [number, number] }))} /> : null}
@@ -476,7 +474,7 @@ function EquationsTable({ d, upto, now }: { d: Design; upto: number; now: number
 function UnusedTable({ d, now }: { d: Design; now: number }) {
   const { inputs } = d.spec
   const n = inputs.length
-  if (!d.unusedTransitions.length) return <p>Every state is used, so there is nothing to check.</p>
+  if (!d.unusedTransitions.length) return <p>Every state is used.</p>
   const cols: Column<UnusedTransition>[] = [
     { key: 's', header: 'Unused state', mono: true, cell: (u) => `${u.state} (${bin(u.state, d.spec.bits.length)})` },
     ...(n ? [{ key: 'c', header: inputs.join(''), align: 'center' as const, mono: true, cell: (u: UnusedTransition) => bin(u.combo, n) }] : []),
@@ -484,7 +482,7 @@ function UnusedTable({ d, now }: { d: Design; now: number }) {
     { key: 'n', header: 'Next', mono: true, cell: (u) => <W e={u.why}>{u.next === null ? 'unpredictable' : String(u.next)}</W> },
     ...(hasOutputs(d) ? [{ key: 'o', header: (d.spec.outputs ?? []).join(''), align: 'center' as const, mono: true, cell: (u: UnusedTransition) => u.out.join('') }] : []),
   ]
-  return <DataTable compact columns={cols} rows={d.unusedTransitions} rowSignal={(_, i) => (i === now ? 'path' : undefined)} caption="Where unused states go: put each unused state into the chosen equations (T09 Ans p3)." />
+  return <DataTable compact columns={cols} rows={d.unusedTransitions} rowSignal={(_, i) => (i === now ? 'path' : undefined)} caption="Each unused state put into the chosen equations (T09 Ans p3)." />
 }
 const hasOutputs = (d: Design) => (d.spec.outputs ?? []).length > 0
 

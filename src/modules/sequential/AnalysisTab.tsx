@@ -214,7 +214,7 @@ export default function AnalysisTab({ intro }: { intro: ReactNode }) {
         <div className="seq-split">
           <div className="seq-grow">
             <CodeEditor
-              label={src === 'eq' ? 'Equations, one per line: JA = B, DB = A + x, A+ = A∙x, y = A∙x' : "State table, one present state per line: state: next/output for each input value, e.g. 1: 2/0 3/1 (X for don't care)"}
+              label={src === 'eq' ? 'Equations, one per line: JA = B, DB = A + x, A+ = A∙x, y = A∙x' : "State table, one line per state: next/output per input value, e.g. 1: 2/0 3/1 (X: don't care)"}
               value={text}
               onChange={setEq}
               rows={7}
@@ -243,7 +243,7 @@ export default function AnalysisTab({ intro }: { intro: ReactNode }) {
             <Board
               title="State diagram"
               step={simFrame ? `Clock ${simFrame.clock}` : rowNow && a ? `Row ${rowNow.index}` : undefined}
-              actions={<Toggle label="Show only what this step uses" checked={focus} onChange={setFocus} hint="Hides every arrow except the transition of the current step. Off draws the others quietly." />}
+              actions={<Toggle label="Show only what this step uses" checked={focus} onChange={setFocus} hint="Hides every arrow except this step's transition." />}
               play={count ? <PlayBar stepper={stepper} label={mode === 'rows' ? 'Build the state table' : 'Clock the circuit'} next={mode === 'rows' ? 'Next row' : 'Next clock'} /> : null}
               foot={
                 <>
@@ -291,7 +291,7 @@ export default function AnalysisTab({ intro }: { intro: ReactNode }) {
                       Q' is the complement of Q. The next state is written A+ or A(t+1).
                     </Callout>
                     <Callout kind="course" title="Reading the diagram" cite="L19 p30, p33; T09 Q1">
-                      Arrows are labelled input/output. When the output depends only on the state it is written inside the circle as state/output. A state table for m flip-flops and n inputs has 2^(m+n) rows, state bits first, MSB first.
+                      Arrows are labelled input/output. An output that depends only on the state is written inside the circle as state/output. A state table for m flip-flops and n inputs has 2^(m+n) rows, state bits first, MSB first.
                     </Callout>
                   </div>
                 ),
@@ -441,7 +441,7 @@ function FullTable({ a, k, mode, highlight }: { a: Analysis; k: number; mode: St
         rowSignal={(r) => (r.index === highlight ? 'path' : r.nextState === null && !hide(r) ? 'miss' : undefined)}
         caption={
           <>
-            <W e={a.why.rows}>{plural(a.rows.length, 'row')}</W>: present state, inputs, flip-flop inputs, next state{a.outputs.length ? ', outputs' : ''}. Equations:{' '}
+            <W e={a.why.rows}>{plural(a.rows.length, 'row')}</W>. Equations:{' '}
             {a.equations.map((e, i) => (
               <span key={e.label} className="mono">
                 {i ? '; ' : ''}

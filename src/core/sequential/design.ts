@@ -380,7 +380,7 @@ export function design(spec: DesignSpec): Result<{ design: Design }> {
       },
     })),
     ...unusedTransitions.map((u) => ({ phase: 'unused' as const, title: `Unused state ${u.state}${n ? `, ${inputs.join('')} = ${bin(u.combo, n)}` : ''}`, why: u.why })),
-    { phase: 'verdict', title: 'Self-correcting?', why: { ...analysis.selfCorrection.why, working: analysis.selfCorrection.sentence } },
+    { phase: 'verdict', title: 'Self-correcting check', why: { ...analysis.selfCorrection.why, working: analysis.selfCorrection.sentence } },
   ]
 
   return {

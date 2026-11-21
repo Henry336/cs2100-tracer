@@ -134,7 +134,7 @@ export function excite(type: FFType, q: Bit, qNext: Bit, name = 'Q'): { inputs: 
             ? 'only set (1,0) works'
             : 'only reset (0,1) works'
         : type === 'D'
-          ? `D is simply the next state`
+          ? `D is the next state`
           : q === qNext
             ? 'no change needs T = 0'
             : 'a change needs T = 1'
