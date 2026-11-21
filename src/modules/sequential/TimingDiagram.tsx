@@ -52,6 +52,15 @@ export function TimingDiagram({
   const sampled = frame?.event === 'edge' ? frame.sampled : undefined
   const q = trace.q.slice(0, upto + 1)
   const qBar: Sig[] = q.map((v) => (v === 'X' ? 'X' : ((1 - v) as Bit)))
+  const flow = (() => {
+    const v = trace.q[upto]
+    if (!frame || v === 'X' || v === undefined) return null
+    const x0 = LEFT + upto * TW
+    const y = qTop + (v ? HI : LO)
+    const src = frame.event === 'preset' ? 'PRE' : frame.event === 'clear' ? 'CLR' : (frame.event === 'edge' || frame.event === 'transparent') && frame.sampled !== undefined ? rows.find((r) => r.kind === 'data')?.name : undefined
+    const i = src ? rows.findIndex((r) => r.name === src) : -1
+    return `${i >= 0 ? `M${x0} ${TOP + i * RH + RH / 2} V${y}` : `M${x0} ${y}`} H${x0 + TW}`
+  })()
   const key = (name: string, t: number) => (e: KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
@@ -139,6 +148,17 @@ export function TimingDiagram({
       })}
       {sigWave(q, qTop, 'Q')}
       {sigWave(qBar, qTop + RH, "Q'")}
+      {/* Light for this tick: from the input the edge reads (or PRE, CLR) down the edge line into Q, then along Q. */}
+      {flow ? (
+        <>
+          <g className="flow-draw" key={`d${upto}`} aria-hidden="true">
+            <path d={flow} pathLength={1} />
+          </g>
+          <g className="flow-packets" key={`p${upto}`} aria-hidden="true">
+            <path d={flow} pathLength={1} />
+          </g>
+        </>
+      ) : null}
       {/* Triggering edges up to now. */}
       {trace.edges
         .filter((t) => t <= upto)

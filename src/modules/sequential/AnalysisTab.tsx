@@ -19,10 +19,10 @@ import {
   type StateGraph,
 } from '../../core/sequential'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, Chip, CodeEditor, DataTable, Legend, NumberField, Panel, Presets, Segmented, Select, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Callout, Chip, CodeEditor, DataTable, Legend, NumberField, Presets, Segmented, Select, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { Bitv, Issues, Scroll, W, bool, int, lineErrors, parseStates, pick, plural, splitNames, str } from './common'
+import { Bitv, Board, Fold, Issues, Narrate, PlayBar, Scroll, Story, TabStrip, W, bool, int, lineErrors, parseStates, pick, plural, splitNames, str } from './common'
 import { ANALYSIS_PRESETS } from './presets'
 import { StateDiagram } from './StateDiagram'
 
@@ -66,6 +66,7 @@ export default function AnalysisTab({ intro }: { intro: ReactNode }) {
   const [rawMode, setMode] = useUrlState<StepMode>('asm', 'sim')
   const [rawFocus, setFocus] = useUrlState<boolean>('afo', false)
   const [rawShown, setShown] = useUrlState<number>('apx', -1)
+  const [tab, setTab] = useUrlState<string>('atab', '')
 
   const src = pick(rawSrc, ['eq', 'table'] as const, 'eq')
   const text = str(rawEq, '')
@@ -143,6 +144,9 @@ export default function AnalysisTab({ intro }: { intro: ReactNode }) {
     : rowNow && a
       ? a.frames[k].title
       : undefined
+  const why = simFrame ? simFrame.why : rowNow && a ? a.frames[k].why : null
+  const summary = src === 'eq' ? text.split('\n').map((l) => l.trim()).filter(Boolean).join(';  ') : `state table, ${plural(text.split('\n').filter((l) => l.trim()).length, 'line')}`
+  const allErrors = [...built.errors.map((e) => (e.line ? { ...e, message: `line ${e.line}: ${e.message}` } : e)), ...(used.error ? [{ code: 'used', message: `Used states: ${used.error}`, at: [0, 0] as [number, number] }] : [])]
 
   return (
     <Workspace
@@ -150,32 +154,35 @@ export default function AnalysisTab({ intro }: { intro: ReactNode }) {
       lectures="L19, T09, R10"
       intro={intro}
       toolbar={toolbar}
-      inspector={
-        <>
-          <Panel title={mode === 'rows' ? 'This row' : 'This clock'}>
-            {simFrame ? (
-              <Explain e={simFrame.why} />
-            ) : rowNow && a ? (
-              <Explain e={a.frames[k].why} />
-            ) : (
-              <p className="seq-muted">{model ? (nIn ? 'Type an input sequence to clock the circuit.' : 'Set the number of clocks.') : 'Fix the errors to see the trace.'}</p>
-            )}
-          </Panel>
-          {model ? <ChecksPanel model={model} shown={shownPath?.state ?? null} onShow={(s) => setShown(s ?? -1)} /> : null}
-          <Callout kind="trap" title="Two-letter names" cite="L19 p36">
-            JA means input J of flip-flop A: the input letter first, then the flip-flop.
-          </Callout>
-          <Callout kind="trap" title="Q' is not the next state" cite="R10 p20; L19 p28">
-            Q' is the complement of Q. The next state is written A+ or A(t+1).
-          </Callout>
-          <Callout kind="course" title="Reading the diagram" cite="L19 p30, p33; T09 Q1">
-            Arrows are labelled input/output. When the output depends only on the state it is written inside the circle as state/output. A state table for m flip-flops and n inputs has 2^(m+n) rows, state bits first, MSB first.
-          </Callout>
-        </>
-      }
       transport={count ? <Transport stepper={stepper} label={mode === 'rows' ? 'row' : 'clock'} describe={describe} /> : undefined}
     >
-      <Panel title="Circuit">
+      {model ? (
+        <div className="seq-command">
+          <Select
+            label="Start state"
+            value={String(start)}
+            onChange={(v) => {
+              setStart(Number(v))
+              stepper.first()
+            }}
+            options={model.machine.labels.map((l, s) => ({ value: String(s), label: model.machine.bits.length ? `${l} (${bin(s, model.machine.bits.length)})` : l }))}
+          />
+          {nIn ? (
+            <TextField label={`Input sequence, ${model.machine.inputs.join('')} per clock`} value={seqText} onChange={setSeq} placeholder={nIn === 1 ? '100010' : '01 11 01'} width="12em" />
+          ) : (
+            <NumberField label="Clocks" value={clocks} onChange={setClocks} min={1} max={40} width="5em" />
+          )}
+        </div>
+      ) : null}
+      {seq.error ? <Issues issues={[{ code: 'seq', message: `Input sequence: ${seq.error}`, at: [0, 0] }]} /> : null}
+      <Fold
+        summary={
+          <>
+            Circuit: <span className="mono seq-fold-sum">{summary}</span>
+          </>
+        }
+        whenClosed={<Issues issues={allErrors} />}
+      >
         <div className="seq-row">
           <Segmented
             label="Start from"
@@ -227,76 +234,78 @@ export default function AnalysisTab({ intro }: { intro: ReactNode }) {
         </div>
         <Issues issues={built.errors.filter((e) => !e.line)} />
         {used.error ? <Issues issues={[{ code: 'used', message: `Used states: ${used.error}`, at: [0, 0] }]} /> : null}
-        {model ? (
-          <div className="seq-row">
-            <Select
-              label="Start state"
-              value={String(start)}
-              onChange={(v) => {
-                setStart(Number(v))
-                stepper.first()
-              }}
-              options={model.machine.labels.map((l, s) => ({ value: String(s), label: model.machine.bits.length ? `${l} (${bin(s, model.machine.bits.length)})` : l }))}
-            />
-            {nIn ? (
-              <TextField label={`Input sequence, ${model.machine.inputs.join('')} per clock`} value={seqText} onChange={setSeq} placeholder={nIn === 1 ? '100010' : '01 11 01'} width="12em" />
-            ) : (
-              <NumberField label="Clocks" value={clocks} onChange={setClocks} min={1} max={40} width="5em" />
-            )}
-          </div>
-        ) : null}
-        {seq.error ? <Issues issues={[{ code: 'seq', message: `Input sequence: ${seq.error}`, at: [0, 0] }]} /> : null}
         {model?.warnings.length ? <Issues issues={model.warnings} kind="warning" /> : null}
-      </Panel>
+      </Fold>
 
       {model ? (
         <>
-          <Panel
-            title="State diagram"
-            actions={
-              <>
-                <Legend
-                  items={[
-                    { signal: 'path', label: shownPath ? 'current transition and the chosen unused-state path' : 'current state and transition' },
-                    { signal: 'dontcare', label: 'unused state (dashed, hatched)' },
-                  ]}
-                />
-                <Toggle label="Show only what this step uses" checked={focus} onChange={setFocus} hint="Hides every arrow except the transition of the current step. Off draws the others quietly." />
-              </>
-            }
-          >
-            <Scroll label="State diagram">
-              <StateDiagram graph={model.graph} current={count ? current : null} next={nextState} active={active} path={pathEdges} focus={focus} label={`State diagram, ${plural(model.graph.nodes.length, 'state')}`} />
-            </Scroll>
-            <p className="seq-muted">
-              <W e={model.graph.why}>{plural(model.graph.nodes.length, 'state')}, {plural(model.graph.edges.length, 'arrow')}</W>
-              {model.graph.stateOutputs ? ', outputs written inside the states' : ''}.
-            </p>
-          </Panel>
+          <div className="seq-stage">
+            <Board
+              title="State diagram"
+              step={simFrame ? `Clock ${simFrame.clock}` : rowNow && a ? `Row ${rowNow.index}` : undefined}
+              actions={<Toggle label="Show only what this step uses" checked={focus} onChange={setFocus} hint="Hides every arrow except the transition of the current step. Off draws the others quietly." />}
+              play={count ? <PlayBar stepper={stepper} label={mode === 'rows' ? 'Build the state table' : 'Clock the circuit'} next={mode === 'rows' ? 'Next row' : 'Next clock'} /> : null}
+              foot={
+                <>
+                  <Legend
+                    items={[
+                      { signal: 'path', label: shownPath ? 'current transition and the chosen unused-state path' : 'current state and transition' },
+                      { signal: 'dontcare', label: 'unused state (dashed, hatched)' },
+                    ]}
+                  />
+                  <span className="seq-muted">
+                    <W e={model.graph.why}>{plural(model.graph.nodes.length, 'state')}, {plural(model.graph.edges.length, 'arrow')}</W>
+                    {model.graph.stateOutputs ? ', outputs written inside the states' : ''}
+                  </span>
+                </>
+              }
+            >
+              <Scroll label="State diagram">
+                <StateDiagram graph={model.graph} current={count ? current : null} next={nextState} active={active} path={pathEdges} focus={focus} step={`${k}-${shownPath?.state ?? ''}`} label={`State diagram, ${plural(model.graph.nodes.length, 'state')}`} />
+              </Scroll>
+            </Board>
+            <Story>
+              {why ? <Narrate e={why} head={describe ? <span>{describe}</span> : undefined} /> : <p className="seq-muted">{nIn ? 'Type an input sequence to clock the circuit.' : 'Set the number of clocks.'}</p>}
+            </Story>
+          </div>
 
-          {mode === 'sim' && sim && sim.frames.length ? <SequencePanel machine={model.machine} frames={sim.frames} k={k} why={sim.why} /> : null}
-
-          <CompactTable machine={model.machine} current={count ? current : null} combo={combo} why={a?.why.compact} />
-
-          {a ? <FullTable a={a} k={k} mode={mode} highlight={simFrame ? (simFrame.state << a.inputs.length) | (simFrame.combo ?? 0) : rowNow?.index} /> : null}
+          <TabStrip
+            label="Tables for this circuit"
+            value={tab}
+            onChange={setTab}
+            tabs={[
+              ...(mode === 'rows' && a ? [{ value: 'full', label: 'State table', body: <FullTable a={a} k={k} mode={mode} highlight={rowNow?.index} /> }] : []),
+              ...(mode === 'sim' && sim && sim.frames.length ? [{ value: 'seq', label: 'Input sequence', body: <SequenceTable machine={model.machine} frames={sim.frames} k={k} why={sim.why} /> }] : []),
+              { value: 'compact', label: 'Compact state table', body: <CompactTable machine={model.machine} current={count ? current : null} combo={combo} why={a?.why.compact} /> },
+              ...(mode === 'sim' && a ? [{ value: 'full', label: 'State table', body: <FullTable a={a} k={k} mode={mode} highlight={simFrame ? (simFrame.state << a.inputs.length) | (simFrame.combo ?? 0) : undefined} /> }] : []),
+              { value: 'checks', label: 'Checks', body: <Checks model={model} shown={shownPath?.state ?? null} onShow={(s) => setShown(s ?? -1)} /> },
+              {
+                value: 'notes',
+                label: 'Course notes',
+                body: (
+                  <div className="seq-notes">
+                    <Callout kind="trap" title="Two-letter names" cite="L19 p36">
+                      JA means input J of flip-flop A: the input letter first, then the flip-flop.
+                    </Callout>
+                    <Callout kind="trap" title="Q' is not the next state" cite="R10 p20; L19 p28">
+                      Q' is the complement of Q. The next state is written A+ or A(t+1).
+                    </Callout>
+                    <Callout kind="course" title="Reading the diagram" cite="L19 p30, p33; T09 Q1">
+                      Arrows are labelled input/output. When the output depends only on the state it is written inside the circle as state/output. A state table for m flip-flops and n inputs has 2^(m+n) rows, state bits first, MSB first.
+                    </Callout>
+                  </div>
+                ),
+              },
+            ]}
+          />
         </>
       ) : null}
     </Workspace>
   )
 }
 
-function Explain({ e }: { e: { rule: string; working?: string; cite?: string } }) {
-  return (
-    <div className="seq-explain">
-      <p>{e.rule}</p>
-      {e.working ? <p className="mono seq-working">{e.working}</p> : null}
-      {e.cite ? <p className="seq-cite">{e.cite}</p> : null}
-    </div>
-  )
-}
-
 /** Sinks, unreachable states and the self-correcting verdict with its paths. */
-export function ChecksPanel({
+export function Checks({
   model,
   shown,
   onShow,
@@ -309,7 +318,7 @@ export function ChecksPanel({
   const { machine: m, graph, sinks, sc } = model
   const unreachable = graph.nodes.filter((n) => n.unreachable && n.used).map((n) => n.label)
   return (
-    <Panel title="Checks">
+    <div className="seq-checks">
       <dl className="seq-dl">
         <dt>Sinks</dt>
         <dd>
@@ -365,11 +374,11 @@ export function ChecksPanel({
           </Callout>
         </>
       ) : null}
-    </Panel>
+    </div>
   )
 }
 
-function SequencePanel({ machine: m, frames, k, why }: { machine: Machine; frames: SimFrame[]; k: number; why: { rule: string; working?: string; cite?: string } }) {
+function SequenceTable({ machine: m, frames, k, why }: { machine: Machine; frames: SimFrame[]; k: number; why: { rule: string; working?: string; cite?: string } }) {
   const name = (s: number | null) => (s === null ? '?' : m.bits.length ? `${m.labels[s]} (${bin(s, m.bits.length)})` : m.labels[s])
   const cols: Column<SimFrame>[] = [
     { key: 'c', header: 'Clock', align: 'right', mono: true, cell: (f) => f.clock },
@@ -379,9 +388,7 @@ function SequencePanel({ machine: m, frames, k, why }: { machine: Machine; frame
     { key: 'n', header: 'Next', mono: true, cell: (f) => <W e={f.why}>{name(f.next)}</W> },
   ]
   return (
-    <Panel title="Input sequence" flush>
-      <DataTable compact columns={cols} rows={frames} rowSignal={(_, i) => (i === k ? 'path' : undefined)} caption={<W e={why}>{why.working}</W>} />
-    </Panel>
+    <DataTable compact columns={cols} rows={frames} rowSignal={(_, i) => (i === k ? 'path' : undefined)} caption={<W e={why}>{why.working}</W>} />
   )
 }
 
@@ -406,15 +413,13 @@ function CompactTable({ machine: m, current, combo, why }: { machine: Machine; c
     })),
   ]
   return (
-    <Panel title="Compact state table" flush>
-      <DataTable
-        compact
-        columns={cols}
-        rows={m.labels.map((_, s) => ({ s }))}
-        rowSignal={(r) => (r.s === current ? 'path' : used.has(r.s) ? undefined : 'dontcare')}
-        caption={why ? <W e={why}>{why.working}</W> : 'next state / output, one column per input value (L19 p32)'}
-      />
-    </Panel>
+    <DataTable
+      compact
+      columns={cols}
+      rows={m.labels.map((_, s) => ({ s }))}
+      rowSignal={(r) => (r.s === current ? 'path' : used.has(r.s) ? undefined : 'dontcare')}
+      caption={why ? <W e={why}>{why.working}</W> : 'next state / output, one column per input value (L19 p32)'}
+    />
   )
 }
 
@@ -429,8 +434,7 @@ function FullTable({ a, k, mode, highlight }: { a: Analysis; k: number; mode: St
     ...a.outputs.map((o, i) => ({ key: `o${o}`, header: o, align: 'center' as const, mono: true, cell: (r: AnalysisRow) => (hide(r) ? '' : <Bitv v={r.outputs[i].value} e={r.outputs[i].why} />) })),
   ]
   return (
-    <Panel title="State table" flush>
-      <DataTable
+    <DataTable
         compact
         columns={cols}
         rows={a.rows}
@@ -447,6 +451,5 @@ function FullTable({ a, k, mode, highlight }: { a: Analysis; k: number; mode: St
           </>
         }
       />
-    </Panel>
   )
 }

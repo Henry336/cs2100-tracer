@@ -17,6 +17,7 @@ export function KMap({
   committed,
   focus = [],
   label,
+  step,
 }: {
   layout: KMapLayout
   values: CellValue[]
@@ -24,6 +25,8 @@ export function KMap({
   committed?: Map<number, 0 | 1>
   focus?: number[]
   label: string
+  /** Changes with the step, so the loops trace themselves in again. Leave it out for a still picture. */
+  step?: number | string
 }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
   const rows = layout.rowCodes.length
@@ -37,6 +40,17 @@ export function KMap({
   const height = top + gridH + 12 + layout.colBars.length * BAR + 6
   const ox = (map: number) => map * (mapW + GAP) + LEFT
   const fset = new Set(focus)
+  /** Loop rectangle for one piece; open sides run past the grid edge to show the wrap. */
+  const box = (gx: number, p: LoopPiece, li: number) => {
+    const inset = 3 + (li % 3) * 2.5
+    const ext = 14
+    return {
+      x0: gx + p.c0 * C + inset - (p.open.left ? ext : 0),
+      x1: gx + (p.c1 + 1) * C - inset + (p.open.right ? ext : 0),
+      y0: top + p.r0 * C + inset - (p.open.top ? ext : 0),
+      y1: top + (p.r1 + 1) * C - inset + (p.open.bottom ? ext : 0),
+    }
+  }
   return (
     <svg className="seq-kmap" viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" aria-label={label}>
       <title>{label}</title>
@@ -123,15 +137,25 @@ export function KMap({
                 lp.pieces
                   .filter((p) => p.map === map)
                   .map((p, pi) => {
-                    const inset = 3 + (li % 3) * 2.5
-                    const ext = 14
-                    const x0 = gx + p.c0 * C + inset - (p.open.left ? ext : 0)
-                    const x1 = gx + (p.c1 + 1) * C - inset + (p.open.right ? ext : 0)
-                    const y0 = top + p.r0 * C + inset - (p.open.top ? ext : 0)
-                    const y1 = top + (p.r1 + 1) * C - inset + (p.open.bottom ? ext : 0)
+                    const { x0, x1, y0, y1 } = box(gx, p, li)
                     return <rect key={`${lp.key}-${pi}`} x={x0} y={y0} width={x1 - x0} height={y1 - y0} rx={10} className={`km-loop km-loop-${li % 4}`} />
                   }),
               )}
+              {/* Each loop traces itself in, then fades so the dash pattern that tells loops apart shows (sequential.css). */}
+              {step !== undefined ? (
+                <g className="flow-draw seq-km-draw" key={`d${step}`} aria-hidden="true">
+                  {loops.flatMap((lp, li) =>
+                    lp.pieces
+                      .filter((p) => p.map === map)
+                      .map((p, pi) => {
+                        const { x0, x1, y0, y1 } = box(gx, p, li)
+                        const r = Math.min(10, (x1 - x0) / 2, (y1 - y0) / 2)
+                        const d = `M${x0 + r} ${y0} H${x1 - r} A${r} ${r} 0 0 1 ${x1} ${y0 + r} V${y1 - r} A${r} ${r} 0 0 1 ${x1 - r} ${y1} H${x0 + r} A${r} ${r} 0 0 1 ${x0} ${y1 - r} V${y0 + r} A${r} ${r} 0 0 1 ${x0 + r} ${y0} Z`
+                        return <path key={`${lp.key}-${pi}`} d={d} pathLength={1} style={{ animationDelay: `${li * 0.25}s, ${1.1 + li * 0.25}s` }} />
+                      }),
+                  )}
+                </g>
+              ) : null}
             </g>
           </g>
         )

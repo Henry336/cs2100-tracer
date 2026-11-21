@@ -2,9 +2,9 @@ import { useMemo, type ReactNode } from 'react'
 import { parseExpr, type Expr } from '../../core/boolean'
 import { analyse, bin, comboText, parseCircuit, parseStateTable, totalGates, type Analysis, type Issue, type Sig } from '../../core/sequential'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, Chip, CodeEditor, DataTable, Legend, Panel, Presets, TextField, Workspace, type Column } from '../../ui/kit'
-import { ChecksPanel } from './AnalysisTab'
-import { Issues, Scroll, W, lineErrors, plural, splitNames, str } from './common'
+import { Callout, Chip, CodeEditor, DataTable, Legend, Presets, TextField, Workspace, type Column } from '../../ui/kit'
+import { Checks } from './AnalysisTab'
+import { Board, Fold, Issues, Scroll, TabStrip, W, lineErrors, plural, splitNames, str } from './common'
 import { CHECK_PRESETS } from './presets'
 import { StateDiagram } from './StateDiagram'
 
@@ -26,6 +26,7 @@ export default function CheckTab({ intro }: { intro: ReactNode }) {
   const eqText = str(rawEq, '')
   const tableText = str(rawTable, '')
   const inText = str(rawIn, '')
+  const [tab, setTab] = useUrlState<string>('ctab', 'entries')
 
   const res = useMemo(() => {
     const ins = splitNames(inText)
@@ -83,6 +84,9 @@ export default function CheckTab({ intro }: { intro: ReactNode }) {
     { key: 'ok', header: 'Check', cell: (r) => <Chip signal={r.ok ? 'hit' : 'miss'}>{r.ok ? 'matches' : 'differs'}</Chip> },
   ]
 
+  const diffs = bad.filter((r) => r.got !== null).map((r) => ({ from: r.state, to: r.got! }))
+  const errors = [...res.eqErrors, ...res.tableErrors]
+
   return (
     <Workspace
       title="Sequential circuits"
@@ -98,41 +102,17 @@ export default function CheckTab({ intro }: { intro: ReactNode }) {
           }}
         />
       }
-      inspector={
-        <>
-          <Panel title="Verdict">
-            {a ? (
-              <p>
-                {bad.length ? <Chip signal="miss">{plural(bad.length, 'entry', 'entries')} differ</Chip> : <Chip signal="hit">all {res.rows.length} entries match</Chip>}{' '}
-                {gates ? (
-                  <span className="seq-muted">
-                    <W e={gates.why}>{plural(gates.gates, 'gate')}</W> in total, with Q' free.
-                  </span>
-                ) : null}
-              </p>
-            ) : (
-              <p className="seq-muted">Fix the errors to check.</p>
-            )}
-          </Panel>
-          {a ? <ChecksPanel model={{ machine: a.machine, graph: a.graph, sinks: a.sinks, sc: a.selfCorrection }} /> : null}
-          <Callout kind="course" title="Only the specified entries count" cite="L19 p50; T09 Q2">
-            Your equation can differ from the K-map answer on don't-cares. It only has to give the table's next state and output on every entry the table specifies. X entries in the table are skipped.
-          </Callout>
-          <Callout kind="trap" title="Then check the unused states" cite="T09 Ans p3">
-            Two correct answers can send the unused states to different places. The checks above use your equations, so the self-correcting verdict is for your circuit.
-          </Callout>
-        </>
-      }
     >
-      <Panel title="Your answer">
-        <div className="seq-split">
-          <div className="seq-grow">
-            <CodeEditor label="Equations, one per line: JA = B ⊕ x, KA = 1, y = A∙x" value={eqText} onChange={setEq} rows={6} errors={lineErrors(res.eqErrors)} />
-          </div>
-          <div className="seq-grow">
-            <CodeEditor label="State table to match: state: next/output per input value, e.g. 0: 1 2" value={tableText} onChange={setTable} rows={6} errors={lineErrors(res.tableErrors)} />
-          </div>
+      <div className="seq-split">
+        <div className="seq-grow">
+          <CodeEditor label="Your equations, one per line, e.g. JA = B ⊕ x" value={eqText} onChange={setEq} rows={4} errors={lineErrors(res.eqErrors)} />
         </div>
+        <div className="seq-grow">
+          <CodeEditor label="State table to match: state: next/output per input value" value={tableText} onChange={setTable} rows={4} errors={lineErrors(res.tableErrors)} />
+        </div>
+      </div>
+      <Issues issues={errors.filter((e) => !e.line)} />
+      <Fold summary="Options">
         <div className="seq-row">
           <TextField label="Inputs, MSB first" value={inText} onChange={setIn} placeholder="auto" width="11em" />
           {a ? (
@@ -141,20 +121,65 @@ export default function CheckTab({ intro }: { intro: ReactNode }) {
             </span>
           ) : null}
         </div>
-        <Issues issues={[...res.eqErrors, ...res.tableErrors].filter((e) => !e.line)} />
-      </Panel>
+      </Fold>
+
       {a ? (
         <>
-          <Panel title="Entry by entry" flush actions={<Legend items={[{ signal: 'hit', label: 'matches' }, { signal: 'miss', label: 'differs' }]} />}>
-            <DataTable compact columns={cols} rows={res.rows} rowSignal={(r) => (r.ok ? undefined : 'miss')} />
-          </Panel>
-          <Panel title="State diagram of your circuit" actions={<Legend items={[{ signal: 'path', label: 'a transition that differs' }, { signal: 'dontcare', label: 'unused state (dashed, hatched)' }]} />}>
+          <Board
+            title="State diagram of your circuit"
+            step={bad.length ? <Chip signal="miss">{plural(bad.length, 'entry', 'entries')} differ</Chip> : <Chip signal="hit">all {res.rows.length} entries match</Chip>}
+            foot={
+              <>
+                <Legend items={[{ signal: 'path', label: 'a transition that differs' }, { signal: 'dontcare', label: 'unused state (dashed, hatched)' }]} />
+                {gates ? (
+                  <span className="seq-muted">
+                    <W e={gates.why}>{plural(gates.gates, 'gate')}</W> in total, with Q' free.
+                  </span>
+                ) : null}
+              </>
+            }
+          >
             <Scroll label="State diagram of your circuit">
-              <StateDiagram graph={a.graph} path={bad.filter((r) => r.got !== null).map((r) => ({ from: r.state, to: r.got! }))} label="State diagram of the circuit your equations build" />
+              <StateDiagram graph={a.graph} path={diffs} step={diffs.map((d) => `${d.from}>${d.to}`).join()} label="State diagram of the circuit your equations build" />
             </Scroll>
-          </Panel>
+          </Board>
+
+          <TabStrip
+            label="Check details"
+            value={tab}
+            onChange={setTab}
+            tabs={[
+              {
+                value: 'entries',
+                label: 'Entry by entry',
+                body: (
+                  <>
+                    <Legend items={[{ signal: 'hit', label: 'matches' }, { signal: 'miss', label: 'differs' }]} />
+                    <DataTable compact columns={cols} rows={res.rows} rowSignal={(r) => (r.ok ? undefined : 'miss')} />
+                  </>
+                ),
+              },
+              { value: 'checks', label: 'Checks', body: <Checks model={{ machine: a.machine, graph: a.graph, sinks: a.sinks, sc: a.selfCorrection }} /> },
+              {
+                value: 'notes',
+                label: 'Course notes',
+                body: (
+                  <div className="seq-notes">
+                    <Callout kind="course" title="Only the specified entries count" cite="L19 p50; T09 Q2">
+                      Your equation can differ from the K-map answer on don't-cares. It only has to give the table's next state and output on every entry the table specifies. X entries in the table are skipped.
+                    </Callout>
+                    <Callout kind="trap" title="Then check the unused states" cite="T09 Ans p3">
+                      Two correct answers can send the unused states to different places. The Checks tab uses your equations, so the self-correcting verdict is for your circuit.
+                    </Callout>
+                  </div>
+                ),
+              },
+            ]}
+          />
         </>
-      ) : null}
+      ) : (
+        <p className="seq-muted">Fix the errors to check.</p>
+      )}
     </Workspace>
   )
 }

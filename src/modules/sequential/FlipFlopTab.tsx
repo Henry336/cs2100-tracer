@@ -15,10 +15,10 @@ import {
   type TimingFrame,
 } from '../../core/sequential'
 import { useUrlState } from '../../lib/url-state'
-import { Button, Callout, Chip, DataTable, Legend, Panel, Presets, Segmented, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Button, Callout, Chip, DataTable, Legend, Presets, Segmented, Toggle, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { BitToggle, Bitv, Issues, Scroll, W, bool, int, pick, plural } from './common'
+import { BitToggle, Bitv, Board, Fold, Issues, Narrate, PlayBar, Scroll, Story, TabStrip, W, bool, int, pick, plural } from './common'
 import { LatchSvg } from './LatchSvg'
 import { TIMING_PRESETS } from './presets'
 import { TimingDiagram, type WaveRow } from './TimingDiagram'
@@ -109,6 +109,7 @@ function TimingView({ intro, setView }: { intro: ReactNode; setView: (v: View) =
   const [rawQ0, setQ0] = useUrlState<Sig>('fq', 0)
   const [rawSample, setSample] = useUrlState<'before' | 'after'>('fsm', 'before')
   const [rawWaves, setWaves] = useUrlState<Record<string, Bit[]>>('fw', DEFAULT_WAVES)
+  const [tab, setTab] = useUrlState<string>('ftab', 'char')
 
   const element = pick(rawEl, ELEMENTS, 'D')
   const latch = isLatch(element)
@@ -203,6 +204,7 @@ function TimingView({ intro, setView }: { intro: ReactNode; setView: (v: View) =
   ]
 
   const marks = trace?.frames.map((f) => (f.q === 'X' ? 'dontcare' : f.event === 'edge' || f.event === 'transparent' || f.event === 'preset' || f.event === 'clear' ? 'control' : undefined))
+  const title = `Timing diagram, ${latch ? ELEMENT_LABEL[element] : `${edge === 'pos' ? 'positive' : 'negative'}-edge ${FLIP_FLOPS[type].name}`}`
 
   return (
     <Workspace
@@ -210,40 +212,6 @@ function TimingView({ intro, setView }: { intro: ReactNode; setView: (v: View) =
       lectures="L19, T09, R10"
       intro={intro}
       toolbar={toolbar}
-      inspector={
-        <>
-          <Panel title={`Tick ${t}`}>
-            {frame ? (
-              <div className="seq-explain">
-                <p className="seq-explain-head">
-                  <Chip signal={frame.q === 'X' ? 'dontcare' : 'path'}>Q = {String(frame.q)}</Chip> <span>{EVENT_TEXT[frame.event]}</span>
-                </p>
-                <p>{frame.why.rule}</p>
-                {frame.why.working ? <p className="mono seq-working">{frame.why.working}</p> : null}
-                {frame.why.cite ? <p className="seq-cite">{frame.why.cite}</p> : null}
-              </div>
-            ) : null}
-          </Panel>
-          <Callout kind="trap" title="Latch or flip-flop" cite="L19 p8, p14-16">
-            A gated latch follows its input for the whole time EN = 1, glitches included. An edge-triggered flip-flop only looks at its inputs at the clock edge. Load the two D presets to compare.
-          </Callout>
-          {!latch ? (
-            <Callout kind="course" title="Reading the symbol" cite="L19 p17">
-              The &gt; mark on the clock pin means edge-triggered; a bubble in front of it means the negative (1 to 0) edge.
-            </Callout>
-          ) : null}
-          {asyncOn ? (
-            <Callout kind="course" title="Active level of PRE and CLR" cite="L19 p24-25">
-              L19 p24 describes PRE and CLR as active-high, but the p25 figure draws them active-low with bubbles. Check the bubble before you assume HIGH sets. Both act at once, whatever the clock.
-            </Callout>
-          ) : null}
-          {type === 'SR' ? (
-            <Callout kind="trap" title="S = R = 1" cite="L19 p18, p27">
-              S = R = 1 is not allowed: the next state is unpredictable, drawn here as X (hatched).
-            </Callout>
-          ) : null}
-        </>
-      }
       transport={
         trace ? (
           <Transport
@@ -255,20 +223,20 @@ function TimingView({ intro, setView }: { intro: ReactNode; setView: (v: View) =
         ) : undefined
       }
     >
-      <Panel title="Element">
+      <div className="seq-command">
+        <ViewSwitch value="timing" onChange={setView} />
+        <Segmented
+          label="Type"
+          value={element}
+          onChange={(v) => {
+            setEl(v)
+            stepper.first()
+          }}
+          options={ELEMENTS.map((e) => ({ value: e, label: ELEMENT_LABEL[e], title: isLatch(e) ? 'Level-triggered (L19 p13-15)' : `${FLIP_FLOPS[e as FFType].name} (${FLIP_FLOPS[e as FFType].cite})` }))}
+        />
+      </div>
+      <Fold summary="Clock edge, start value, PRE and CLR, length">
         <div className="seq-row">
-          <ViewSwitch value="timing" onChange={setView} />
-        </div>
-        <div className="seq-row">
-          <Segmented
-            label="Type"
-            value={element}
-            onChange={(v) => {
-              setEl(v)
-              stepper.first()
-            }}
-            options={ELEMENTS.map((e) => ({ value: e, label: ELEMENT_LABEL[e], title: isLatch(e) ? 'Level-triggered (L19 p13-15)' : `${FLIP_FLOPS[e as FFType].name} (${FLIP_FLOPS[e as FFType].cite})` }))}
-          />
           {!latch ? (
             <Segmented
               label="Clock edge"
@@ -318,59 +286,108 @@ function TimingView({ intro, setView }: { intro: ReactNode; setView: (v: View) =
             Remove 2 ticks
           </Button>
           <Button onClick={() => setWaves({ ...waves, CLK: square(ticks) })}>Square {clockName}</Button>
-          <span className="seq-muted">{plural(ticks, 'tick')}. Click a cell of any input row to flip it.</span>
+          <span className="seq-muted">{plural(ticks, 'tick')}</span>
         </div>
-      </Panel>
+      </Fold>
 
-      <Panel
-        title={`Timing diagram, ${latch ? ELEMENT_LABEL[element] : `${edge === 'pos' ? 'positive' : 'negative'}-edge ${FLIP_FLOPS[type].name}`}`}
-        actions={
-          <Legend
-            items={[
-              { signal: 'path', label: 'this tick' },
-              { signal: 'control', label: latch ? 'clock, transparent window' : 'clock, triggering edge' },
-              { signal: 'data', label: 'inputs the edge reads' },
-              { signal: 'dontcare', label: 'Q unknown (X)' },
-            ]}
-          />
-        }
-      >
-        {result.ok && trace ? (
-          <Scroll label="Timing diagram">
-            <TimingDiagram rows={rows} trace={trace} upto={t} onToggle={flip} label={`Timing diagram up to tick ${t}`} />
-          </Scroll>
-        ) : (
-          <Issues issues={result.ok ? [] : result.errors} />
-        )}
-        {asyncOn ? <p className="seq-muted">Hatched ticks behind Q: PRE or CLR is active and overrides the clock.</p> : null}
-      </Panel>
-
-      <div className="seq-cols">
-        <Panel title={`Characteristic table, ${info.name}`} flush>
-          <DataTable
-            compact
-            columns={charCols}
-            rows={info.characteristic}
-            rowSignal={(r) => (sampledInputs && r.inputs.every((v, k) => v === sampledInputs[k]) ? 'path' : undefined)}
-            caption={
-              <W e={{ rule: 'The characteristic table gives Q+ from the inputs and Q. Use it for analysis.', working: info.equation, cite: `${info.cite}; L19 p44` }}>{info.equation}</W>
-            }
-          />
-        </Panel>
-        <Panel title={`Excitation table, ${info.name}`} flush>
-          <DataTable
-            compact
-            columns={exCols}
-            rows={exRows}
-            rowSignal={(r) => (acted && before === r.q && after === r.n ? 'path' : undefined)}
-            caption={<W e={{ rule: 'The excitation table gives the inputs that move Q to Q+. Use it for design.', working: 'X: either value works', cite: 'L19 p44-45' }}>Inputs needed for each move</W>}
-          />
-        </Panel>
+      <div className="seq-stage">
+        <Board
+          title={title}
+          step={trace ? `Tick ${t}` : undefined}
+          play={trace ? <PlayBar stepper={stepper} label="Clock it through" next={`Next: tick ${t + 1}`} /> : null}
+          foot={
+            <Legend
+              items={[
+                { signal: 'path', label: 'this tick' },
+                { signal: 'control', label: latch ? 'clock, transparent window' : 'clock, triggering edge' },
+                { signal: 'data', label: 'inputs the edge reads' },
+                { signal: 'dontcare', label: asyncOn ? 'Q unknown (X); hatched behind Q: PRE or CLR overrides the clock' : 'Q unknown (X)' },
+              ]}
+            />
+          }
+        >
+          {result.ok && trace ? (
+            <Scroll label="Timing diagram">
+              <TimingDiagram rows={rows} trace={trace} upto={t} onToggle={flip} label={`Timing diagram up to tick ${t}`} />
+            </Scroll>
+          ) : (
+            <Issues issues={result.ok ? [] : result.errors} />
+          )}
+        </Board>
+        {frame ? (
+          <Story tip="Click a cell of any input row to flip it.">
+            <Narrate
+              e={frame.why}
+              head={
+                <>
+                  <Chip signal={frame.q === 'X' ? 'dontcare' : 'path'}>Q = {String(frame.q)}</Chip> <span>{EVENT_TEXT[frame.event]}</span>
+                </>
+              }
+            />
+          </Story>
+        ) : null}
       </div>
 
-      <Panel title="Tick by tick" flush>
-        <DataTable compact columns={logCols} rows={logRows} rowSignal={(_, i) => (i === logRows.length - 1 ? 'path' : undefined)} />
-      </Panel>
+      <TabStrip
+        label="Tables for this flip-flop"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          {
+            value: 'char',
+            label: 'Characteristic table',
+            body: (
+              <DataTable
+                compact
+                columns={charCols}
+                rows={info.characteristic}
+                rowSignal={(r) => (sampledInputs && r.inputs.every((v, k) => v === sampledInputs[k]) ? 'path' : undefined)}
+                caption={<W e={{ rule: 'The characteristic table gives Q+ from the inputs and Q. Use it for analysis.', working: info.equation, cite: `${info.cite}; L19 p44` }}>{`${info.name}: ${info.equation}`}</W>}
+              />
+            ),
+          },
+          {
+            value: 'excite',
+            label: 'Excitation table',
+            body: (
+              <DataTable
+                compact
+                columns={exCols}
+                rows={exRows}
+                rowSignal={(r) => (acted && before === r.q && after === r.n ? 'path' : undefined)}
+                caption={<W e={{ rule: 'The excitation table gives the inputs that move Q to Q+. Use it for design.', working: 'X: either value works', cite: 'L19 p44-45' }}>{`${info.name}: inputs needed for each move`}</W>}
+              />
+            ),
+          },
+          { value: 'log', label: 'Tick by tick', body: <DataTable compact columns={logCols} rows={logRows} rowSignal={(_, i) => (i === logRows.length - 1 ? 'path' : undefined)} /> },
+          {
+            value: 'notes',
+            label: 'Course notes',
+            body: (
+              <div className="seq-notes">
+                <Callout kind="trap" title="Latch or flip-flop" cite="L19 p8, p14-16">
+                  A gated latch follows its input for the whole time EN = 1, glitches included. An edge-triggered flip-flop only looks at its inputs at the clock edge. Load the two D presets to compare.
+                </Callout>
+                {!latch ? (
+                  <Callout kind="course" title="Reading the symbol" cite="L19 p17">
+                    The &gt; mark on the clock pin means edge-triggered; a bubble in front of it means the negative (1 to 0) edge.
+                  </Callout>
+                ) : null}
+                {asyncOn ? (
+                  <Callout kind="course" title="Active level of PRE and CLR" cite="L19 p24-25">
+                    L19 p24 describes PRE and CLR as active-high, but the p25 figure draws them active-low with bubbles. Check the bubble before you assume HIGH sets. Both act at once, whatever the clock.
+                  </Callout>
+                ) : null}
+                {type === 'SR' ? (
+                  <Callout kind="trap" title="S = R = 1" cite="L19 p18, p27">
+                    S = R = 1 is not allowed: the next state is unpredictable, drawn here as X (hatched).
+                  </Callout>
+                ) : null}
+              </div>
+            ),
+          },
+        ]}
+      />
     </Workspace>
   )
 }
@@ -382,6 +399,7 @@ function LatchView({ intro, setView }: { intro: ReactNode; setView: (v: View) =>
   const [rawVals, setVals] = useUrlState<Record<string, Bit>>('fli', {})
   const [rawQ, setQ] = useUrlState<Bit>('flq', 1)
   const [rawSame, setSame] = useUrlState<boolean>('flx', false)
+  const [tab, setTab] = useUrlState<string>('fltab', 'cmd')
   const type = pick(rawType, LATCH_TYPES, 'sr-nor')
   const info = LATCHES[type]
   const q = int(rawQ, 0, 1, 1) as Bit
@@ -408,95 +426,112 @@ function LatchView({ intro, setView }: { intro: ReactNode; setView: (v: View) =>
     { key: 'c', header: 'Changed', cell: (r) => (r.round === 0 ? 'starting values' : r.changed.join(' and ')) },
   ]
 
+  const roundTitle = (i: number) => {
+    const r = settle.rounds[i]
+    return r.round === 0 ? 'Starting values' : `Round ${r.round}: ${r.changed.length ? `${r.changed.join(' and ')} changed` : 'nothing changes'}`
+  }
+  const verdict = (
+    <p>
+      {settle.stable ? <Chip signal={settle.invalid ? 'miss' : 'hit'}>{settle.invalid ? 'settles, but invalid' : 'settles'}</Chip> : <Chip signal="dontcare">never settles</Chip>}{' '}
+      <W e={settle.why}>
+        Q = {String(settle.q)}, Q' = {String(settle.qBar)}
+      </W>
+    </p>
+  )
+
   return (
     <Workspace
       title="Sequential circuits"
       lectures="L19, T09, R10"
       intro={intro}
-      inspector={
-        <>
-          <Panel title="Result">
-            <p>
-              {settle.stable ? (
-                <Chip signal={settle.invalid ? 'miss' : 'hit'}>{settle.invalid ? 'settles, but invalid' : 'settles'}</Chip>
-              ) : (
-                <Chip signal="dontcare">never settles</Chip>
-              )}{' '}
-              <W e={settle.why}>
-                Q = {String(settle.q)}, Q' = {String(settle.qBar)}
-              </W>
-            </p>
-          </Panel>
-          <Callout kind="course" title="Trace a few rounds" cite="R10 p6">
-            Evaluate both gates from the previous round's outputs, and repeat until nothing changes. About three rounds is enough for these latches.
-          </Callout>
-          <Callout kind="trap" title="Active-high or active-low" cite="L19 p9-12; R10 p8">
-            NOR latch: S = R = 1 is invalid (Q = Q' = 0) and S = R = 0 is no change. NAND latch: S' = R' = 0 is invalid (Q = Q' = 1) and S' = R' = 1 is no change.
-          </Callout>
-          {type === 'gated-d' ? (
-            <Callout kind="course" title="Why a D latch" cite="L19 p14">
-              The gated D latch feeds D and D' into the two front gates, so the invalid S = R = 1 command cannot happen.
-            </Callout>
-          ) : null}
-        </>
-      }
       transport={<Transport stepper={stepper} label="round" marks={settle.rounds.map((r) => (r.changed.length ? 'path' : undefined))} describe={k === 0 ? 'starting values' : `${round.changed.join(' and ')} changed`} />}
     >
-      <Panel title="Latch">
-        <div className="seq-row">
-          <ViewSwitch value="latch" onChange={setView} />
-        </div>
-        <div className="seq-row">
-          <Segmented
-            label="Type"
-            value={type}
-            onChange={(v) => {
-              setType(v)
-              setVals({})
-              stepper.first()
-            }}
-            options={LATCH_TYPES.map((v) => ({ value: v, label: { 'sr-nor': 'S-R (NOR)', 'sr-nand': "S'-R' (NAND)", 'gated-sr': 'gated S-R', 'gated-d': 'gated D' }[v], title: LATCHES[v].cite }))}
-          />
-        </div>
-        <div className="seq-row">
-          <div className="seq-bitrow" role="group" aria-label="Inputs">
-            <span className="control-label">Inputs</span>
-            <div className="seq-bits">
-              {info.inputs.map((n) => (
-                <BitToggle
-                  key={n}
-                  label={n}
-                  value={values[n]}
-                  onChange={(v) => {
-                    setVals({ ...values, [n]: v })
-                    stepper.first()
-                  }}
-                />
-              ))}
-            </div>
+      <div className="seq-command">
+        <ViewSwitch value="latch" onChange={setView} />
+        <Segmented
+          label="Type"
+          value={type}
+          onChange={(v) => {
+            setType(v)
+            setVals({})
+            stepper.first()
+          }}
+          options={LATCH_TYPES.map((v) => ({ value: v, label: { 'sr-nor': 'S-R (NOR)', 'sr-nand': "S'-R' (NAND)", 'gated-sr': 'gated S-R', 'gated-d': 'gated D' }[v], title: LATCHES[v].cite }))}
+        />
+        <div className="seq-bitrow" role="group" aria-label="Inputs">
+          <span className="control-label">Inputs</span>
+          <div className="seq-bits">
+            {info.inputs.map((n) => (
+              <BitToggle
+                key={n}
+                label={n}
+                value={values[n]}
+                onChange={(v) => {
+                  setVals({ ...values, [n]: v })
+                  stepper.first()
+                }}
+              />
+            ))}
           </div>
-          <div className="seq-bitrow" role="group" aria-label="Before">
-            <span className="control-label">Before</span>
-            <div className="seq-bits">
-              <BitToggle label="Q" value={q} onChange={(v) => setQ(v)} />
-            </div>
-          </div>
-          <Toggle label="Q' starts equal to Q" checked={same} onChange={setSame} hint="As after S = R = 1 on the NOR latch: then release both inputs together" />
         </div>
-      </Panel>
-      <Panel title={`${info.name}, round ${round.round}${last ? (settle.stable ? ', stable' : ', still changing') : ''}`} actions={<Legend items={[{ signal: 'path', label: 'changed this round' }, { signal: 'data', label: 'feedback' }, { signal: 'control', label: 'enable' }]} />}>
-        <Scroll label="Latch gate diagram">
-          <LatchSvg type={type} values={values} settle={settle} round={k} />
-        </Scroll>
-      </Panel>
-      <div className="seq-cols">
-        <Panel title="Command table" flush>
-          <DataTable compact columns={cmdCols} rows={info.commands} rowSignal={(c) => (c === cmd ? 'path' : undefined)} caption={info.equation ? <W e={{ rule: info.name, working: info.equation, cite: info.cite }}>{info.equation}</W> : info.cite} />
-        </Panel>
-        <Panel title="Rounds" flush>
-          <DataTable compact columns={roundCols} rows={settle.rounds.slice(0, k + 1)} rowSignal={(_, i) => (i === k ? 'path' : undefined)} />
-        </Panel>
+        <div className="seq-bitrow" role="group" aria-label="Before">
+          <span className="control-label">Before</span>
+          <div className="seq-bits">
+            <BitToggle label="Q" value={q} onChange={(v) => setQ(v)} />
+          </div>
+        </div>
       </div>
+      <Fold summary="Options">
+        <Toggle label="Q' starts equal to Q" checked={same} onChange={setSame} hint="As after S = R = 1 on the NOR latch: then release both inputs together" />
+      </Fold>
+
+      <div className="seq-stage">
+        <Board
+          title={info.name}
+          step={`Round ${round.round}${last ? (settle.stable ? ', stable' : ', still changing') : ''}`}
+          play={<PlayBar stepper={stepper} label="Settle the gates" next={`Next: round ${round.round + 1}`} />}
+          foot={<Legend items={[{ signal: 'path', label: 'changed this round' }, { signal: 'data', label: 'feedback' }, { signal: 'control', label: 'enable' }]} />}
+        >
+          <Scroll label="Latch gate diagram">
+            <LatchSvg type={type} values={values} settle={settle} round={k} />
+          </Scroll>
+        </Board>
+        <Story items={settle.rounds.map((_, i) => ({ title: roundTitle(i), state: i === k ? 'now' : i < k ? 'past' : 'next', onPick: () => stepper.set(i) }))}>
+          <p>
+            Q = {String(round.q)}, Q' = {String(round.qBar)}
+          </p>
+          {last ? verdict : null}
+        </Story>
+      </div>
+
+      <TabStrip
+        label="Tables for this latch"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { value: 'cmd', label: 'Command table', body: <DataTable compact columns={cmdCols} rows={info.commands} rowSignal={(c) => (c === cmd ? 'path' : undefined)} caption={info.equation ? <W e={{ rule: info.name, working: info.equation, cite: info.cite }}>{info.equation}</W> : info.cite} /> },
+          { value: 'rounds', label: 'Rounds', body: <DataTable compact columns={roundCols} rows={settle.rounds.slice(0, k + 1)} rowSignal={(_, i) => (i === k ? 'path' : undefined)} /> },
+          {
+            value: 'notes',
+            label: 'Course notes',
+            body: (
+              <div className="seq-notes">
+                <Callout kind="course" title="Trace a few rounds" cite="R10 p6">
+                  Evaluate both gates from the previous round's outputs, and repeat until nothing changes. About three rounds is enough for these latches.
+                </Callout>
+                <Callout kind="trap" title="Active-high or active-low" cite="L19 p9-12; R10 p8">
+                  NOR latch: S = R = 1 is invalid (Q = Q' = 0) and S = R = 0 is no change. NAND latch: S' = R' = 0 is invalid (Q = Q' = 1) and S' = R' = 1 is no change.
+                </Callout>
+                {type === 'gated-d' ? (
+                  <Callout kind="course" title="Why a D latch" cite="L19 p14">
+                    The gated D latch feeds D and D' into the two front gates, so the invalid S = R = 1 command cannot happen.
+                  </Callout>
+                ) : null}
+              </div>
+            ),
+          },
+        ]}
+      />
     </Workspace>
   )
 }
@@ -506,6 +541,7 @@ function LatchView({ intro, setView }: { intro: ReactNode; setView: (v: View) =>
 function ConvertView({ intro, setView }: { intro: ReactNode; setView: (v: View) => void }) {
   const [rawHave, setHave] = useUrlState<FFType>('fch', 'T')
   const [rawWant, setWant] = useUrlState<FFType>('fcw', 'JK')
+  const [tab, setTab] = useUrlState<string>('fctab', 'eq')
   const have = pick(rawHave, FF_TYPES, 'T')
   const want = pick(rawWant, FF_TYPES, 'JK')
   const conv = useMemo(() => convertFlipFlop(have, want), [have, want])
@@ -518,58 +554,75 @@ function ConvertView({ intro, setView }: { intro: ReactNode; setView: (v: View) 
   const cols: Column<R>[] = [
     ...wantIn.map((l, i) => ({ key: `w${l}`, header: l, align: 'center' as const, mono: true, cell: (r: R) => r.inputs[i] })),
     { key: 'q', header: 'Q', align: 'center', mono: true, cell: (r) => r.q },
-    { key: 'n', header: 'Q+', align: 'center', mono: true, cell: (r) => <Bitv v={r.next} e={r.why} /> },
-    ...haveIn.map((l, i) => ({ key: `h${l}`, header: `${l} (yours)`, align: 'center' as const, mono: true, cell: (r: R) => <Bitv v={r.have[i]} e={r.why} /> })),
+    // Rows after the current one stay blank, so the table fills in as you step.
+    { key: 'n', header: 'Q+', align: 'center', mono: true, cell: (r) => (conv.rows.indexOf(r) > k ? '' : <Bitv v={r.next} e={r.why} />) },
+    ...haveIn.map((l, i) => ({ key: `h${l}`, header: `${l} (yours)`, align: 'center' as const, mono: true, cell: (r: R) => (conv.rows.indexOf(r) > k ? '' : <Bitv v={r.have[i]} e={r.why} />) })),
   ]
+  const rowText = (r: R) => `${wantIn.map((l, i) => `${l} = ${r.inputs[i]}`).join(', ')}, Q = ${r.q}`
   return (
     <Workspace
       title="Sequential circuits"
       lectures="L19, T09, R10"
       intro={intro}
-      inspector={
-        <>
-          <Panel title={`Row ${k}`}>
-            <p>{row.why.rule}</p>
-            <p className="mono seq-working">{row.why.working}</p>
-            <p className="seq-cite">{row.why.cite}</p>
-          </Panel>
-          <Callout kind="beyond" title="Beyond the course">
-            Converting one flip-flop into another is not a slide topic. It is the design procedure of L19 p46 with a single flip-flop: the wanted characteristic table gives Q+, and the excitation table of the flip-flop you have gives its inputs.
-          </Callout>
-          {have === 'JK' && want === 'T' ? (
-            <Callout kind="course" title="J and K tied together" cite="AY25/26 Q13">
-              A J-K flip-flop with J and K joined is a T flip-flop: J = K = T.
-            </Callout>
-          ) : null}
-          <Callout kind="trap" title="Which table" cite="L19 p44; R10 p23">
-            Characteristic tables are for analysis (inputs to Q+). Excitation tables are for design (Q to Q+, then the inputs).
-          </Callout>
-        </>
-      }
-      transport={<Transport stepper={stepper} label="row" describe={`${wantIn.map((l, i) => `${l} = ${row.inputs[i]}`).join(', ')}, Q = ${row.q}`} />}
+      transport={<Transport stepper={stepper} label="row" describe={rowText(row)} />}
     >
-      <Panel title="Conversion">
-        <div className="seq-row">
-          <ViewSwitch value="convert" onChange={setView} />
-        </div>
-        <div className="seq-row">
-          <Segmented label="Flip-flop you have" value={have} onChange={setHave} options={FF_TYPES.map((v) => ({ value: v, label: FF_LABEL[v] }))} />
-          <Segmented label="Behaviour you want" value={want} onChange={setWant} options={FF_TYPES.map((v) => ({ value: v, label: FF_LABEL[v] }))} />
-        </div>
-      </Panel>
-      <Panel title={`Drive a ${FLIP_FLOPS[have].name} so it acts as a ${FLIP_FLOPS[want].name}`} flush>
-        <DataTable compact columns={cols} rows={conv.rows} rowSignal={(_, i) => (i === k ? 'path' : undefined)} />
-      </Panel>
-      <Panel title="Equations">
-        <ul className="seq-eqs">
-          {conv.equations.map((e) => (
-            <li key={e.label} className="mono">
-              {e.label} = <W e={e.why}>{e.text}</W>
-            </li>
-          ))}
-        </ul>
-        <p className="seq-muted">Variables: {conv.vars.join(', ')}. Q is the present output of the flip-flop you have.</p>
-      </Panel>
+      <div className="seq-command">
+        <ViewSwitch value="convert" onChange={setView} />
+        <Segmented label="Flip-flop you have" value={have} onChange={setHave} options={FF_TYPES.map((v) => ({ value: v, label: FF_LABEL[v] }))} />
+        <Segmented label="Behaviour you want" value={want} onChange={setWant} options={FF_TYPES.map((v) => ({ value: v, label: FF_LABEL[v] }))} />
+      </div>
+
+      <div className="seq-stage">
+        <Board title={`Drive a ${FLIP_FLOPS[have].name} so it acts as a ${FLIP_FLOPS[want].name}`} step={`Row ${k}`} play={<PlayBar stepper={stepper} label="Fill in the rows" next={`Next: row ${k + 1}`} />}>
+          <DataTable compact columns={cols} rows={conv.rows} rowSignal={(_, i) => (i === k ? 'path' : undefined)} />
+        </Board>
+        <Story>
+          <Narrate e={row.why} head={<span className="mono">{rowText(row)}</span>} />
+        </Story>
+      </div>
+
+      <TabStrip
+        label="Result and notes"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          {
+            value: 'eq',
+            label: 'Equations',
+            body: (
+              <>
+                <ul className="seq-eqs">
+                  {conv.equations.map((e) => (
+                    <li key={e.label} className="mono">
+                      {e.label} = <W e={e.why}>{e.text}</W>
+                    </li>
+                  ))}
+                </ul>
+                <p className="seq-muted">Variables: {conv.vars.join(', ')}. Q is the present output of the flip-flop you have.</p>
+              </>
+            ),
+          },
+          {
+            value: 'notes',
+            label: 'Course notes',
+            body: (
+              <div className="seq-notes">
+                <Callout kind="beyond" title="Not a slide topic">
+                  Converting one flip-flop into another is not a slide topic. It is the design procedure of L19 p46 with a single flip-flop: the wanted characteristic table gives Q+, and the excitation table of the flip-flop you have gives its inputs.
+                </Callout>
+                {have === 'JK' && want === 'T' ? (
+                  <Callout kind="course" title="J and K tied together" cite="AY25/26 Q13">
+                    A J-K flip-flop with J and K joined is a T flip-flop: J = K = T.
+                  </Callout>
+                ) : null}
+                <Callout kind="trap" title="Which table" cite="L19 p44; R10 p23">
+                  Characteristic tables are for analysis (inputs to Q+). Excitation tables are for design (Q to Q+, then the inputs).
+                </Callout>
+              </div>
+            ),
+          },
+        ]}
+      />
     </Workspace>
   )
 }

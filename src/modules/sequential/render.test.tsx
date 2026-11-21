@@ -27,6 +27,25 @@ describe('sequential page renders', () => {
     expect(all).not.toContain(EM_DASH)
   })
 
+  it('stepping views put the picture on a board with a Play pill inside it', () => {
+    for (const el of [<FlipFlopTab intro={null} />, <AnalysisTab intro={null} />, <DesignTab intro={null} />]) {
+      const html = renderToString(el)
+      expect(html).toMatch(/class="seq-board canvas"[\s\S]*class="seq-board-play"[\s\S]*class="seq-play"/)
+      expect(html).toContain('role="tablist"')
+    }
+  })
+
+  it('the active arrow carries light that restarts with the step', () => {
+    const p = parseCircuit("A+ = A∙x + B∙x\nB+ = A'∙x")
+    if (!p.ok) throw new Error('parse')
+    const a = analyse(p.circuit)
+    if (!a.ok) throw new Error('analyse')
+    const still = renderToString(<StateDiagram graph={a.analysis.graph} current={1} active={{ from: 1, to: 3 }} label="test" />)
+    expect(still).not.toContain('flow-packets')
+    const lit = renderToString(<StateDiagram graph={a.analysis.graph} current={1} active={{ from: 1, to: 3 }} step={2} label="test" />)
+    expect(lit.match(/pathLength="1"/g)).toHaveLength(2)
+  })
+
   it('the state diagram draws every state and an arrow label', () => {
     const p = parseCircuit("A+ = A∙x + B∙x\nB+ = A'∙x\ny = (A+B)∙x'")
     if (!p.ok) throw new Error('parse')

@@ -58,6 +58,7 @@ export function StateDiagram({
   path = [],
   focus,
   label,
+  step,
 }: {
   graph: StateGraph
   current?: number | null
@@ -66,6 +67,8 @@ export function StateDiagram({
   path?: EdgeRef[]
   focus?: boolean
   label: string
+  /** Changes with the step, so the light on the active arrows restarts. Leave it out for a still picture. */
+  step?: number | string
 }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
   const n = graph.nodes.length
@@ -108,7 +111,7 @@ export function StateDiagram({
       const c2 = rot(ux, uy, 0.75)
       const far = R_NODE + 40
       const d = `M${p.x + s.x * R_NODE} ${p.y + s.y * R_NODE} C${p.x + c1.x * far} ${p.y + c1.y * far} ${p.x + c2.x * far} ${p.y + c2.y * far} ${p.x + t.x * (R_NODE + 2)} ${p.y + t.y * (R_NODE + 2)}`
-      return { key: `${e.from}>${e.to}`, cls, hidden, d, marker, text, lx: p.x + ux * (R_NODE + 40), ly: p.y + uy * (R_NODE + 40) + 4, at: undefined as ((u: number) => { x: number; y: number }) | undefined }
+      return { key: `${e.from}>${e.to}`, cls, hidden, lit: isActive || onPath, d, marker, text, lx: p.x + ux * (R_NODE + 40), ly: p.y + uy * (R_NODE + 40) + 4, at: undefined as ((u: number) => { x: number; y: number }) | undefined }
     }
     const a = pos[e.from]
     const b = pos[e.to]
@@ -138,7 +141,7 @@ export function StateDiagram({
       x: (1 - u) * (1 - u) * s.x + 2 * u * (1 - u) * mx + u * u * t.x + nx * 11,
       y: (1 - u) * (1 - u) * s.y + 2 * u * (1 - u) * my + u * u * t.y + ny * 11 + 4,
     })
-    return { key: `${e.from}>${e.to}`, cls, hidden, d: `M${s.x} ${s.y} Q${mx} ${my} ${t.x} ${t.y}`, marker, text, lx: at(0.5).x, ly: at(0.5).y, at }
+    return { key: `${e.from}>${e.to}`, cls, hidden, lit: isActive || onPath, d: `M${s.x} ${s.y} Q${mx} ${my} ${t.x} ${t.y}`, marker, text, lx: at(0.5).x, ly: at(0.5).y, at }
   })
   // Slide each label along its arrow until it clears the circles and the labels already placed.
   const boxes: { x: number; y: number; w: number }[] = []
@@ -183,6 +186,21 @@ export function StateDiagram({
           </g>
         ),
       )}
+      {/* Light along the arrows this step takes: each draws in from its source state, then packets follow it. */}
+      {step !== undefined && drawn.some((e) => e.lit && !e.hidden) ? (
+        <>
+          <g className="flow-draw" key={`d${step}`} aria-hidden="true">
+            {drawn.filter((e) => e.lit && !e.hidden).map((e) => (
+              <path key={e.key} d={e.d} pathLength={1} />
+            ))}
+          </g>
+          <g className="flow-packets" key={`p${step}`} aria-hidden="true">
+            {drawn.filter((e) => e.lit && !e.hidden).map((e, i) => (
+              <path key={e.key} d={e.d} pathLength={1} style={{ animationDelay: `${0.7 + (i % 5) * 0.18}s` }} />
+            ))}
+          </g>
+        </>
+      ) : null}
       {graph.nodes.map((node) => {
         const p = pos[node.id]
         const now = current === node.id

@@ -1,10 +1,10 @@
 import { useMemo, type ReactNode } from 'react'
 import { EXCITATION, FF_INPUTS, FLIP_FLOPS, excite, ffNext, type Bit, type FFType, type Sig, type StateGraph } from '../../core/sequential'
 import { useUrlState } from '../../lib/url-state'
-import { Button, Callout, Chip, DataTable, Legend, Panel, Segmented, Select, Workspace, type Column } from '../../ui/kit'
+import { Callout, Chip, DataTable, Legend, Segmented, Select, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { Bitv, Scroll, W, pick } from './common'
+import { Bitv, Board, PlayBar, Scroll, Story, TabStrip, W, pick } from './common'
 import { StateDiagram } from './StateDiagram'
 
 const FF_TYPES: FFType[] = ['D', 'T', 'JK', 'SR']
@@ -50,6 +50,7 @@ export function collapse(rows: FullRow[], q: Bit, n: Bit): { rows: FullRow[]; in
 
 export function TablesView({ intro, switcher }: { intro: ReactNode; switcher: ReactNode }) {
   const [rawType, setType] = useUrlState<FFType>('ftt', 'JK')
+  const [tab, setTab] = useUrlState<string>('fttab', 'excite')
   const type = pick(rawType, FF_TYPES, 'JK')
   const info = FLIP_FLOPS[type]
   const letters = FF_INPUTS[type]
@@ -80,82 +81,101 @@ export function TablesView({ intro, switcher }: { intro: ReactNode; switcher: Re
       title="Sequential circuits"
       lectures="L19, T09, R10"
       intro={intro}
-      inspector={
-        <>
-          <Panel title={`Move ${moveText(q, n)}`}>
-            <div className="seq-explain">
-              <p>
-                {merged.rows.length === 1 ? 'Only one row' : `${merged.rows.length} rows`} of the characteristic table move Q from {q} to {n}.
-                {merged.inputs.includes('X') ? ' An input that differs between them is free, so it becomes X.' : ' Every input is fixed.'}
-              </p>
-              <p className="mono seq-working">{ex.why.working}</p>
-              <p className="seq-cite">{ex.why.cite}</p>
-            </div>
-          </Panel>
-          <Callout kind="trap" title="Which table" cite="L19 p44; R10 p23">
-            Characteristic tables are for analysis (inputs and Q give Q+). Excitation tables are for design (Q and Q+ give the inputs).
-          </Callout>
-          {type === 'JK' ? (
-            <Callout kind="course" title="Why J-K has two X entries per row" cite="L19 p45">
-              Each move can be made by two commands, for example 0 to 1 by set (1, 0) or toggle (1, 1), so one input is always free.
-            </Callout>
-          ) : null}
-          {type === 'SR' ? (
-            <Callout kind="trap" title="S = R = 1" cite="L19 p18, p27">
-              S = R = 1 is not allowed, so it never appears as a way to make a move. That is why 0 to 1 needs exactly S = 1, R = 0.
-            </Callout>
-          ) : null}
-        </>
-      }
       transport={<Transport stepper={stepper} label="move" describe={`Q ${moveText(q, n)}: ${letters.map((l, i) => `${l} = ${merged.inputs[i]}`).join(', ')}`} />}
     >
-      <Panel title="Flip-flop tables">
-        <div className="seq-row">{switcher}</div>
-        <div className="seq-row">
-          <Segmented
-            label="Type"
-            value={type}
-            onChange={(v) => {
-              setType(v)
-              stepper.first()
-            }}
-            options={FF_TYPES.map((t) => ({ value: t, label: FF_LABEL[t], title: `${FLIP_FLOPS[t].name} (${FLIP_FLOPS[t].cite})` }))}
-          />
-        </div>
-        <p className="seq-muted">Step through the four moves of Q. The rows that cause each move light up, then merge into one excitation row.</p>
-      </Panel>
-      <div className="seq-cols">
-        <Panel title={`Characteristic table with Q, ${info.name}`} flush actions={<Legend items={[{ signal: 'path', label: 'rows that make this move' }]} />}>
-          <DataTable
-            compact
-            columns={fullCols}
-            rows={rows}
-            rowSignal={(r) => (r.q === q && r.next === n ? 'path' : undefined)}
-            caption={<W e={{ rule: 'The characteristic table gives Q+ from the inputs and Q.', working: info.equation, cite: `${info.cite}; L19 p44` }}>{info.equation}</W>}
-          />
-        </Panel>
-        <Panel title={`Excitation table, ${info.name}`} flush actions={<Legend items={[{ signal: 'path', label: 'this move' }, { signal: 'dontcare', label: 'X: either value' }]} />}>
-          <DataTable
-            compact
-            columns={exCols}
-            rows={MOVES.map(([a, b]) => ({ q: a, n: b }))}
-            rowSignal={(r) => (r.q === q && r.n === n ? 'path' : undefined)}
-            caption={<W e={{ rule: 'The excitation table gives the inputs that move Q to Q+. Use it for design.', working: 'X: either value works', cite: 'L19 p44-45' }}>Inputs needed for each move</W>}
-          />
-        </Panel>
-      </div>
-      <Panel title={`Merging the rows for ${moveText(q, n)}`} flush>
-        <DataTable
-          compact
-          columns={[
-            { key: 'w', header: 'Row', cell: (r: { label: string; inputs: Sig[] }) => r.label },
-            ...letters.map((l, i) => ({ key: l, header: l, align: 'center' as const, mono: true, cell: (r: { label: string; inputs: Sig[] }) => <Bitv v={r.inputs[i]} /> })),
-          ]}
-          rows={[...merged.rows.map((r) => ({ label: `${r.comment} row`, inputs: r.inputs as Sig[] })), { label: 'Excitation row', inputs: merged.inputs }]}
-          rowSignal={(_, i) => (i === merged.rows.length ? 'path' : undefined)}
-          caption="Where the rows agree the input is fixed; where they differ it is X."
+      <div className="seq-command">
+        {switcher}
+        <Segmented
+          label="Type"
+          value={type}
+          onChange={(v) => {
+            setType(v)
+            stepper.first()
+          }}
+          options={FF_TYPES.map((t) => ({ value: t, label: FF_LABEL[t], title: `${FLIP_FLOPS[t].name} (${FLIP_FLOPS[t].cite})` }))}
         />
-      </Panel>
+      </div>
+
+      <div className="seq-stage">
+        <Board
+          title={`${info.name}, characteristic to excitation`}
+          step={`Move ${moveText(q, n)}`}
+          play={<PlayBar stepper={stepper} label="Merge the rows" next={`Next: ${moveText(...MOVES[Math.min(k + 1, MOVES.length - 1)])}`} />}
+          foot={<Legend items={[{ signal: 'path', label: 'rows that make this move' }, { signal: 'dontcare', label: 'X: either value' }]} />}
+        >
+          <div className="seq-cols">
+            <DataTable
+              compact
+              columns={fullCols}
+              rows={rows}
+              rowSignal={(r) => (r.q === q && r.next === n ? 'path' : undefined)}
+              caption={<W e={{ rule: 'The characteristic table gives Q+ from the inputs and Q.', working: info.equation, cite: `${info.cite}; L19 p44` }}>{`Characteristic table with Q: ${info.equation}`}</W>}
+            />
+            <DataTable
+              compact
+              columns={[
+                { key: 'w', header: 'Row', cell: (r: { label: string; inputs: Sig[] }) => r.label },
+                ...letters.map((l, i) => ({ key: l, header: l, align: 'center' as const, mono: true, cell: (r: { label: string; inputs: Sig[] }) => <Bitv v={r.inputs[i]} /> })),
+              ]}
+              rows={[...merged.rows.map((r) => ({ label: `${r.comment} row`, inputs: r.inputs as Sig[] })), { label: 'Excitation row', inputs: merged.inputs }]}
+              rowSignal={(_, i) => (i === merged.rows.length ? 'path' : undefined)}
+              caption={`Merging the rows for ${moveText(q, n)}: where they agree the input is fixed; where they differ it is X.`}
+            />
+          </div>
+        </Board>
+        <Story items={MOVES.map(([a, b], i) => ({ title: `Q ${moveText(a, b)}`, state: i === k ? 'now' : i < k ? 'past' : 'next', onPick: () => stepper.set(i) }))}>
+          <div className="seq-explain">
+            <p>
+              {merged.rows.length === 1 ? 'Only one row' : `${merged.rows.length} rows`} of the characteristic table move Q from {q} to {n}.
+              {merged.inputs.includes('X') ? ' An input that differs between them is free, so it becomes X.' : ' Every input is fixed.'}
+            </p>
+            <p className="mono seq-working">{ex.why.working}</p>
+            <p className="seq-cite">{ex.why.cite}</p>
+          </div>
+        </Story>
+      </div>
+
+      <TabStrip
+        label="Tables and notes"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          {
+            value: 'excite',
+            label: 'Excitation table',
+            body: (
+              <DataTable
+                compact
+                columns={exCols}
+                rows={MOVES.map(([a, b]) => ({ q: a, n: b }))}
+                rowSignal={(r) => (r.q === q && r.n === n ? 'path' : undefined)}
+                caption={<W e={{ rule: 'The excitation table gives the inputs that move Q to Q+. Use it for design.', working: 'X: either value works', cite: 'L19 p44-45' }}>{`${info.name}: inputs needed for each move`}</W>}
+              />
+            ),
+          },
+          {
+            value: 'notes',
+            label: 'Course notes',
+            body: (
+              <div className="seq-notes">
+                <Callout kind="trap" title="Which table" cite="L19 p44; R10 p23">
+                  Characteristic tables are for analysis (inputs and Q give Q+). Excitation tables are for design (Q and Q+ give the inputs).
+                </Callout>
+                {type === 'JK' ? (
+                  <Callout kind="course" title="Why J-K has two X entries per row" cite="L19 p45">
+                    Each move can be made by two commands, for example 0 to 1 by set (1, 0) or toggle (1, 1), so one input is always free.
+                  </Callout>
+                ) : null}
+                {type === 'SR' ? (
+                  <Callout kind="trap" title="S = R = 1" cite="L19 p18, p27">
+                    S = R = 1 is not allowed, so it never appears as a way to make a move. That is why 0 to 1 needs exactly S = 1, R = 0.
+                  </Callout>
+                ) : null}
+              </div>
+            ),
+          },
+        ]}
+      />
     </Workspace>
   )
 }
@@ -199,77 +219,65 @@ export function MatchView({ intro, switcher }: { intro: ReactNode; switcher: Rea
   const right = order.filter((t, i) => answers[i] === t).length
   const graphs = useMemo(() => order.map(ffGraph), [order])
   const letter = (i: number) => String.fromCharCode(97 + i)
+  const missing = answers.some((a) => !a)
 
   return (
-    <Workspace
-      title="Sequential circuits"
-      lectures="L19, T09, R10"
-      intro={intro}
-      inspector={
-        <>
-          <Panel title="Score">
-            {checked ? (
-              <p>
-                <Chip signal={right === 4 ? 'hit' : 'miss'}>{right} of 4 right</Chip>
-              </p>
-            ) : (
-              <p className="seq-muted">Pick a flip-flop for every diagram, then check.</p>
-            )}
-          </Panel>
-          <Callout kind="course" title="Reading these diagrams" cite="L19 p45; T09 SE2">
-            Each diagram has the two states of one flip-flop, Q = 0 and Q = 1. An arrow label lists the flip-flop inputs that make that move, X for don't care. Two-input labels follow the order of the excitation table.
-          </Callout>
-        </>
-      }
-    >
-      <Panel title="Match the diagrams to the flip-flops">
-        <div className="seq-row">{switcher}</div>
-        <div className="seq-row">
-          <Button
-            variant="primary"
-            onClick={() => setChecked(true)}
-            disabled={answers.some((a) => !a)}
-            title={answers.some((a) => !a) ? 'Pick a flip-flop for every diagram first' : undefined}
-          >
-            Check
-          </Button>
-          <Button
-            onClick={() => {
-              setOrder((idx + 1 + Math.floor(Math.random() * (PERMS.length - 1))) % PERMS.length)
-              setAns([])
-              setChecked(false)
-            }}
-          >
-            New order
-          </Button>
-          <span className="seq-muted">Four diagrams, four flip-flops: J-K, D, S-R and T, each used once (T09 SE2).</span>
-        </div>
-      </Panel>
-      <div className="seq-quiz">
-        {order.map((t, i) => (
-          <Panel key={`${i}${t}`} title={`Diagram (${letter(i)})`}>
-            <Scroll label={`Diagram (${letter(i)})`}>
-              <StateDiagram graph={graphs[i]} label={`Diagram (${letter(i)}): a two-state flip-flop diagram with labelled arrows`} />
-            </Scroll>
-            <div className="seq-row">
-              <Select
-                label={`Diagram (${letter(i)}) is`}
-                value={answers[i]}
-                onChange={(v) => {
-                  setAns(answers.map((a, j) => (j === i ? v : a)))
-                  setChecked(false)
-                }}
-                options={[{ value: '', label: 'Choose a flip-flop' }, ...FF_TYPES.map((x) => ({ value: x, label: `${FF_LABEL[x]} flip-flop` }))]}
-              />
-              {checked ? (
-                <W e={{ rule: CLUE[t], working: `This is the ${FLIP_FLOPS[t].name}.`, cite: 'L19 p45; T09 SE2' }}>
-                  <Chip signal={answers[i] === t ? 'hit' : 'miss'}>{answers[i] === t ? 'right' : 'not this one'}</Chip>
-                </W>
-              ) : null}
+    <Workspace title="Sequential circuits" lectures="L19, T09, R10" intro={intro}>
+      <div className="seq-command">{switcher}</div>
+
+      <Board
+        title="Which flip-flop is each diagram?"
+        step={checked ? <Chip signal={right === 4 ? 'hit' : 'miss'}>{right} of 4 right</Chip> : undefined}
+        play={
+          <div className="seq-board-play">
+            <button type="button" className="seq-play" onClick={() => setChecked(true)} disabled={missing} title={missing ? 'Pick a flip-flop for every diagram first' : undefined}>
+              Check my answers
+            </button>
+            <button
+              type="button"
+              className="seq-next"
+              onClick={() => {
+                setOrder((idx + 1 + Math.floor(Math.random() * (PERMS.length - 1))) % PERMS.length)
+                setAns([])
+                setChecked(false)
+              }}
+            >
+              New order
+            </button>
+          </div>
+        }
+        foot={<span className="seq-muted">J-K, D, S-R and T, each used once (T09 SE2).</span>}
+      >
+        <div className="seq-quiz">
+          {order.map((t, i) => (
+            <div key={`${i}${t}`} className="seq-quiz-card">
+              <Scroll label={`Diagram (${letter(i)})`}>
+                <StateDiagram graph={graphs[i]} label={`Diagram (${letter(i)}): a two-state flip-flop diagram with labelled arrows`} />
+              </Scroll>
+              <div className="seq-row">
+                <Select
+                  label={`Diagram (${letter(i)}) is`}
+                  value={answers[i]}
+                  onChange={(v) => {
+                    setAns(answers.map((a, j) => (j === i ? v : a)))
+                    setChecked(false)
+                  }}
+                  options={[{ value: '', label: 'Choose a flip-flop' }, ...FF_TYPES.map((x) => ({ value: x, label: `${FF_LABEL[x]} flip-flop` }))]}
+                />
+                {checked ? (
+                  <W e={{ rule: CLUE[t], working: `This is the ${FLIP_FLOPS[t].name}.`, cite: 'L19 p45; T09 SE2' }}>
+                    <Chip signal={answers[i] === t ? 'hit' : 'miss'}>{answers[i] === t ? 'right' : 'not this one'}</Chip>
+                  </W>
+                ) : null}
+              </div>
             </div>
-          </Panel>
-        ))}
-      </div>
+          ))}
+        </div>
+      </Board>
+
+      <Callout kind="course" title="Reading these diagrams" cite="L19 p45; T09 SE2">
+        Each diagram has the two states of one flip-flop, Q = 0 and Q = 1. An arrow label lists the flip-flop inputs that make that move, X for don't care. Two-input labels follow the order of the excitation table.
+      </Callout>
     </Workspace>
   )
 }

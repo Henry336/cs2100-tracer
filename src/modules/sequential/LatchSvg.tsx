@@ -49,6 +49,9 @@ export function LatchSvg({ type, values, settle, round }: { type: LatchType; val
   const botVal: Bit = type === 'sr-nor' ? settle.s : settle.r
   const changedQ = r.changed.includes('Q')
   const changedQb = r.changed.includes("Q'")
+  const fbTop = `M${outX + 14} ${topY} V${topY + 26} L${mx - 14} ${botY - 30} V${botY - 12} H${mx}`
+  const fbBot = `M${outX + 14} ${botY} V${botY - 26} L${mx - 14} ${topY + 30} V${topY + 12} H${mx}`
+  const lit = [...(changedQ ? [`M${outX} ${topY} H${outX + 60}`, fbTop] : []), ...(changedQb ? [`M${outX} ${botY} H${outX + 60}`, fbBot] : [])]
   const front = type === 'gated-d' ? ['D', "D'"] : ['S', 'R']
   const frontVals: Bit[] = type === 'gated-d' ? [values.D, (1 - values.D) as Bit] : [values.S, values.R]
   return (
@@ -91,8 +94,23 @@ export function LatchSvg({ type, values, settle, round }: { type: LatchType; val
       {/* Outputs and the crossed feedback wires. */}
       <line x1={outX} y1={topY} x2={outX + 60} y2={topY} className={`lt-wire${changedQ ? ' is-active' : ''}`} />
       <line x1={outX} y1={botY} x2={outX + 60} y2={botY} className={`lt-wire${changedQb ? ' is-active' : ''}`} />
-      <path d={`M${outX + 14} ${topY} V${topY + 26} L${mx - 14} ${botY - 30} V${botY - 12} H${mx}`} className="lt-wire lt-fb" />
-      <path d={`M${outX + 14} ${botY} V${botY - 26} L${mx - 14} ${topY + 30} V${topY + 12} H${mx}`} className="lt-wire lt-fb" />
+      <path d={fbTop} className="lt-wire lt-fb" />
+      <path d={fbBot} className="lt-wire lt-fb" />
+      {/* Light on what changed this round: the new output, and the feedback wire that carries it to the other gate. */}
+      {lit.length ? (
+        <>
+          <g className="flow-draw" key={`d${r.round}`} aria-hidden="true">
+            {lit.map((d) => (
+              <path key={d} d={d} pathLength={1} />
+            ))}
+          </g>
+          <g className="flow-packets" key={`p${r.round}`} aria-hidden="true">
+            {lit.map((d, i) => (
+              <path key={d} d={d} pathLength={1} style={{ animationDelay: `${0.7 + i * 0.2}s` }} />
+            ))}
+          </g>
+        </>
+      ) : null}
       <circle cx={outX + 14} cy={topY} r={2.5} className="lt-dot" />
       <circle cx={outX + 14} cy={botY} r={2.5} className="lt-dot" />
       <text x={outX + 64} y={topY + 4} className={`lt-out${changedQ ? ' is-active' : ''}`}>

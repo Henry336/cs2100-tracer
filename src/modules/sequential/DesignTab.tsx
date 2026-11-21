@@ -1,11 +1,11 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { bin, design, parseSequence, FF_INPUTS, FLIP_FLOPS, type Design, type DesignFrame, type DesignFunction, type DesignPhase, type DesignRow, type FFType, type Sig, type TableRow, type UnusedTransition } from '../../core/sequential'
 import { useUrlState } from '../../lib/url-state'
-import { Button, Callout, Chip, DataTable, Legend, Panel, Presets, Segmented, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Button, Callout, Chip, DataTable, Legend, Presets, Segmented, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { ChecksPanel } from './AnalysisTab'
-import { Bitv, Issues, Scroll, W, bool, parseOverrides, pick, plural, splitNames, str } from './common'
+import { Checks } from './AnalysisTab'
+import { Bitv, Board, Fold, Issues, Narrate, PlayBar, Scroll, Story, TabStrip, W, bool, parseOverrides, pick, plural, splitNames, str } from './common'
 import { KMap } from './KMap'
 import { DESIGN_PRESETS } from './presets'
 import { StateDiagram, type EdgeRef } from './StateDiagram'
@@ -60,6 +60,7 @@ export default function DesignTab({ intro }: { intro: ReactNode }) {
   const [rawFocus, setFocus] = useUrlState<boolean>('dfo', false)
   const [rawPickFn, setPickFn] = useUrlState<string>('dkf', '')
   const [seqError, setSeqError] = useState('')
+  const [tab, setTab] = useUrlState<string>('dtab', 'eq')
 
   const bits = splitNames(str(rawBits, 'A, B'))
   const inputs = splitNames(str(rawIns, ''))
@@ -125,72 +126,79 @@ export default function DesignTab({ intro }: { intro: ReactNode }) {
   )
 
   const anySR = types.includes('SR')
+  const kmapFn = phase === 'kmap' || phase === 'commit' ? fnIndex : -1
+  const kmapProps = { index: fnIndex, driven: phase === 'kmap' || phase === 'commit', committed: reached('commit') && (phase !== 'commit' || (frame?.fn ?? 0) >= fnIndex), onPick: (l: string) => setPickFn(l) }
+  const unusedIndex = phase === 'unused' ? k - firstOf('unused') : -1
+  const summary = `${plural(rows.length, 'used state')}; flip-flops ${bits.map((b, i) => `${b} ${FF_LABEL[types[i]]}`).join(', ') || 'none'}; ${n ? `input${n > 1 ? 's' : ''} ${inputs.join(', ')}` : 'no inputs'}`
+  const errorList = [
+    ...(tooBig ? [{ code: 'size', message: 'use at most 5 state bits, and at most 8 state bits and inputs together', at: [0, 0] as [number, number] }] : []),
+    ...(result && !result.ok ? result.errors : []),
+  ]
+
+  let board: ReactNode = null
+  if (!d) {
+    board = (
+      <Board title="Design wizard">
+        <p className="seq-muted">Open the state table above and fill it in to start.</p>
+      </Board>
+    )
+  } else if (phase === 'kmap' || phase === 'commit') {
+    board = (
+      <Board
+        title={`K-map for ${d.functions[fnIndex]?.label ?? ''}`}
+        step={frame?.title}
+        play={<PlayBar stepper={stepper} label="Design it step by step" next="Next step" />}
+        foot={<Legend items={[{ signal: 'dontcare', label: "X: don't care, d(1) or d(0) once committed" }]} />}
+      >
+        <KMapView d={d} {...kmapProps} step={k} />
+      </Board>
+    )
+  } else if (phase === 'unused' || phase === 'verdict') {
+    const u = unusedIndex >= 0 ? d.unusedTransitions[unusedIndex] : undefined
+    const sc = d.analysis.selfCorrection
+    const path: EdgeRef[] = phase === 'verdict' ? sc.paths.flatMap((p) => p.path.slice(1).map((to, i) => ({ from: p.path[i], to }))) : []
+    board = (
+      <Board
+        title="State diagram of the built circuit"
+        step={frame?.title}
+        actions={<Toggle label="Show only what this step uses" checked={focus} onChange={setFocus} hint="Hides every arrow the current step does not use. Off draws them quietly." />}
+        play={<PlayBar stepper={stepper} label="Design it step by step" next="Next step" />}
+        foot={<Legend items={[{ signal: 'path', label: phase === 'verdict' ? 'paths back to a used state' : 'this transition' }, { signal: 'dontcare', label: 'unused state (dashed, hatched)' }]} />}
+      >
+        <Scroll label="State diagram of the designed circuit">
+          <StateDiagram graph={d.analysis.graph} current={u ? u.state : null} next={u?.next ?? null} active={u && u.next !== null ? { from: u.state, to: u.next } : null} path={path} focus={focus} step={k} label="State diagram of the designed circuit, unused states included" />
+        </Scroll>
+      </Board>
+    )
+  } else {
+    board = (
+      <Board
+        title="Excitation table"
+        step={frame?.title}
+        play={<PlayBar stepper={stepper} label="Design it step by step" next="Next step" />}
+        foot={<Legend items={[{ signal: 'path', label: 'this row' }, { signal: 'dontcare', label: "don't care (X)" }]} />}
+      >
+        <ExciteTable d={d} frame={frame} reached={reached} fnIndex={kmapFn} />
+      </Board>
+    )
+  }
+
   return (
     <Workspace
       title="Sequential circuits"
       lectures="L19, T09, R10"
       intro={intro}
       toolbar={toolbar}
-      inspector={
-        <>
-          <Panel title="This step">
-            {frame ? (
-              <div className="seq-explain">
-                <p className="seq-explain-head">
-                  <Chip signal="path">{frame.title}</Chip>
-                </p>
-                <p>{frame.why.rule}</p>
-                {frame.why.working ? <p className="mono seq-working">{frame.why.working}</p> : null}
-                {frame.why.cite ? <p className="seq-cite">{frame.why.cite}</p> : null}
-              </div>
-            ) : (
-              <p className="seq-muted">Fill in the state table to start.</p>
-            )}
-          </Panel>
-          <Panel title="Procedure">
-            <ol className="seq-steps">
-              {PHASES.map((p) => {
-                const state = p.phase === 'table' ? 'done' : !phase ? 'later' : p.phase === phase ? 'now' : reached(p.phase) ? 'done' : 'later'
-                return (
-                  <li key={p.phase} className={`seq-step is-${state}`}>
-                    {p.phase === 'table' || !d ? (
-                      <span>{p.label}</span>
-                    ) : (
-                      <button type="button" className="seq-steplink" onClick={() => stepper.set(firstOf(p.phase as DesignPhase))} aria-current={state === 'now' ? 'step' : undefined}>
-                        {p.label}
-                      </button>
-                    )}
-                    <span className="seq-cite"> {p.cite}</span>
-                    {state === 'now' ? <span className="seq-now-tag"> now</span> : null}
-                  </li>
-                )
-              })}
-            </ol>
-          </Panel>
-          <Callout kind="trap" title="Don't-cares become real arrows" cite="T09 Ans p3; L19 p55-57">
-            The don't-cares make the equations smaller, but once the equations are fixed every X has a value, and that decides where each unused state goes. Check the unused states after the equations, not before.
-          </Callout>
-          <Callout kind="course" title="Counting gates" cite="AY23/24 S1 Ans p13; T09 Q2">
-            Each flip-flop gives Q' for free, so a complemented state variable needs no inverter. Fewest gates is not always the simplest SOP: try one XOR or XNOR, or a constant.
-          </Callout>
-          <Callout kind="course" title="K-map layout" cite="L19 p50, p56">
-            The course puts the state bits on the rows (A, AB) and the rest on the columns (x, Cx).
-          </Callout>
-          {n >= 2 ? (
-            <Callout kind="course" title="Separate inputs" cite="T09 Ans p5">
-              Inputs such as x and y are separate lines, not one 2-bit number. A combination that cannot happen is left as X.
-            </Callout>
-          ) : null}
-          {anySR ? (
-            <Callout kind="trap" title="S-R needs S∙R = 0" cite="L19 p11, p56; R10 p43">
-              An S-R flip-flop must never get S = R = 1, including on the don't-cares after they are committed. The wizard picks a pair of minimal SOPs that keeps S∙R = 0.
-            </Callout>
-          ) : null}
-        </>
-      }
       transport={frames.length ? <Transport stepper={stepper} label="step" marks={frames.map((f) => (f.phase === 'verdict' ? 'hit' : f.phase === 'unused' ? 'dontcare' : f.phase === 'excite' ? undefined : 'control'))} describe={frame?.title} /> : undefined}
     >
-      <Panel title="State table">
+      <Fold
+        summary={
+          <>
+            State table: <span className="seq-fold-sum">{summary}</span>
+          </>
+        }
+        whenClosed={<Issues issues={errorList} />}
+      >
         <div className="seq-row">
           <TextField label="State bits, MSB first" value={str(rawBits, '')} onChange={setBits} width="9em" />
           <TextField label="Inputs, MSB first" value={str(rawIns, '')} onChange={setIns} placeholder="none" width="8em" />
@@ -308,22 +316,67 @@ export default function DesignTab({ intro }: { intro: ReactNode }) {
         </div>
         <Issues issues={[...ov.bad, ...unknownOv.map((l) => `${l} is not a flip-flop input or output of this design (${labels.join(', ')})`)].map((message) => ({ code: 'ov', message, at: [0, 0] as [number, number] }))} kind="warning" />
         {result && !result.ok ? <Issues issues={result.errors} /> : null}
-      </Panel>
+      </Fold>
+
+      <div className="seq-stage">
+        {board}
+        <Story
+          items={PHASES.map((p) => {
+            const state = p.phase === 'table' ? 'past' : !phase ? 'next' : p.phase === phase ? 'now' : reached(p.phase) ? 'past' : 'next'
+            return { title: p.label, state, onPick: p.phase === 'table' || !d ? undefined : () => stepper.set(firstOf(p.phase as DesignPhase)) }
+          })}
+        >
+          {frame ? <Narrate e={frame.why} head={<Chip signal="path">{frame.title}</Chip>} /> : null}
+        </Story>
+      </div>
 
       {d ? (
-        <>
-          <ExcitePanel d={d} frame={frame} reached={reached} fnIndex={phase === 'kmap' || phase === 'commit' ? fnIndex : -1} />
-          {reached('kmap') ? <KMapPanel d={d} index={fnIndex} driven={phase === 'kmap' || phase === 'commit'} committed={reached('commit') && (phase !== 'commit' || (frame?.fn ?? 0) >= fnIndex)} onPick={(l) => setPickFn(l)} /> : null}
-          {reached('kmap') ? <EquationsPanel d={d} upto={phase === 'kmap' ? fnIndex : d.functions.length - 1} now={phase === 'kmap' || phase === 'commit' ? fnIndex : -1} /> : null}
-          {reached('unused') ? <UnusedPanel d={d} now={phase === 'unused' ? k - firstOf('unused') : -1} /> : null}
-          {reached('unused') ? <VerdictPanel d={d} frame={frame} unusedIndex={phase === 'unused' ? k - firstOf('unused') : -1} focus={focus} setFocus={setFocus} /> : null}
-        </>
+        <TabStrip
+          label="Design tables"
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            ...(phase !== 'excite' ? [{ value: 'excite', label: 'Excitation table', body: <ExciteTable d={d} frame={frame} reached={reached} fnIndex={kmapFn} /> }] : []),
+            ...(reached('kmap') ? [{ value: 'eq', label: 'Equations', body: <EquationsTable d={d} upto={phase === 'kmap' ? fnIndex : d.functions.length - 1} now={kmapFn} /> }] : []),
+            ...(reached('unused') ? [{ value: 'kmaps', label: 'K-maps', body: <KMapView d={d} {...kmapProps} /> }] : []),
+            ...(reached('unused') ? [{ value: 'unused', label: 'Unused states', body: <UnusedTable d={d} now={unusedIndex} /> }] : []),
+            ...(phase === 'verdict' ? [{ value: 'checks', label: 'Checks', body: <Checks model={{ machine: d.analysis.machine, graph: d.analysis.graph, sinks: d.analysis.sinks, sc: d.analysis.selfCorrection }} /> }] : []),
+            ...(phase === 'verdict' ? [{ value: 'circuit', label: 'Circuit', body: <CircuitList d={d} /> }] : []),
+            {
+              value: 'notes',
+              label: 'Course notes',
+              body: (
+                <div className="seq-notes">
+                  <Callout kind="trap" title="Don't-cares become real arrows" cite="T09 Ans p3; L19 p55-57">
+                    The don't-cares make the equations smaller, but once the equations are fixed every X has a value, and that decides where each unused state goes. Check the unused states after the equations, not before.
+                  </Callout>
+                  <Callout kind="course" title="Counting gates" cite="AY23/24 S1 Ans p13; T09 Q2">
+                    Each flip-flop gives Q' for free, so a complemented state variable needs no inverter. Fewest gates is not always the simplest SOP: try one XOR or XNOR, or a constant.
+                  </Callout>
+                  <Callout kind="course" title="K-map layout" cite="L19 p50, p56">
+                    The course puts the state bits on the rows (A, AB) and the rest on the columns (x, Cx).
+                  </Callout>
+                  {n >= 2 ? (
+                    <Callout kind="course" title="Separate inputs" cite="T09 Ans p5">
+                      Inputs such as x and y are separate lines, not one 2-bit number. A combination that cannot happen is left as X.
+                    </Callout>
+                  ) : null}
+                  {anySR ? (
+                    <Callout kind="trap" title="S-R needs S∙R = 0" cite="L19 p11, p56; R10 p43">
+                      An S-R flip-flop must never get S = R = 1, including on the don't-cares after they are committed. The wizard picks a pair of minimal SOPs that keeps S∙R = 0.
+                    </Callout>
+                  ) : null}
+                </div>
+              ),
+            },
+          ]}
+        />
       ) : null}
     </Workspace>
   )
 }
 
-function ExcitePanel({ d, frame, reached, fnIndex }: { d: Design; frame?: DesignFrame; reached: (p: DesignPhase) => boolean; fnIndex: number }) {
+function ExciteTable({ d, frame, reached, fnIndex }: { d: Design; frame?: DesignFrame; reached: (p: DesignPhase) => boolean; fnIndex: number }) {
   const { bits, inputs } = d.spec
   const outputs = d.spec.outputs ?? []
   const excite = frame?.phase === 'excite'
@@ -339,38 +392,28 @@ function ExcitePanel({ d, frame, reached, fnIndex }: { d: Design; frame?: Design
     ...outputs.map((o, k) => ({ key: `o${o}`, header: head(o), align: 'center' as const, mono: true, cell: (r: DesignRow) => (hide(r) ? '' : <Bitv v={r.outputs[k].value} e={r.outputs[k].why} />) })),
   ]
   return (
-    <Panel title="Excitation table" flush actions={<Legend items={[{ signal: 'path', label: 'this row' }, { signal: 'dontcare', label: "don't care (X)" }]} />}>
-      <DataTable
-        compact
-        columns={cols}
-        rows={d.rows}
-        rowSignal={(r) => (excite && r.index === frame?.row ? 'path' : !r.specified ? 'dontcare' : undefined)}
-        caption={`${plural(d.rows.length, 'row')}: ${d.used.length} used state${d.used.length === 1 ? '' : 's'}${d.unused.length ? `, unused ${d.unused.join(', ')} (don't-cares)` : ''}. Flip-flops: ${bits.map((b, i) => `${b} ${FF_LABEL[d.spec.types[i]]}`).join(', ')}.`}
-      />
-    </Panel>
+    <DataTable
+      compact
+      columns={cols}
+      rows={d.rows}
+      rowSignal={(r) => (excite && r.index === frame?.row ? 'path' : !r.specified ? 'dontcare' : undefined)}
+      caption={`${plural(d.rows.length, 'row')}: ${d.used.length} used state${d.used.length === 1 ? '' : 's'}${d.unused.length ? `, unused ${d.unused.join(', ')} (don't-cares)` : ''}. Flip-flops: ${bits.map((b, i) => `${b} ${FF_LABEL[d.spec.types[i]]}`).join(', ')}.`}
+    />
   )
 }
 
-function KMapPanel({ d, index, driven, committed, onPick }: { d: Design; index: number; driven: boolean; committed: boolean; onPick: (l: string) => void }) {
+function KMapView({ d, index, driven, committed, onPick, step }: { d: Design; index: number; driven: boolean; committed: boolean; onPick: (l: string) => void; step?: number }) {
   const f: DesignFunction | undefined = d.functions[index]
   if (!f) return null
   const cover = f.min.covers.find((c) => c.text === f.chosen.text)
   const loops = cover && f.kmap ? cover.primes.map((id) => f.min.primes.find((p) => p.id === id)).filter((p) => !!p?.pieces).map((p) => ({ key: String(p!.id), pieces: p!.pieces!, term: p!.term })) : []
   const comm = committed ? new Map(f.committed.map((c) => [c.cell, c.value])) : undefined
   return (
-    <Panel
-      title={`K-map for ${f.label}`}
-      actions={
-        driven ? (
-          <span className="seq-muted">following the steps</span>
-        ) : (
-          <Segmented label="Function" value={f.label} onChange={onPick} options={d.functions.map((g) => ({ value: g.label, label: g.label }))} />
-        )
-      }
-    >
+    <div className="seq-kmapview">
+      {driven ? null : <Segmented label="Function" value={f.label} onChange={onPick} options={d.functions.map((g) => ({ value: g.label, label: g.label }))} />}
       {f.kmap ? (
         <Scroll label={`K-map for ${f.label}`}>
-          <KMap layout={f.kmap.layout} values={f.kmap.values} loops={loops} committed={comm} label={`K-map for ${f.label}`} />
+          <KMap layout={f.kmap.layout} values={f.kmap.values} loops={loops} committed={comm} step={step ?? f.label} label={`K-map for ${f.label}`} />
         </Scroll>
       ) : (
         <p className="seq-muted">
@@ -389,11 +432,11 @@ function KMapPanel({ d, index, driven, committed, onPick }: { d: Design; index: 
           </W>
         </p>
       ) : null}
-    </Panel>
+    </div>
   )
 }
 
-function EquationsPanel({ d, upto, now }: { d: Design; upto: number; now: number }) {
+function EquationsTable({ d, upto, now }: { d: Design; upto: number; now: number }) {
   const rows = d.functions.slice(0, upto + 1)
   const cols: Column<DesignFunction>[] = [
     { key: 'l', header: 'Input', mono: true, cell: (f) => f.label },
@@ -407,7 +450,7 @@ function EquationsPanel({ d, upto, now }: { d: Design; upto: number; now: number
     },
   ]
   return (
-    <Panel title="Equations" flush>
+    <>
       <DataTable
         compact
         columns={cols}
@@ -426,14 +469,14 @@ function EquationsPanel({ d, upto, now }: { d: Design; upto: number; now: number
       />
       {d.mismatches.length ? <Issues issues={d.mismatches.map((message) => ({ code: 'mismatch', message, at: [0, 0] as [number, number] }))} /> : null}
       {d.warnings.length ? <Issues issues={d.warnings} kind="warning" /> : null}
-    </Panel>
+    </>
   )
 }
 
-function UnusedPanel({ d, now }: { d: Design; now: number }) {
+function UnusedTable({ d, now }: { d: Design; now: number }) {
   const { inputs } = d.spec
   const n = inputs.length
-  if (!d.unusedTransitions.length) return <Panel title="Unused states">Every state is used, so there is nothing to check.</Panel>
+  if (!d.unusedTransitions.length) return <p>Every state is used, so there is nothing to check.</p>
   const cols: Column<UnusedTransition>[] = [
     { key: 's', header: 'Unused state', mono: true, cell: (u) => `${u.state} (${bin(u.state, d.spec.bits.length)})` },
     ...(n ? [{ key: 'c', header: inputs.join(''), align: 'center' as const, mono: true, cell: (u: UnusedTransition) => bin(u.combo, n) }] : []),
@@ -441,51 +484,23 @@ function UnusedPanel({ d, now }: { d: Design; now: number }) {
     { key: 'n', header: 'Next', mono: true, cell: (u) => <W e={u.why}>{u.next === null ? 'unpredictable' : String(u.next)}</W> },
     ...(hasOutputs(d) ? [{ key: 'o', header: (d.spec.outputs ?? []).join(''), align: 'center' as const, mono: true, cell: (u: UnusedTransition) => u.out.join('') }] : []),
   ]
-  return (
-    <Panel title="Where unused states go" flush>
-      <DataTable compact columns={cols} rows={d.unusedTransitions} rowSignal={(_, i) => (i === now ? 'path' : undefined)} caption="Put each unused state into the chosen equations (T09 Ans p3)." />
-    </Panel>
-  )
+  return <DataTable compact columns={cols} rows={d.unusedTransitions} rowSignal={(_, i) => (i === now ? 'path' : undefined)} caption="Where unused states go: put each unused state into the chosen equations (T09 Ans p3)." />
 }
 const hasOutputs = (d: Design) => (d.spec.outputs ?? []).length > 0
 
-function VerdictPanel({ d, frame, unusedIndex, focus, setFocus }: { d: Design; frame?: DesignFrame; unusedIndex: number; focus: boolean; setFocus: (v: boolean) => void }) {
-  const a = d.analysis
-  const u = unusedIndex >= 0 ? d.unusedTransitions[unusedIndex] : undefined
-  const sc = a.selfCorrection
-  const path: EdgeRef[] = frame?.phase === 'verdict' ? sc.paths.flatMap((p) => p.path.slice(1).map((to, i) => ({ from: p.path[i], to }))) : []
+function CircuitList({ d }: { d: Design }) {
   return (
-    <>
-      <Panel
-        title="State diagram of the built circuit"
-        actions={
-          <>
-            <Legend items={[{ signal: 'path', label: frame?.phase === 'verdict' ? 'paths back to a used state' : 'this transition' }, { signal: 'dontcare', label: 'unused state (dashed, hatched)' }]} />
-            <Toggle label="Show only what this step uses" checked={focus} onChange={setFocus} hint="Hides every arrow the current step does not use. Off draws them quietly." />
-          </>
-        }
-      >
-        <Scroll label="State diagram of the designed circuit">
-          <StateDiagram graph={a.graph} current={u ? u.state : null} next={u?.next ?? null} active={u && u.next !== null ? { from: u.state, to: u.next } : null} path={path} focus={focus} label="State diagram of the designed circuit, unused states included" />
-        </Scroll>
-      </Panel>
-      {frame?.phase === 'verdict' ? <ChecksPanel model={{ machine: a.machine, graph: a.graph, sinks: a.sinks, sc }} /> : null}
-      {frame?.phase === 'verdict' ? (
-        <Panel title="Circuit">
-          <ul className="seq-eqs">
-            {d.circuit.flipFlops.map((ff) => (
-              <li key={ff.name} className="mono">
-                {FF_INPUTS[ff.type].map((l) => `${l}${ff.name} = ${ff.inputs[l]}`).join(';  ')}
-              </li>
-            ))}
-            {(d.circuit.outputs ?? []).map((o) => (
-              <li key={o.name} className="mono">
-                {o.name} = {o.expr}
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      ) : null}
-    </>
+    <ul className="seq-eqs">
+      {d.circuit.flipFlops.map((ff) => (
+        <li key={ff.name} className="mono">
+          {FF_INPUTS[ff.type].map((l) => `${l}${ff.name} = ${ff.inputs[l]}`).join(';  ')}
+        </li>
+      ))}
+      {(d.circuit.outputs ?? []).map((o) => (
+        <li key={o.name} className="mono">
+          {o.name} = {o.expr}
+        </li>
+      ))}
+    </ul>
   )
 }

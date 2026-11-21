@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { Explain, Issue, Sig } from '../../core/sequential'
-import { Why } from '../../ui/kit'
+import { Tabs, Why } from '../../ui/kit'
+import type { Stepper } from '../../ui/stepper'
 
 /** <Why> straight from an engine Explain. */
 export function W({ e, children }: { e?: Explain; children: ReactNode }) {
@@ -113,4 +114,131 @@ export function parseOverrides(src: string): { map: Record<string, string>; bad:
     else map[label] = line.slice(eq + 1).trim()
   })
   return { map, bad }
+}
+
+/* ---------- Calm layout (docs/design.md): board with Play inside, story beside, one tab strip below ---------- */
+
+/** The dot-grid board the picture sits on: a title bar, the picture, the play row, a legend foot. */
+export function Board({ title, step, actions, children, play, foot }: { title: ReactNode; step?: ReactNode; actions?: ReactNode; children: ReactNode; play?: ReactNode; foot?: ReactNode }) {
+  return (
+    <div className="seq-board canvas">
+      <div className="seq-board-bar">
+        <p className="seq-board-title">
+          <span>{title}</span>
+          {step !== undefined && step !== null ? <span className="seq-board-step">{step}</span> : null}
+        </p>
+        {actions ? <div className="seq-board-actions">{actions}</div> : null}
+      </div>
+      <div className="seq-board-body">{children}</div>
+      {play}
+      {foot ? <div className="seq-board-foot">{foot}</div> : null}
+    </div>
+  )
+}
+
+/** The Play pill and a quiet Next button inside the board; both drive the same stepper as the bottom player. */
+export function PlayBar({ stepper, label, next }: { stepper: Stepper; label: string; next?: string }) {
+  if (stepper.count < 2) return null
+  const atEnd = stepper.index >= stepper.count - 1
+  const text = stepper.playing ? 'Pause' : atEnd ? 'Play it again' : stepper.index === 0 ? label : 'Play from here'
+  return (
+    <div className="seq-board-play">
+      <button type="button" className="seq-play" onClick={stepper.toggle} data-playing={stepper.playing}>
+        {stepper.playing ? (
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3h3v10H4zM9 3h3v10H9z" /></svg>
+        ) : (
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2.8l9 5.2-9 5.2z" /></svg>
+        )}
+        {text}
+      </button>
+      {!atEnd ? (
+        <button type="button" className="seq-next" onClick={stepper.next}>
+          {next ?? 'Next'}
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" /></svg>
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+export interface StoryItem {
+  title: ReactNode
+  state: 'now' | 'past' | 'next'
+  onPick?: () => void
+}
+
+/** The step story beside the board: only the current step is narrated, the others stay one-line titles. */
+export function Story({ items, children, tip }: { items?: StoryItem[]; children: ReactNode; tip?: ReactNode }) {
+  return (
+    <aside className="seq-story" aria-label="What happens at this step">
+      {items ? (
+        <ol className="seq-story-steps">
+          {items.map((it, i) => (
+            <li key={i} className={`is-${it.state}`}>
+              {it.onPick ? (
+                <button type="button" className="seq-story-btn" onClick={it.onPick} aria-current={it.state === 'now' ? 'step' : undefined}>
+                  <span className="seq-story-dot" aria-hidden="true" />
+                  <span>{it.title}</span>
+                </button>
+              ) : (
+                <span className="seq-story-btn">
+                  <span className="seq-story-dot" aria-hidden="true" />
+                  <span>{it.title}</span>
+                </span>
+              )}
+              {it.state === 'now' ? <div className="seq-story-body">{children}</div> : null}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <div className="seq-story-body">{children}</div>
+      )}
+      {tip ? <p className="seq-tip">{tip}</p> : null}
+    </aside>
+  )
+}
+
+/** An engine explanation as narration: the rule, the working, the slide. */
+export function Narrate({ e, head }: { e: Explain; head?: ReactNode }) {
+  return (
+    <div className="seq-explain">
+      {head ? <p className="seq-explain-head">{head}</p> : null}
+      <p>{e.rule}</p>
+      {e.working ? <p className="mono seq-working">{e.working}</p> : null}
+      {e.cite ? <p className="seq-cite">{e.cite}</p> : null}
+    </div>
+  )
+}
+
+/** Secondary inputs, closed by default. `whenClosed` shows only while it is folded (errors stay visible). */
+export function Fold({ summary, children, whenClosed }: { summary: ReactNode; children: ReactNode; whenClosed?: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <details className="seq-fold" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+        <summary>{summary}</summary>
+        <div className="seq-fold-body">{children}</div>
+      </details>
+      {open ? null : whenClosed}
+    </>
+  )
+}
+
+/**
+ * One tab strip for the secondary tables. Every panel is rendered so printing shows them all (sequential.css);
+ * on screen only the chosen one is visible. A chosen tab that is not offered right now falls back to the first.
+ */
+export function TabStrip<T extends string>({ label, value, onChange, tabs }: { label: string; value: unknown; onChange: (v: T) => void; tabs: { value: T; label: string; body: ReactNode }[] }) {
+  if (!tabs.length) return null
+  const cur = tabs.some((t) => t.value === value) ? (value as T) : tabs[0].value
+  return (
+    <section className="seq-details" aria-label={label}>
+      <Tabs label={label} value={cur} onChange={onChange} tabs={tabs.map((t) => ({ value: t.value, label: t.label }))} />
+      {tabs.map((t) => (
+        <div key={t.value} className="seq-detail-body" role="tabpanel" aria-label={t.label} data-label={t.label} hidden={t.value !== cur}>
+          {t.body}
+        </div>
+      ))}
+    </section>
+  )
 }
