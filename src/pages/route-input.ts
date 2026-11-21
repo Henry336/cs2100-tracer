@@ -28,6 +28,7 @@ const TOPICS: { path: string; where: string; words: string[] }[] = [
   { path: '/boolean', where: 'Boolean', words: ['boolean', 'k-map', 'kmap', 'karnaugh', 'prime implicant', 'pi', 'epi', 'sop', 'pos', 'minterm', 'maxterm', 'nand', 'nor', 'gates', 'algebra'] },
   { path: '/msi', where: 'MSI', words: ['msi', 'decoder', 'encoder', 'mux', 'multiplexer', 'demux', 'comparator', 'adder', 'half adder', 'full adder', 'ripple'] },
   { path: '/sequential', where: 'Sequential', words: ['sequential', 'flip-flop', 'flip flop', 'latch', 'jk', 'd flip-flop', 't flip-flop', 'state table', 'state diagram', 'excitation', 'counter'] },
+  { path: '/papers', where: 'Past papers', words: ['past paper', 'past papers', 'past year', 'pyp', 'exam', 'exams', 'final', 'finals', 'midterm', 'practice', 'question', 'questions', 'errata'] },
   { path: '/reference', where: 'Reference', words: ['reference', 'table', 'tables', 'registers', 'formula', 'formulas', 'cheat sheet'] },
 ]
 

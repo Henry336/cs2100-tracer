@@ -97,6 +97,15 @@ export const MODULES: ModuleDef[] = [
     group: 'Reference',
     component: lazy(() => import('./reference/ReferencePage')),
   },
+  {
+    id: 'papers',
+    path: '/papers',
+    title: 'Past papers',
+    blurb: 'Pick a past exam question and open it in the right tracer, ready to step through.',
+    lectures: 'Finals AY15/16 to AY25/26',
+    group: 'Reference',
+    component: lazy(() => import('./papers/PapersPage')),
+  },
 ]
 
 export const GROUPS: ModuleDef['group'][] = ['Programs', 'Processor', 'Memory', 'Logic', 'Reference']
