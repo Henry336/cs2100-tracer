@@ -1,0 +1,773 @@
+/* Sequential circuits module. Colours come only from tokens; signal colours keep their fixed meanings. */
+
+.seq-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.seq-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: end;
+}
+
+.seq-row + .seq-row,
+.seq-split + .seq-row,
+.seq-row + .seq-split,
+.seq-scroll + .seq-muted,
+.seq-split + .seq-issues,
+.seq-row + .seq-issues {
+  margin-top: var(--sp-3);
+}
+
+.seq-toggles {
+  align-items: center;
+}
+
+.seq-muted {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+
+p.seq-muted {
+  margin-top: var(--sp-2);
+}
+
+.seq-cite {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+
+.seq-split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: flex-start;
+}
+
+.seq-grow {
+  flex: 1 1 20em;
+  min-width: 0;
+}
+
+.seq-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+/* Two tables side by side, stacked on narrow screens. */
+.seq-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: var(--sp-4);
+}
+
+.seq-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.seq-scroll:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.seq-scroll > svg {
+  display: block;
+  max-width: none;
+  margin: 0 auto;
+}
+
+/* ---------- Values and explanations ---------- */
+
+.seq-v {
+  font-family: var(--font-mono);
+}
+
+.seq-v1 {
+  font-weight: 600;
+}
+
+.seq-vx {
+  color: var(--sig-dontcare);
+}
+
+.seq-cell-now {
+  font-weight: 700;
+  color: var(--sig-path);
+  box-shadow: inset 0 -2px 0 var(--sig-path);
+}
+
+.seq-colnow {
+  color: var(--sig-path);
+  box-shadow: inset 0 -2px 0 var(--sig-path);
+}
+
+.seq-explain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+
+.seq-explain-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.seq-working {
+  background: var(--sunken);
+  padding: 4px 6px;
+  border-radius: 3px;
+  white-space: pre-wrap;
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+
+.seq-issues {
+  list-style: none;
+  padding: 0;
+  margin: var(--sp-2) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--fs-sm);
+}
+
+.seq-issues li {
+  border-left: 3px solid var(--sig-miss);
+  padding-left: var(--sp-2);
+}
+
+.seq-issues-warning li {
+  border-left-color: var(--sig-dirty);
+}
+
+.seq-eqs {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-sm);
+}
+
+.seq-eqline {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.seq-dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px var(--sp-3);
+  font-size: var(--fs-sm);
+  margin: 0;
+}
+
+.seq-dl dt {
+  color: var(--ink-3);
+}
+
+.seq-dl dd {
+  margin: 0;
+}
+
+.seq-sentence {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+.seq-paths {
+  list-style: none;
+  padding: 0;
+  margin: var(--sp-2) 0 var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-sm);
+}
+
+/* ---------- Bit switches ---------- */
+
+.seq-bitrow {
+  display: flex;
+  flex-direction: column;
+}
+
+.seq-bits {
+  display: flex;
+  gap: var(--sp-1);
+  flex-wrap: wrap;
+}
+
+.seq-bit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.seq-bit:hover {
+  border-color: var(--ink-3);
+}
+
+.seq-bit:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.seq-bit-name {
+  color: var(--ink-2);
+}
+
+.seq-bit-val {
+  min-width: 1ch;
+  font-weight: 600;
+}
+
+.seq-bit.is-1 {
+  background: var(--tint-hit);
+  border-color: var(--sig-hit);
+}
+
+.seq-bit.is-1 .seq-bit-val {
+  color: var(--sig-hit);
+}
+
+/* ---------- Procedure list ---------- */
+
+.seq-steps {
+  margin: 0;
+  padding-left: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-sm);
+}
+
+.seq-step.is-later {
+  color: var(--ink-3);
+}
+
+.seq-step.is-now {
+  font-weight: 600;
+}
+
+.seq-step.is-now::marker {
+  color: var(--sig-path);
+}
+
+.seq-now-tag {
+  color: var(--sig-path);
+  font-size: var(--fs-xs);
+}
+
+.seq-steplink {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 2px;
+}
+
+.seq-steplink:hover {
+  text-decoration-color: var(--ink-2);
+}
+
+.seq-steplink:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+/* ---------- State table editor ---------- */
+
+.seq-editor td {
+  vertical-align: middle;
+}
+
+.seq-cellin {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.seq-cellin input,
+.seq-editor input[type='checkbox'] {
+  font-size: var(--fs-sm);
+}
+
+.seq-cellin input {
+  width: 3.2em;
+  padding: 2px 4px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.seq-cellin input:focus-visible,
+.seq-editor input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.seq-areafield,
+.seq-areafield .field-box {
+  display: flex;
+  width: 100%;
+}
+
+.seq-area {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  padding: 4px 6px;
+  resize: vertical;
+}
+
+.seq-area:focus {
+  outline: none;
+}
+
+/* ---------- State diagram ---------- */
+
+.sd text {
+  font-family: var(--font-mono);
+}
+
+.sd-hatch,
+.tm-hatch {
+  stroke: var(--sig-dontcare);
+  stroke-width: 1.4;
+}
+
+.sd-disc {
+  fill: var(--panel);
+  stroke: var(--ink-2);
+  stroke-width: 1.6;
+}
+
+.sd-hatchfill {
+  stroke: none;
+  opacity: 0.5;
+}
+
+.sd-node.is-unused .sd-disc {
+  stroke: var(--sig-dontcare);
+  stroke-dasharray: 4 3;
+}
+
+.sd-node.is-now .sd-disc {
+  fill: var(--tint-path);
+  stroke: var(--sig-path);
+  stroke-width: 3;
+}
+
+.sd-node.is-next .sd-disc {
+  stroke: var(--sig-path);
+  stroke-width: 2;
+  stroke-dasharray: 5 3;
+}
+
+.sd-name {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+.sd-bin {
+  font-size: 10px;
+  fill: var(--ink-3);
+}
+
+.sd-badge {
+  font-size: 10px;
+  fill: var(--ink-3);
+}
+
+.sd-badge.is-now {
+  fill: var(--sig-path);
+  font-weight: 600;
+}
+
+.sd-edge path {
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-width: 1.4;
+}
+
+.sd-head {
+  fill: var(--ink-2);
+}
+
+.sd-head.is-active {
+  fill: var(--sig-path);
+}
+
+.sd-edge.is-from-unused path {
+  stroke-dasharray: 5 3;
+}
+
+.sd-edge.is-quiet path {
+  stroke: var(--rule);
+}
+
+.sd-edge.is-quiet .sd-label {
+  fill: var(--ink-3);
+}
+
+.sd-edge.is-active path {
+  stroke: var(--sig-path);
+  stroke-width: 2.6;
+}
+
+.sd-label {
+  font-size: 10.5px;
+  fill: var(--ink);
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.sd-edge.is-active .sd-label {
+  fill: var(--sig-path);
+  font-weight: 600;
+}
+
+/* ---------- K-map ---------- */
+
+.seq-kmap text {
+  font-family: var(--font-mono);
+}
+
+.km-var {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+.km-code {
+  font-size: 11px;
+  fill: var(--ink-2);
+}
+
+.km-rule,
+.km-bar {
+  stroke: var(--ink-3);
+  stroke-width: 1.2;
+}
+
+.km-cell rect {
+  fill: var(--panel);
+  stroke: var(--grid);
+}
+
+.km-cell.is-focus rect {
+  fill: var(--tint-path);
+}
+
+.km-val {
+  font-size: 13px;
+  fill: var(--ink);
+}
+
+.km-cell.is-1 .km-val {
+  font-weight: 700;
+}
+
+.km-cell.is-x .km-val {
+  fill: var(--sig-dontcare);
+  font-size: 12px;
+}
+
+.km-idx {
+  font-size: 10px;
+  fill: var(--ink-3);
+}
+
+.km-loop {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+.km-loop-1 {
+  stroke-dasharray: 6 3;
+}
+
+.km-loop-2 {
+  stroke-dasharray: 2 3;
+}
+
+.km-loop-3 {
+  stroke-dasharray: 8 3 2 3;
+}
+
+/* ---------- Timing diagram ---------- */
+
+.tm text {
+  font-family: var(--font-mono);
+}
+
+.tm-tick {
+  font-size: 10px;
+  fill: var(--ink-3);
+}
+
+.tm-tick.is-now {
+  fill: var(--sig-path);
+  font-weight: 700;
+}
+
+.tm-now {
+  fill: var(--tint-path);
+}
+
+.tm-grid {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+
+.tm-transparent {
+  fill: var(--tint-control);
+}
+
+.tm-ohatch {
+  stroke: var(--sig-control);
+  stroke-width: 1.2;
+  opacity: 0.6;
+}
+
+.tm-name {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+.tm-wave {
+  fill: none;
+  stroke: var(--sig-data);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+.tm-clock .tm-wave {
+  stroke: var(--sig-control);
+}
+
+.tm-async .tm-wave {
+  stroke: var(--sig-control);
+  stroke-dasharray: 5 2;
+}
+
+.tm-wave-q {
+  stroke: var(--ink);
+  stroke-width: 2.2;
+}
+
+.tm-xband {
+  stroke: var(--sig-dontcare);
+  stroke-width: 1;
+}
+
+.tm-sample {
+  fill: none;
+  stroke: var(--sig-data);
+  stroke-width: 2;
+}
+
+.tm-hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.tm-hit:hover {
+  fill: var(--sunken);
+  fill-opacity: 0.6;
+}
+
+.tm-hit:focus {
+  outline: none;
+}
+
+.tm-hit:focus-visible {
+  stroke: var(--focus);
+  stroke-width: 2.5;
+}
+
+.tm-edge line {
+  stroke: var(--sig-control);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 3;
+}
+
+.tm-edge path {
+  fill: var(--sig-control);
+}
+
+.tm-edge.is-now line {
+  stroke-width: 2;
+  stroke-dasharray: none;
+}
+
+/* ---------- Latch gates ---------- */
+
+.lt text {
+  font-family: var(--font-mono);
+}
+
+.lt-gate path,
+.lt-gate circle {
+  fill: var(--panel);
+  stroke: var(--ink-2);
+  stroke-width: 1.6;
+}
+
+.lt-gate.is-active path,
+.lt-gate.is-active circle {
+  stroke: var(--sig-path);
+  stroke-width: 2.6;
+  fill: var(--tint-path);
+}
+
+.lt-gname {
+  font-size: 9px;
+  fill: var(--ink-3);
+}
+
+.lt-wire {
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-width: 1.4;
+}
+
+.lt-wire.is-active {
+  stroke: var(--sig-path);
+  stroke-width: 2.4;
+}
+
+.lt-en {
+  stroke: var(--sig-control);
+}
+
+.lt-en-label {
+  fill: var(--sig-control);
+}
+
+.lt-fb {
+  stroke: var(--sig-data);
+}
+
+.lt-dot {
+  fill: var(--sig-data);
+}
+
+.lt-label {
+  font-size: 11px;
+  fill: var(--ink);
+}
+
+.lt-fbval {
+  fill: var(--sig-data);
+  font-size: 10px;
+}
+
+.lt-out {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+.lt-out.is-active {
+  fill: var(--sig-path);
+}
+
+@media print {
+  .seq-scroll {
+    overflow: visible;
+  }
+  /* Diagrams carry an inline min-width for scrolling on screen; on paper they fit the page. */
+  .seq-scroll > svg {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: auto;
+  }
+  .tm-hit:hover {
+    fill: transparent;
+  }
+}
+
+/* Narrow screens: long option rows and panel headers wrap instead of pushing the panel wider. */
+.seq-root .segmented-track {
+  flex-wrap: wrap;
+}
+
+.seq-root .panel-head {
+  flex-wrap: wrap;
+}
+
+.seq-root .panel-actions {
+  flex-wrap: wrap;
+}
+
+p.seq-muted + .seq-row {
+  margin-top: var(--sp-3);
+}
+
+.seq-scroll + p.seq-muted,
+.seq-scroll + .seq-eqline {
+  margin-top: var(--sp-2);
+}
+
+/* The shared kit has no dontcare row or tick style yet (requested from the integrator); local fallbacks. */
+.seq-root .row-dontcare td {
+  background: var(--sunken);
+  color: var(--ink-3);
+}
+
+.seq-root .tick-dontcare {
+  background: repeating-linear-gradient(135deg, var(--sig-dontcare) 0 2px, transparent 2px 4px);
+}
+
+.seq-showpath {
+  padding: 0 var(--sp-2);
+  font-size: var(--fs-xs);
+}
+
+.seq-quiz {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: var(--sp-3);
+}
+
+/* Grid items default to min-width: auto, which lets a wide diagram push the panel past a 375 px screen. */
+.seq-quiz > *,
+.seq-cols > * {
+  min-width: 0;
+}
