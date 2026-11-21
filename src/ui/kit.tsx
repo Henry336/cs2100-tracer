@@ -33,7 +33,10 @@ export function Workspace({
           <h1>{title}</h1>
           {lectures ? <p className="ws-refs">{lectures}</p> : null}
         </div>
-        {toolbar ? <div className="ws-toolbar">{toolbar}</div> : null}
+        <div className="ws-toolbar">
+          {toolbar}
+          <ExportPdfButton />
+        </div>
         {intro ? <div className="ws-intro">{intro}</div> : null}
       </header>
       <section className="ws-main" aria-label={`${title} workspace`}>
@@ -46,6 +49,19 @@ export function Workspace({
       ) : null}
       {transport ? <div className="ws-transport">{transport}</div> : null}
     </div>
+  )
+}
+
+/**
+ * Export the current view as a PDF through the browser's print dialog ("Save as PDF").
+ * Print styles (ui.css) drop the navigation and controls and keep the diagrams, tables
+ * and explanations exactly as they are on screen at the current step.
+ */
+export function ExportPdfButton({ label = 'Export PDF' }: { label?: string }) {
+  return (
+    <button type="button" className="btn export-pdf" onClick={() => window.print()} title="Opens the print dialog; choose Save as PDF">
+      {label}
+    </button>
   )
 }
 

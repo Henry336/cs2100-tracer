@@ -932,3 +932,82 @@
     height: 30px;
   }
 }
+
+/* ---------- Timeline scrubbing ---------- */
+
+/* A transparent range input over the ticks: drag anywhere on the timeline to scrub. */
+.timeline {
+  position: relative;
+}
+
+.timeline-range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: ew-resize;
+}
+
+.timeline:has(.timeline-range:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* ---------- Print / Export PDF ---------- */
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  :root {
+    color-scheme: light;
+  }
+  body {
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .app {
+    display: block;
+  }
+  .rail,
+  .topbar,
+  .ws-transport,
+  .ws-toolbar,
+  .export-pdf,
+  .why-pop,
+  .tabs,
+  .presets {
+    display: none !important;
+  }
+  .workspace,
+  .workspace.has-inspector {
+    display: block;
+    padding: 0;
+    max-width: none;
+  }
+  .ws-main,
+  .ws-inspector {
+    display: block;
+  }
+  .panel,
+  .callout,
+  .dtable tr,
+  svg {
+    break-inside: avoid;
+  }
+  .panel {
+    margin-bottom: 8px;
+  }
+  .table-wrap {
+    overflow: visible;
+  }
+  svg {
+    max-width: 100%;
+    height: auto;
+  }
+}

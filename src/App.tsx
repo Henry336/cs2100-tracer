@@ -26,6 +26,21 @@ function useTheme(): [Theme, (t: Theme) => void] {
       /* storage blocked: theme still applies for this visit */
     }
   }, [theme])
+  // PDFs always print in the light theme, whatever is on screen.
+  useEffect(() => {
+    const root = document.documentElement
+    const before = () => root.setAttribute('data-theme', 'light')
+    const after = () => {
+      if (theme === 'system') root.removeAttribute('data-theme')
+      else root.setAttribute('data-theme', theme)
+    }
+    window.addEventListener('beforeprint', before)
+    window.addEventListener('afterprint', after)
+    return () => {
+      window.removeEventListener('beforeprint', before)
+      window.removeEventListener('afterprint', after)
+    }
+  }, [theme])
   return [theme, setTheme]
 }
 

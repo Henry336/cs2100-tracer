@@ -52,7 +52,7 @@ export function Transport({
         </span>
         {describe ? <span className="transport-describe">{describe}</span> : null}
       </div>
-      <div className="timeline" role="slider" aria-label={`${label} timeline`} aria-valuemin={1} aria-valuemax={count} aria-valuenow={index + 1} tabIndex={-1}>
+      <div className="timeline">
         {Array.from({ length: count }, (_, i) => (
           <button
             key={i}
@@ -63,6 +63,18 @@ export function Transport({
             aria-label={`${label} ${i + 1}`}
           />
         ))}
+        {count > 1 ? (
+          <input
+            className="timeline-range"
+            type="range"
+            min={0}
+            max={count - 1}
+            step={1}
+            value={index}
+            aria-label={`Scrub ${label}`}
+            onChange={(e) => stepper.set(e.target.valueAsNumber)}
+          />
+        ) : null}
       </div>
     </div>
   )

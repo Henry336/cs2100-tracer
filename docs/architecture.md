@@ -57,6 +57,11 @@ Module ids: `c-memory`, `mips`, `datapath`, `pipeline`, `cache`, `boolean`, `msi
 - Diagrams are hand-built SVG components scaled with `viewBox`; text in SVG uses the CSS font tokens. They must stay readable at 375 px wide (allow horizontal scroll inside a panel rather than shrinking text below 10 px).
 - Responsive down to 375 px; visible keyboard focus; respect reduced motion; colour is never the only carrier of meaning (add a label, pattern or icon).
 
+## Required interactions (added 22 Nov, from the student)
+- **Step, play, scrub.** Every tracer that has steps uses `<Transport>`: play/pause, step back/forward, jump to ends, and a draggable slider over the timeline (built into Transport). Any intermediate step must be fully inspectable while paused.
+- **Export PDF.** `<Workspace>` already shows an "Export PDF" button (prints the current view, light theme, navigation hidden). Make sure your view prints well: the diagram and tables for the current step must be visible without the inspector being open, SVGs scale to the page width, nothing important lives only in a hover popover.
+- **Focus mode on every diagram.** Datapath, pipelined datapath, circuit and similar diagrams need a toggle "Show only what this instruction uses" (store it in the URL). When on, units, wires and control lines the current instruction or step does not use are hidden entirely (not just faded), and the remaining parts keep their positions so the picture stays recognisable. When off, unused parts are drawn faint. It must work per stage while stepping (e.g. during the ALU stage show only what is active up to and including that stage).
+
 ## Copy
 - Plain, sentence case, active voice. No ALL CAPS labels, no emoji, no marketing words, no exclamation marks.
 - **No em dashes anywhere** (code comments, copy, docs). Use a comma, full stop, colon or brackets.
