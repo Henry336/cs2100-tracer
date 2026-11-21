@@ -10,4 +10,9 @@ describe('reference page (reviewer F14: open-book tables)', () => {
   it('wraps every source so cheat-sheet mode can hide it', () => {
     expect(html).toContain('<span class="ref-cite">(L06 p45)</span>')
   })
+  it('shows one topic on the board and keeps the rest in the page for printing', () => {
+    expect(html).toContain('id="ref-topic"')
+    expect(html).toContain('class="ref-topic" aria-label="Registers"')
+    expect(html).toContain('class="ref-topic ref-off" aria-label="Cache"')
+  })
 })

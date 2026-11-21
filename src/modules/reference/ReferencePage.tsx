@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Callout, DataTable, Panel, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Callout, DataTable, Tabs, Toggle, Workspace, type Column } from '../../ui/kit'
 import { useUrlState } from '../../lib/url-state'
 import './reference.css'
 
@@ -300,179 +300,196 @@ const cap = (text: string, cite: string) => (
 )
 const citeCol = (rows: Row[]) => rows.map((r) => ({ ...r, Source: <span className="ref-cite">{r.Source}</span> }))
 
-const SECTIONS: { id: string; title: string; refs: string; body: ReactNode }[] = [
-  { id: 'registers', title: 'Registers', refs: 'L08 p7', body: <DataTable compact columns={cols(['No', 'Name', 'Binary', 'Hex', 'Use'], { mono: ['No', 'Name', 'Binary', 'Hex'] })} rows={REGS} /> },
+type Sheet = { label: string; node: ReactNode }
+
+/** One topic: the first table sits on the board, the rest go in one tab strip under it. */
+const SECTIONS: { id: string; title: string; refs: string; tables: Sheet[]; notes?: ReactNode }[] = [
+  { id: 'registers', title: 'Registers', refs: 'L08 p7', tables: [{ label: 'Registers', node: <DataTable compact columns={cols(['No', 'Name', 'Binary', 'Hex', 'Use'], { mono: ['No', 'Name', 'Binary', 'Hex'] })} rows={REGS} /> }] },
   {
     id: 'c',
     title: 'C sizes and operator precedence',
     refs: 'L02A p26, L02C p9',
-    body: (
-      <>
-        <DataTable compact columns={cols(['Type', 'Bytes'], { mono: ['Type'] })} rows={C_SIZES} caption="sizeof" />
-        <DataTable compact columns={cols(['Level', 'Operators', 'Assoc'], { mono: ['Operators'], headers: { Assoc: 'Associativity' } })} rows={C_PREC} caption="Precedence, highest first" />
-        <Callout kind="trap" cite="L02C p9">
-          *p++ groups as *(p++): postfix ++ is level 1, unary * is level 2. Bitwise &amp;, |, ^ and the shifts are not in the course table, so add brackets when you use them.
-        </Callout>
-      </>
+    tables: [
+      { label: 'sizeof', node: <DataTable compact columns={cols(['Type', 'Bytes'], { mono: ['Type'] })} rows={C_SIZES} caption="sizeof" /> },
+      { label: 'Precedence', node: <DataTable compact columns={cols(['Level', 'Operators', 'Assoc'], { mono: ['Operators'], headers: { Assoc: 'Associativity' } })} rows={C_PREC} caption="Precedence, highest first" /> },
+    ],
+    notes: (
+      <Callout kind="trap" title="*p++ and the bitwise operators" cite="L02C p9">
+        *p++ groups as *(p++): postfix ++ is level 1, unary * is level 2. Bitwise &amp;, |, ^ and the shifts are not in the course table, so add brackets when you use them.
+      </Callout>
     ),
   },
   {
     id: 'numbers',
     title: 'Number representation',
     refs: 'L03B to L03D, L09 p14',
-    body: (
-      <>
-        <DataTable compact columns={cols(['Scheme', 'Range', 'Note', 'Source'], { mono: ['Range'], headers: { Range: 'Range on n bits' } })} rows={citeCol(INT_RANGES)} />
-        <DataTable compact columns={cols(['Format', 'Fields', 'Bias'], { mono: ['Bias'] })} rows={IEEE} caption={cap('IEEE 754', 'L03D p6')} />
-        <DataTable compact columns={cols(['Exponent', 'Fraction', 'Value'])} rows={IEEE_SPECIAL} caption={cap('IEEE 754 special values', 'L09 p14')} />
-        <Callout kind="course" cite="derived from L03D p6 and L09 p14">
-          Single precision: the smallest normalised value is 2^−126 and the smallest denormalised value is 2^−149. The stored exponent is the real one plus the bias: 2^3 is stored as 3 + 127 = 130.
-        </Callout>
-      </>
+    tables: [
+      { label: 'Integer ranges', node: <DataTable compact columns={cols(['Scheme', 'Range', 'Note', 'Source'], { mono: ['Range'], headers: { Range: 'Range on n bits' } })} rows={citeCol(INT_RANGES)} /> },
+      { label: 'IEEE 754', node: <DataTable compact columns={cols(['Format', 'Fields', 'Bias'], { mono: ['Bias'] })} rows={IEEE} caption={cap('IEEE 754', 'L03D p6')} /> },
+      { label: 'Special values', node: <DataTable compact columns={cols(['Exponent', 'Fraction', 'Value'])} rows={IEEE_SPECIAL} caption={cap('IEEE 754 special values', 'L09 p14')} /> },
+    ],
+    notes: (
+      <Callout kind="course" title="Smallest values and the bias" cite="derived from L03D p6 and L09 p14">
+        Single precision: the smallest normalised value is 2^−126 and the smallest denormalised value is 2^−149. The stored exponent is the real one plus the bias: 2^3 is stored as 3 + 127 = 130.
+      </Callout>
     ),
   },
   {
     id: 'formats',
     title: 'Instruction formats and opcodes',
     refs: 'L08, green card',
-    body: (
-      <>
-        <DataTable compact columns={cols(['Format', 'Fields', 'Bits'], { mono: ['Bits'] })} rows={FORMATS} />
-        <DataTable compact columns={cols(['Instruction', 'Format', 'Opcode', 'Funct', 'Meaning'], { mono: ['Instruction', 'Opcode', 'Funct'] })} rows={INSTR} caption="Opcode and funct in hex" />
-        <DataTable compact columns={cols(['Kind', 'Used', 'Range'], { mono: ['Kind'], headers: { Used: 'Used by' } })} rows={IMMEDIATES} caption={cap('Immediate kinds', 'L06 p45')} />
-        <Callout kind="course" cite="L08 p28, p37 to p39">
-          Branch immediate = (target − (PC + 4)) ÷ 4, signed 16 bits. Jump target field = target address bits 27 to 2;
-          the CPU puts back PC+4[31:28] in front and 00 at the end.
-        </Callout>
-      </>
+    tables: [
+      { label: 'Formats', node: <DataTable compact columns={cols(['Format', 'Fields', 'Bits'], { mono: ['Bits'] })} rows={FORMATS} /> },
+      { label: 'Opcodes', node: <DataTable compact columns={cols(['Instruction', 'Format', 'Opcode', 'Funct', 'Meaning'], { mono: ['Instruction', 'Opcode', 'Funct'] })} rows={INSTR} caption="Opcode and funct in hex" /> },
+      { label: 'Immediates', node: <DataTable compact columns={cols(['Kind', 'Used', 'Range'], { mono: ['Kind'], headers: { Used: 'Used by' } })} rows={IMMEDIATES} caption={cap('Immediate kinds', 'L06 p45')} /> },
+    ],
+    notes: (
+      <Callout kind="course" title="Branch and jump fields" cite="L08 p28, p37 to p39">
+        Branch immediate = (target − (PC + 4)) ÷ 4, signed 16 bits. Jump target field = target address bits 27 to 2;
+        the CPU puts back PC+4[31:28] in front and 00 at the end.
+      </Callout>
     ),
   },
-  { id: 'pseudo', title: 'Pseudo-instructions', refs: 'L06 p34, L07 p29, T04 Q2', body: <DataTable compact columns={cols(['Pseudo', 'Expansion'], { mono: ['Pseudo', 'Expansion'] })} rows={PSEUDO} /> },
+  { id: 'pseudo', title: 'Pseudo-instructions', refs: 'L06 p34, L07 p29, T04 Q2', tables: [{ label: 'Pseudo-instructions', node: <DataTable compact columns={cols(['Pseudo', 'Expansion'], { mono: ['Pseudo', 'Expansion'] })} rows={PSEUDO} /> }] },
   {
     id: 'control',
     title: 'Main control',
     refs: 'L12 p26 to p34',
-    body: (
-      <>
-        <DataTable compact columns={cols(['Instr', ...SIGNAL_KEYS], { mono: SIGNAL_KEYS, center: SIGNAL_KEYS })} rows={CONTROL} />
-        <DataTable compact columns={cols(['Signal', 'v0', 'v1'], { headers: { v0: 'Value 0', v1: 'Value 1' } })} rows={SIGNALS} caption="What each value selects" />
-        <Callout kind="trap">
-          Write enables (RegWrite, MemWrite, MemRead, Branch) are always 0 or 1. Only mux selects (RegDst, MemToReg) can be X,
-          when their output is not used.
-        </Callout>
-      </>
+    tables: [
+      { label: 'Control table', node: <DataTable compact columns={cols(['Instr', ...SIGNAL_KEYS], { mono: SIGNAL_KEYS, center: SIGNAL_KEYS })} rows={CONTROL} /> },
+      { label: 'What each value selects', node: <DataTable compact columns={cols(['Signal', 'v0', 'v1'], { headers: { v0: 'Value 0', v1: 'Value 1' } })} rows={SIGNALS} caption="What each value selects" /> },
+    ],
+    notes: (
+      <Callout kind="trap" title="Which signals can be X">
+        Write enables (RegWrite, MemWrite, MemRead, Branch) are always 0 or 1. Only mux selects (RegDst, MemToReg) can be X,
+        when their output is not used.
+      </Callout>
     ),
   },
   {
     id: 'alu',
     title: 'ALU control',
     refs: 'L11 p34, L12 p24 to p28',
-    body: (
-      <>
-        <DataTable compact columns={cols(['Instr', 'ALUop', 'Funct', 'Action', 'ALUcontrol'], { mono: ['ALUop', 'Funct', 'ALUcontrol'] })} rows={ALU_CONTROL} />
-        <DataTable compact columns={cols(['ALUcontrol', 'Function'], { mono: ['ALUcontrol'] })} rows={ALU_CODES} caption="4-bit codes: Ainvert, Binvert, Operation[1:0]" />
-        <DataTable compact columns={cols(['Bit', 'Equation', 'Source'], { mono: ['Equation'] })} rows={citeCol(ALU_BITS)} caption="ALU control unit, bit by bit (F = funct bits)" />
-      </>
-    ),
+    tables: [
+      { label: 'ALU control', node: <DataTable compact columns={cols(['Instr', 'ALUop', 'Funct', 'Action', 'ALUcontrol'], { mono: ['ALUop', 'Funct', 'ALUcontrol'] })} rows={ALU_CONTROL} /> },
+      { label: '4-bit codes', node: <DataTable compact columns={cols(['ALUcontrol', 'Function'], { mono: ['ALUcontrol'] })} rows={ALU_CODES} caption="4-bit codes: Ainvert, Binvert, Operation[1:0]" /> },
+      { label: 'Bit by bit', node: <DataTable compact columns={cols(['Bit', 'Equation', 'Source'], { mono: ['Equation'] })} rows={citeCol(ALU_BITS)} caption="ALU control unit, bit by bit (F = funct bits)" /> },
+    ],
   },
   {
     id: 'pipeline',
     title: 'Pipeline',
     refs: 'L20, L21, R11',
-    body: (
-      <>
-        <DataTable compact columns={cols(['Stage', 'Signals'])} rows={STAGE_CONTROL} caption={cap('Where each control signal is used', 'L20 p27')} />
-        <DataTable compact columns={cols(['Situation', 'Stall', 'Rule'])} rows={HAZARDS} caption="Stall rules used by the answer keys" />
-        <DataTable compact columns={cols(['Design', 'Cycle', 'Time'], { headers: { Cycle: 'Cycle time', Time: 'Time for I instructions' } })} rows={TIMING} caption={cap('Timing', 'L20 p31 to p33')} />
-      </>
-    ),
+    tables: [
+      { label: 'Stall rules', node: <DataTable compact columns={cols(['Situation', 'Stall', 'Rule'])} rows={HAZARDS} caption="Stall rules used by the answer keys" /> },
+      { label: 'Signals per stage', node: <DataTable compact columns={cols(['Stage', 'Signals'])} rows={STAGE_CONTROL} caption={cap('Where each control signal is used', 'L20 p27')} /> },
+      { label: 'Timing', node: <DataTable compact columns={cols(['Design', 'Cycle', 'Time'], { headers: { Cycle: 'Cycle time', Time: 'Time for I instructions' } })} rows={TIMING} caption={cap('Timing', 'L20 p31 to p33')} /> },
+    ],
   },
   {
     id: 'cache',
     title: 'Cache',
     refs: 'L22, L23, R12',
-    body: (
-      <>
-        <DataTable compact columns={cols(['Quantity', 'Formula'])} rows={CACHE} />
-        <DataTable compact columns={cols(['Type', 'When'])} rows={MISSES} caption={cap('Miss types', 'L22 p53, R12 p21 to p25')} />
-        <DataTable compact columns={cols(['Case', 'Effect'])} rows={WRITES} caption={cap('Write policies', 'L22 p66 to p70')} />
-      </>
-    ),
+    tables: [
+      { label: 'Formulas', node: <DataTable compact columns={cols(['Quantity', 'Formula'])} rows={CACHE} /> },
+      { label: 'Miss types', node: <DataTable compact columns={cols(['Type', 'When'])} rows={MISSES} caption={cap('Miss types', 'L22 p53, R12 p21 to p25')} /> },
+      { label: 'Write policies', node: <DataTable compact columns={cols(['Case', 'Effect'])} rows={WRITES} caption={cap('Write policies', 'L22 p66 to p70')} /> },
+    ],
   },
   {
     id: 'boolean',
     title: 'Boolean algebra',
     refs: 'L13, L14, L17',
-    body: (
-      <>
-        <DataTable compact columns={cols(['Law', 'AND', 'OR'], { mono: ['AND', 'OR'], headers: { AND: 'AND form', OR: 'OR form' } })} rows={LAWS} />
-        <DataTable compact columns={cols(['Identity', 'Source'], { mono: ['Identity'] })} rows={citeCol(XOR)} caption="XOR and XNOR" />
-        <Callout kind="course" cite="L13 p9, T06 p2">
-          Precedence: NOT, then AND, then OR. Always write the AND dot in answers.
-        </Callout>
-      </>
+    tables: [
+      { label: 'Laws', node: <DataTable compact columns={cols(['Law', 'AND', 'OR'], { mono: ['AND', 'OR'], headers: { AND: 'AND form', OR: 'OR form' } })} rows={LAWS} /> },
+      { label: 'XOR and XNOR', node: <DataTable compact columns={cols(['Identity', 'Source'], { mono: ['Identity'] })} rows={citeCol(XOR)} caption="XOR and XNOR" /> },
+    ],
+    notes: (
+      <Callout kind="course" title="Operator precedence" cite="L13 p9, T06 p2">
+        Precedence: NOT, then AND, then OR. Always write the AND dot in answers.
+      </Callout>
     ),
   },
-  { id: 'kmap', title: 'K-map layouts', refs: 'L15', body: <DataTable compact columns={cols(['Variables', 'Layout'])} rows={GRAY} /> },
-  { id: 'msi', title: 'Combinational and MSI', refs: 'L17, L18', body: <DataTable compact columns={cols(['Component', 'Outputs'])} rows={MSI} /> },
+  { id: 'kmap', title: 'K-map layouts', refs: 'L15', tables: [{ label: 'K-map layouts', node: <DataTable compact columns={cols(['Variables', 'Layout'])} rows={GRAY} /> }] },
+  { id: 'msi', title: 'Combinational and MSI', refs: 'L17, L18', tables: [{ label: 'Components', node: <DataTable compact columns={cols(['Component', 'Outputs'])} rows={MSI} /> }] },
   {
     id: 'flipflops',
     title: 'Flip-flops',
     refs: 'L19 p18 to p45',
-    body: (
-      <>
-        <DataTable compact columns={cols(['FF', 'Behaviour', 'Equation'], { mono: ['Equation'], headers: { FF: 'Flip-flop' } })} rows={FF_CHAR} caption="Characteristic tables (use for analysis)" />
-        <DataTable
-          compact
-          columns={cols(['Q', 'JK', 'SR', 'D', 'T'], { mono: ['Q', 'JK', 'SR', 'D', 'T'], center: ['JK', 'SR', 'D', 'T'], headers: { Q: 'Q to Q+', JK: 'J K', SR: 'S R' } })}
-          rows={FF_EXC}
-          caption="Excitation tables (use for design)"
-        />
-      </>
-    ),
+    tables: [
+      { label: 'Characteristic', node: <DataTable compact columns={cols(['FF', 'Behaviour', 'Equation'], { mono: ['Equation'], headers: { FF: 'Flip-flop' } })} rows={FF_CHAR} caption="Characteristic tables (use for analysis)" /> },
+      {
+        label: 'Excitation',
+        node: (
+          <DataTable
+            compact
+            columns={cols(['Q', 'JK', 'SR', 'D', 'T'], { mono: ['Q', 'JK', 'SR', 'D', 'T'], center: ['JK', 'SR', 'D', 'T'], headers: { Q: 'Q to Q+', JK: 'J K', SR: 'S R' } })}
+            rows={FF_EXC}
+            caption="Excitation tables (use for design)"
+          />
+        ),
+      },
+    ],
   },
   {
     id: 'conventions',
     title: 'Conventions where sources differ',
     refs: 'see each row',
-    body: <DataTable compact columns={cols(['Topic', 'Course', 'Other'], { headers: { Course: 'What the course uses', Other: 'What else you may see' } })} rows={CONVENTIONS} />,
+    tables: [{ label: 'Conventions', node: <DataTable compact columns={cols(['Topic', 'Course', 'Other'], { headers: { Course: 'What the course uses', Other: 'What else you may see' } })} rows={CONVENTIONS} /> }],
   },
 ]
 
 export default function ReferencePage() {
   const [nocite, setNocite] = useUrlState('nocite', false)
+  const [topic, setTopic] = useUrlState('topic', SECTIONS[0].id)
+  const [sub, setSub] = useUrlState('sub', '')
+  const cur = SECTIONS.find((s) => s.id === topic) ?? SECTIONS[0]
   return (
     <Workspace
       title="Reference tables"
       lectures="Every table you look up during practice, with the slides it comes from"
-      toolbar={<Toggle label="Hide sources (cheat-sheet print)" checked={nocite} onChange={setNocite} hint="Drops slide references from the page and from the printout" />}
-      inspector={
-        <Panel title="On this page">
-          <ul className="ref-toc">
-            {SECTIONS.map((s) => (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  className="ref-toc-link"
-                  onClick={() => document.getElementById(`ref-${s.id}`)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })}
-                >
-                  {s.title}
-                </button>
-                <span className="ref-toc-refs">{s.refs}</span>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      }
+      toolbar={<Toggle label="Hide sources" checked={nocite} onChange={setNocite} hint="Cheat-sheet print: drops slide references from the page and from the printout" />}
     >
       {nocite ? <span className="ref-nocite-on" hidden /> : null}
-      {SECTIONS.map((s) => (
-        <section key={s.id} id={`ref-${s.id}`} className="ref-section">
-          <Panel title={s.title} actions={<span className="ref-refs">{s.refs}</span>}>
-            <div className="ref-body">{s.body}</div>
-          </Panel>
-        </section>
-      ))}
+      <div className="ref-command-bar glow-input">
+        <label className="ref-command-label" htmlFor="ref-topic">
+          Table
+        </label>
+        <select id="ref-topic" className="ref-command-input" value={cur.id} onChange={(e) => setTopic(e.target.value)}>
+          {SECTIONS.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.title}
+            </option>
+          ))}
+        </select>
+      </div>
+      {/* Every topic stays in the page so Export PDF prints the whole cheat sheet; the screen shows one. */}
+      {SECTIONS.map((s) => {
+        const [main, ...more] = s.tables
+        const on = more.find((t) => t.label === sub) ?? more[0]
+        return (
+          <section key={s.id} className={`ref-topic${s.id === cur.id ? '' : ' ref-off'}`} aria-label={s.title}>
+            <div className="ref-board canvas">
+              <header className="ref-board-bar">
+                <h2 className="ref-board-title">{s.title}</h2>
+                <span className="ref-refs">{s.refs}</span>
+              </header>
+              <div className="ref-sheet">{main.node}</div>
+              {s.notes}
+            </div>
+            {more.length ? (
+              <div className="ref-more">
+                <Tabs label={`More ${s.title} tables`} value={on.label} onChange={setSub} tabs={more.map((t) => ({ value: t.label, label: t.label }))} />
+                {more.map((t) => (
+                  <div key={t.label} className={`ref-sheet${t === on ? '' : ' ref-off'}`}>
+                    {t.node}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        )
+      })}
     </Workspace>
   )
 }
