@@ -1,0 +1,646 @@
+/* Boolean module. Colours come only from tokens; signal colours keep their fixed meanings. */
+
+.bo-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.bo-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: end;
+}
+
+.bo-row + .bo-row,
+.bo-fnfields + .bo-row {
+  margin-top: var(--sp-3);
+}
+
+.bo-grow {
+  flex: 1 1 18em;
+  min-width: 0;
+}
+
+.bo-grow .field,
+.bo-grow .field-box {
+  display: flex;
+  width: 100%;
+}
+
+.bo-toggles {
+  align-items: center;
+}
+
+.bo-muted {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+
+.bo-cite {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+
+.bo-pad {
+  padding: var(--sp-2) var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.bo-scroll {
+  overflow-x: auto;
+  padding: var(--sp-3);
+}
+
+.bo-scroll svg {
+  display: block;
+  max-width: none;
+}
+
+.bo-wrap {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.bo-status {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.bo-bad {
+  color: var(--sig-miss);
+}
+
+.bo-verdict {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+.bo-callouts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+/* ---------- Issues ---------- */
+
+.bo-issues {
+  margin: var(--sp-2) 0 0;
+  padding-left: 1.2em;
+  font-size: var(--fs-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.bo-issues-error {
+  color: var(--sig-miss);
+}
+
+.bo-issues-warning {
+  color: var(--ink-2);
+}
+
+.bo-issues li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bo-snippet {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.bo-snippet mark {
+  background: var(--tint-miss);
+  color: var(--ink);
+  border-bottom: 2px solid var(--sig-miss);
+}
+
+/* ---------- K-map stages and frame note ---------- */
+
+.bo-stages {
+  list-style: none;
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  border-bottom: 1px solid var(--grid);
+}
+
+.bo-stage {
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  color: var(--ink-2);
+  border-radius: var(--r-pill);
+  padding: 2px 10px;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+.bo-stage:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+
+.bo-stage:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.bo-stage.is-on {
+  background: var(--tint-path);
+  border-color: var(--sig-path);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.bo-frame-note {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--grid);
+  border-left: 3px solid var(--sig-path);
+  font-size: var(--fs-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 5.2em;
+}
+
+.bo-frame-title {
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.bo-working {
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Facts ---------- */
+
+.bo-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--sp-2) var(--sp-3);
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
+.bo-facts dt {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  padding-top: 2px;
+}
+
+.bo-facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 520px) {
+  .bo-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+  .bo-facts dd {
+    margin-bottom: var(--sp-2);
+  }
+}
+
+/* ---------- Covers list and cover chart ---------- */
+
+.bo-covers {
+  margin: 0;
+  padding-left: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+
+.bo-covers li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: var(--sp-1);
+  border-left: 3px solid transparent;
+}
+
+.bo-covers li.is-on {
+  border-left-color: var(--sig-path);
+  background: var(--tint-path);
+}
+
+.bo-linkbtn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+  text-decoration: underline dotted var(--ink-3);
+  text-underline-offset: 3px;
+  font-size: var(--fs-sm);
+}
+
+.bo-linkbtn:hover {
+  text-decoration-color: var(--ink);
+}
+
+.bo-fitb {
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+
+.bo-only {
+  color: var(--sig-path);
+  font-weight: 600;
+}
+
+.bo-one {
+  color: var(--sig-hit);
+  font-weight: 600;
+}
+
+.bo-zero {
+  color: var(--ink-3);
+}
+
+.bo-x {
+  color: var(--ink-2);
+  font-style: italic;
+}
+
+.bo-sub {
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+.bo-flag {
+  color: var(--sig-miss);
+  font-size: var(--fs-xs);
+  font-family: var(--font-sans);
+}
+
+/* ---------- K-map SVG ---------- */
+
+.bo-kmap text {
+  font-family: var(--font-mono);
+}
+
+.bo-hatch {
+  stroke: var(--sig-dontcare);
+  stroke-width: 2;
+  opacity: 0.45;
+}
+
+.bo-k-map {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+.bo-k-rule {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.bo-k-var {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--ink-2);
+}
+
+.bo-k-code {
+  font-size: 12px;
+  fill: var(--ink-3);
+}
+
+.bo-k-bar {
+  stroke: var(--ink-3);
+  stroke-width: 2;
+}
+
+.bo-cell-bg {
+  fill: var(--panel);
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+
+.bo-cell.is-focus .bo-cell-bg {
+  fill: var(--tint-path);
+}
+
+.bo-cell.is-covered .bo-cell-bg {
+  fill: var(--sunken);
+}
+
+.bo-cell.is-covered .bo-k-val {
+  opacity: 0.45;
+}
+
+.bo-cell.is-bad .bo-cell-bg {
+  fill: var(--tint-miss);
+  stroke: var(--sig-miss);
+  stroke-width: 2;
+}
+
+.bo-cell.is-edit {
+  cursor: pointer;
+}
+
+.bo-cell.is-edit:hover .bo-cell-bg {
+  stroke: var(--ink-3);
+}
+
+.bo-cell:focus {
+  outline: none;
+}
+
+.bo-cell:focus-visible .bo-cell-bg {
+  stroke: var(--focus);
+  stroke-width: 3;
+}
+
+.bo-k-index {
+  font-size: 10px;
+  fill: var(--ink-3);
+}
+
+.bo-k-val {
+  font-size: 16px;
+  fill: var(--ink-3);
+}
+
+.bo-k-val.v-1 {
+  fill: var(--sig-hit);
+  font-weight: 700;
+}
+
+.bo-k-val.v-x {
+  fill: var(--ink-2);
+  font-style: italic;
+}
+
+.bo-reason {
+  fill: none;
+  stroke: var(--sig-path);
+  stroke-width: 2.2;
+}
+
+.bo-k-frame {
+  fill: none;
+  stroke: var(--rule);
+  stroke-width: 1.5;
+}
+
+.bo-loop-shape {
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-width: 1.6;
+}
+
+.bo-loop-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  fill: var(--ink-2);
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 3px;
+}
+
+.loop-new .bo-loop-shape,
+.loop-epi .bo-loop-shape {
+  stroke: var(--sig-path);
+  stroke-width: 2.6;
+}
+
+.loop-new .bo-loop-shape {
+  fill: var(--tint-path);
+  fill-opacity: 0.35;
+}
+
+.loop-new .bo-loop-label,
+.loop-epi .bo-loop-label {
+  fill: var(--sig-path);
+}
+
+.loop-chosen .bo-loop-shape {
+  stroke: var(--ink);
+  stroke-width: 2.6;
+}
+
+.loop-chosen .bo-loop-label {
+  fill: var(--ink);
+}
+
+.loop-faded .bo-loop-shape {
+  stroke: var(--ink-3);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 4;
+  opacity: 0.7;
+}
+
+.loop-ghost .bo-loop-shape {
+  stroke: var(--sig-dontcare);
+  stroke-width: 2;
+  stroke-dasharray: 2 4;
+}
+
+.loop-ghost .bo-loop-label {
+  fill: var(--ink-3);
+}
+
+.loop-nonprime .bo-loop-shape {
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+}
+
+.loop-wrong .bo-loop-shape {
+  stroke: var(--sig-miss);
+  stroke-width: 2.4;
+  stroke-dasharray: 6 3;
+}
+
+.loop-wrong .bo-loop-label {
+  fill: var(--sig-miss);
+}
+
+/* ---------- Circuit SVG ---------- */
+
+.bo-circuit text,
+.bo-timeline text {
+  font-family: var(--font-mono);
+}
+
+.bo-wire {
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.bo-dot {
+  fill: var(--ink-2);
+}
+
+.bo-gate {
+  fill: var(--panel);
+  stroke: var(--ink);
+  stroke-width: 1.6;
+}
+
+.bo-c-label {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+.bo-c-type {
+  font-size: 10px;
+  fill: var(--ink-3);
+}
+
+.bo-c-out {
+  font-size: 10px;
+  fill: var(--ink-2);
+}
+
+.bo-c-time {
+  font-size: 10px;
+  fill: var(--ink-3);
+}
+
+.bo-c-val {
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--ink-3);
+}
+
+.bo-c-val.v-1 {
+  fill: var(--sig-hit);
+}
+
+.bo-net.is-ready .bo-wire {
+  stroke: var(--sig-data);
+}
+
+.bo-net.is-ready .bo-dot {
+  fill: var(--sig-data);
+}
+
+.bo-net.is-path .bo-wire {
+  stroke: var(--sig-path);
+  stroke-width: 2.4;
+}
+
+.bo-net.is-path .bo-dot {
+  fill: var(--sig-path);
+}
+
+.bo-net.is-path .bo-gate {
+  stroke: var(--sig-path);
+  stroke-width: 2.2;
+}
+
+.bo-net.is-wait {
+  opacity: 0.35;
+}
+
+.bo-net.is-wait .bo-wire {
+  stroke-dasharray: 3 3;
+}
+
+.bo-net.is-hidden {
+  visibility: hidden;
+}
+
+.bo-tl-grid {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+
+.bo-tl-bar {
+  fill: var(--ink-3);
+}
+
+.bo-net.is-ready .bo-tl-bar {
+  fill: var(--sig-data);
+}
+
+.bo-net.is-path .bo-tl-bar {
+  fill: var(--sig-path);
+}
+
+.bo-tl-now {
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+@media print {
+  .bo-scroll {
+    overflow: visible;
+  }
+  .bo-scroll svg {
+    max-width: 100%;
+    height: auto;
+  }
+  .bo-stages {
+    display: none;
+  }
+}
+
+/* Narrow screens: let the header grid shrink below the width of the tab strip and the preset menu
+   (the shared .ws-head uses a 1fr track, which grows to fit its widest child). */
+.bo-root .ws-head > *,
+.bo-root .ws-toolbar .field,
+.bo-root .ws-toolbar .field-box {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.bo-root .ws-toolbar select {
+  max-width: 100%;
+  text-overflow: ellipsis;
+}
+
+.bo-root .segmented-track {
+  flex-wrap: wrap;
+}
+
+.bo-split > .table-wrap {
+  flex: 1 1 20em;
+  min-width: 0;
+}
+
+/* Loops sit over the cells; clicks go through to the cell editor. */
+.bo-loop {
+  pointer-events: none;
+}
+
+.bo-claims {
+  list-style: none;
+  margin: var(--sp-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.bo-dccol {
+  color: var(--ink-3);
+}
