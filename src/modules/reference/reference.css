@@ -1,76 +1,19 @@
-/* One topic on screen: a command bar to pick it, its main table on the board, the rest in one tab strip. */
-.ref-command-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  max-width: 640px;
-  padding: 6px 8px 6px 16px;
-  border: 1px solid var(--rule);
-  border-radius: var(--r-pill);
-  background: var(--panel);
-}
-
-.ref-command-label {
-  font-size: var(--fs-xs);
-  color: var(--ink-3);
-  white-space: nowrap;
-}
-
-.ref-command-input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  color: var(--ink);
+/* One topic on screen: the shared command bar picks it, its main table sits on the board, the rest in Details. */
+.ref-select {
   font: inherit;
   font-size: var(--fs-md);
-  padding: 6px 0;
   cursor: pointer;
 }
 
-.ref-command-input option {
+.ref-select option {
   background: var(--panel);
   color: var(--ink);
 }
 
-.ref-topic,
-.ref-more {
+.ref-topic {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
-}
-
-.ref-board {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  padding: 12px 16px 16px;
-  border: 1px solid var(--rule);
-  border-radius: var(--r-panel);
-}
-
-.ref-board-bar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--sp-2) var(--sp-4);
-}
-
-.ref-board-title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: var(--fs-xl);
-}
-
-.ref-sheet {
-  border: 1px solid var(--rule);
-  border-radius: var(--r-panel);
-  background: var(--panel);
-  padding: var(--sp-3);
-  overflow-x: auto;
 }
 
 .ref-refs {
@@ -78,7 +21,8 @@
   color: var(--ink-3);
 }
 
-.ref-off {
+.ref-off,
+.ref-print {
   display: none;
 }
 
@@ -89,18 +33,22 @@ body:has(.ref-nocite-on) :is(.ref-refs, .ref-cite, .callout-cite) {
 
 /* The printout is the whole cheat sheet: every topic and every table. */
 @media print {
-  .ref-command-bar {
+  .ref-pick {
     display: none;
   }
   .ref-off {
     display: flex;
   }
-  .ref-sheet.ref-off {
-    display: block;
+  .ref-print {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
   }
-  .ref-board,
-  .ref-sheet {
+  .ref-topic :is(.board, .detail-body) {
     border: 0;
-    padding: 0;
+  }
+  .ref-topic :is(.board-bar, .board-scroll, .detail-body) {
+    padding-left: 0;
+    padding-right: 0;
   }
 }

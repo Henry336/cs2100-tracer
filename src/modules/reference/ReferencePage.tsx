@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import { Callout, DataTable, Tabs, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Callout, DataTable, Toggle, Workspace, type Column } from '../../ui/kit'
 import { useUrlState } from '../../lib/url-state'
+import { Board, Details } from '../../ui/board'
 import './reference.css'
 
 type Row = Record<string, ReactNode>
@@ -442,7 +443,7 @@ const SECTIONS: { id: string; title: string; refs: string; tables: Sheet[]; note
 export default function ReferencePage() {
   const [nocite, setNocite] = useUrlState('nocite', false)
   const [topic, setTopic] = useUrlState('topic', SECTIONS[0].id)
-  const [sub, setSub] = useUrlState('sub', '')
+  const [sub] = useUrlState('sub', '')
   const cur = SECTIONS.find((s) => s.id === topic) ?? SECTIONS[0]
   return (
     <Workspace
@@ -450,11 +451,11 @@ export default function ReferencePage() {
       toolbar={<Toggle label="Hide sources" checked={nocite} onChange={setNocite} hint="Drops slide references on screen and in print" />}
     >
       {nocite ? <span className="ref-nocite-on" hidden /> : null}
-      <div className="ref-command-bar glow-input">
-        <label className="ref-command-label" htmlFor="ref-topic">
+      <div className="command-bar glow-input ref-pick">
+        <label className="command-label" htmlFor="ref-topic">
           Table
         </label>
-        <select id="ref-topic" className="ref-command-input" value={cur.id} onChange={(e) => setTopic(e.target.value)}>
+        <select id="ref-topic" className="command-input ref-select" value={cur.id} onChange={(e) => setTopic(e.target.value)}>
           {SECTIONS.map((s) => (
             <option key={s.id} value={s.id}>
               {s.title}
@@ -468,23 +469,22 @@ export default function ReferencePage() {
         const on = more.find((t) => t.label === sub) ?? more[0]
         return (
           <section key={s.id} className={`ref-topic${s.id === cur.id ? '' : ' ref-off'}`} aria-label={s.title}>
-            <div className="ref-board canvas">
-              <header className="ref-board-bar">
-                <h2 className="ref-board-title">{s.title}</h2>
-                {s.refs ? <span className="ref-refs">{s.refs}</span> : null}
-              </header>
-              <div className="ref-sheet">{main.node}</div>
+            <Board title={s.title} tools={s.refs ? <span className="ref-refs">{s.refs}</span> : null}>
+              {main.node}
               {s.notes}
-            </div>
+            </Board>
             {more.length ? (
-              <div className="ref-more">
-                <Tabs label={`More ${s.title} tables`} value={on.label} onChange={setSub} tabs={more.map((t) => ({ value: t.label, label: t.label }))} />
-                {more.map((t) => (
-                  <div key={t.label} className={`ref-sheet${t === on ? '' : ' ref-off'}`}>
-                    {t.node}
-                  </div>
-                ))}
-              </div>
+              <>
+                <Details urlKey="sub" label={`More ${s.title} tables`} tabs={more.map((t) => ({ value: t.label, label: t.label, body: t.node }))} />
+                {/* Details renders only the open tab, so the printout gets the others from here. */}
+                <div className="ref-print">
+                  {more
+                    .filter((t) => t !== on)
+                    .map((t) => (
+                      <div key={t.label}>{t.node}</div>
+                    ))}
+                </div>
+              </>
             ) : null}
           </section>
         )
