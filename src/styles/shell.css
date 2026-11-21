@@ -1070,3 +1070,10 @@ details.callout-beyond {
     flex-basis: 100%;
   }
 }
+
+/* Long lecture ranges must not widen the rail. */
+.rail-lec {
+  max-width: 7em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
