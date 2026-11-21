@@ -1,0 +1,137 @@
+/*
+  Design tokens. Signal colours carry meaning and must be used for that meaning only,
+  in every module (datapath, pipeline, cache, logic), so a colour reads the same everywhere.
+*/
+:root {
+  color-scheme: light;
+
+  /* Surfaces: cool vellum, like engineering drawing film. */
+  --paper: #eef1ee;
+  --panel: #f8faf8;
+  --sunken: #e3e8e4;
+  --grid: #d5ddd7;
+  --rule: #c3ccc6;
+  --ink: #1f2a30;
+  --ink-2: #4a5961;
+  --ink-3: #74838a;
+
+  /* Signal colours (wire-insulation inspired). */
+  --sig-path: #d9531e;      /* active datapath / the thing that is happening now */
+  --sig-data: #1f63c6;      /* data values on wires, register/memory contents */
+  --sig-control: #7a4fd0;   /* control signals, control unit, ALU control */
+  --sig-forward: #0e8a78;   /* forwarded value, bypass path */
+  --sig-stall: #8d989e;     /* stall / bubble / idle unit */
+  --sig-flush: #c8323c;     /* flushed instruction, squashed work */
+  --sig-hit: #2e7d4f;       /* cache hit, true, 1, valid */
+  --sig-miss: #c8323c;      /* cache miss, false-but-bad */
+  --sig-dirty: #b7791f;     /* dirty bit, pending write, write traffic */
+  --sig-dontcare: #a4adb2;  /* X / don't care */
+
+  /* Tints used as backgrounds behind the signal colours. */
+  --tint-path: #fbe6dc;
+  --tint-data: #dde8f8;
+  --tint-control: #ebe3f8;
+  --tint-forward: #d7efea;
+  --tint-stall: #e7ebed;
+  --tint-flush: #f7dcde;
+  --tint-hit: #dcefe3;
+  --tint-miss: #f7dcde;
+  --tint-dirty: #f6ead4;
+
+  --focus: #1f63c6;
+
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* Type scale (1.2 minor third), 15px base for a dense tool. */
+  --fs-xs: 0.72rem;
+  --fs-sm: 0.833rem;
+  --fs-md: 0.9375rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.35rem;
+  --fs-2xl: 1.62rem;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+
+  /* Radii encode hierarchy: controls are slightly round, panels are square-ish, chips are pills. */
+  --r-control: 5px;
+  --r-panel: 3px;
+  --r-pill: 999px;
+
+  --rail-w: 232px;
+  --inspector-w: 360px;
+  --transport-h: 56px;
+
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --paper: #151b20;
+    --panel: #1b232a;
+    --sunken: #11161a;
+    --grid: #26313a;
+    --rule: #33414c;
+    --ink: #e3e9ec;
+    --ink-2: #a9b6bd;
+    --ink-3: #7d8c94;
+    --sig-path: #f07a45;
+    --sig-data: #6ea2f0;
+    --sig-control: #a888ee;
+    --sig-forward: #3cc2ad;
+    --sig-stall: #6f7c84;
+    --sig-flush: #ef6b73;
+    --sig-hit: #5cc48a;
+    --sig-miss: #ef6b73;
+    --sig-dirty: #e3a84a;
+    --sig-dontcare: #5d6a72;
+    --tint-path: #3a2419;
+    --tint-data: #1a2b44;
+    --tint-control: #2a2240;
+    --tint-forward: #133430;
+    --tint-stall: #222b31;
+    --tint-flush: #3c1d21;
+    --tint-hit: #173323;
+    --tint-miss: #3c1d21;
+    --tint-dirty: #3a2c14;
+    --focus: #6ea2f0;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --paper: #151b20;
+  --panel: #1b232a;
+  --sunken: #11161a;
+  --grid: #26313a;
+  --rule: #33414c;
+  --ink: #e3e9ec;
+  --ink-2: #a9b6bd;
+  --ink-3: #7d8c94;
+  --sig-path: #f07a45;
+  --sig-data: #6ea2f0;
+  --sig-control: #a888ee;
+  --sig-forward: #3cc2ad;
+  --sig-stall: #6f7c84;
+  --sig-flush: #ef6b73;
+  --sig-hit: #5cc48a;
+  --sig-miss: #ef6b73;
+  --sig-dirty: #e3a84a;
+  --sig-dontcare: #5d6a72;
+  --tint-path: #3a2419;
+  --tint-data: #1a2b44;
+  --tint-control: #2a2240;
+  --tint-forward: #133430;
+  --tint-stall: #222b31;
+  --tint-flush: #3c1d21;
+  --tint-hit: #173323;
+  --tint-miss: #3c1d21;
+  --tint-dirty: #3a2c14;
+  --focus: #6ea2f0;
+}

@@ -1,0 +1,239 @@
+.home {
+  padding: var(--sp-6) var(--sp-6) var(--sp-6);
+  max-width: 1240px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+
+.home-head {
+  max-width: 68ch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.home-head h1 {
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.home-head p {
+  color: var(--ink-2);
+}
+
+/*
+  The floorplan. A die outline with bond pads along the edges; each functional block is a module.
+  Background grid is the drawing film.
+*/
+.die {
+  --pad: 22px;
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1.35fr 1fr;
+  grid-template-areas:
+    'mips dp   cache'
+    'cmem dp   cache'
+    'cmem dp   ref'
+    'pipe pipe pipe'
+    'bool msi  seq';
+  gap: 10px;
+  padding: var(--pad);
+  border: 1.5px solid var(--ink);
+  border-radius: 6px;
+  background-color: var(--panel);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 16px 16px;
+  background-position: -1px -1px;
+}
+
+/* Bond pads: small squares around the die edge. */
+.die::before,
+.die::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  background-image: linear-gradient(90deg, var(--ink-3) 6px, transparent 6px);
+  background-size: 22px 6px;
+  background-repeat: repeat-x;
+  height: 6px;
+  left: 30px;
+  right: 30px;
+  opacity: 0.55;
+}
+
+.die::before {
+  top: 7px;
+}
+
+.die::after {
+  bottom: 7px;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  min-height: 104px;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color 0.12s var(--ease), box-shadow 0.12s var(--ease);
+}
+
+.block:hover,
+.block:focus-visible {
+  border-color: var(--sig-path);
+  box-shadow: inset 0 0 0 1px var(--sig-path);
+}
+
+.block-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.block-name {
+  font-weight: 600;
+}
+
+.block-lec {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.block-blurb {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  max-width: 52ch;
+}
+
+/* The datapath is the biggest block, like the real die. */
+.block-dp {
+  background: var(--tint-path);
+  border-color: color-mix(in srgb, var(--sig-path) 35%, var(--rule));
+}
+
+.block-dp .block-name {
+  font-size: var(--fs-lg);
+}
+
+.block-cache {
+  background: var(--tint-data);
+  border-color: color-mix(in srgb, var(--sig-data) 30%, var(--rule));
+}
+
+.block-pipe {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'top stages'
+    'blurb stages';
+  column-gap: var(--sp-5);
+  align-items: center;
+}
+
+.block-pipe .block-top {
+  grid-area: top;
+}
+
+.block-pipe .block-blurb {
+  grid-area: blurb;
+}
+
+.block-stages {
+  grid-area: stages;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+}
+
+.block-stages span {
+  text-align: center;
+  font-size: var(--fs-sm);
+  padding: 6px 0;
+  border-right: 3px double var(--rule);
+}
+
+.block-stages span:last-child {
+  border-right: 0;
+}
+
+.block-bool,
+.block-msi,
+.block-seq {
+  background: var(--tint-control);
+  border-color: color-mix(in srgb, var(--sig-control) 25%, var(--rule));
+}
+
+.block-ref {
+  background: var(--sunken);
+}
+
+.home-notes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-5);
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.home-notes h2 {
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  margin-bottom: var(--sp-2);
+}
+
+.home-legend {
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-sm);
+}
+
+.loading {
+  padding: var(--sp-6);
+  color: var(--ink-3);
+}
+
+@media (max-width: 980px) {
+  .die {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      'dp   dp'
+      'mips cmem'
+      'pipe pipe'
+      'cache ref'
+      'bool msi'
+      'seq  seq';
+  }
+  .home-notes {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .home {
+    padding: var(--sp-5) var(--sp-4);
+  }
+  .die {
+    --pad: 16px;
+    grid-template-columns: 1fr;
+    grid-template-areas: 'dp' 'pipe' 'cache' 'mips' 'cmem' 'bool' 'msi' 'seq' 'ref';
+  }
+  .block-pipe {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'top' 'stages' 'blurb';
+    row-gap: var(--sp-2);
+  }
+}
