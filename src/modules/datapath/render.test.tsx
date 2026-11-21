@@ -1,9 +1,10 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { DATAPATH_PRESETS, LATENCY_PRESETS, UNITS, criticalPath, traceDatapath, wireSpecs, type DatapathTrace } from '../../core/datapath'
-import ControlTab from './ControlTab'
+import ControlTab, { MainTable, RawAlu } from './ControlTab'
 import DatapathPage from './DatapathPage'
 import QuizTab from './QuizTab'
+import TimingTab from './TimingTab'
 import { useTraceInputs } from './TraceTab'
 import { CONTROL_LABELS, LABELS, UNIT_GEOM, WIRE_PATH } from './geometry'
 import { WHOLE, buildTimingModel, buildTraceModel } from './model'
@@ -36,14 +37,25 @@ describe('datapath page', () => {
       return <ControlTab intro={null} x={useTraceInputs()} />
     }
     const html = renderToString(<Wrap />)
-    expect(html).toContain('By stage (L20 p27)')
+    expect(html).toContain('dp-pla')
+    expect(html).toContain('flow-draw') // the lw term fires, so its path is lit
     expect(html).toContain('ALU from its four control bits')
-    expect(html).toContain('0x00000007 (7)')
+    // The column switch and the raw ALU sit in tabs of the Details strip, so render those bodies directly.
+    expect(renderToString(<MainTable active="lw" order="L12" setOrder={() => {}} />)).toContain('By stage (L20 p27)')
+    expect(renderToString(<RawAlu code={0b0110} setCode={() => {}} a="12" setA={() => {}} b="5" setB={() => {}} fromGates="0110" />)).toContain('0x00000007 (7)')
+  })
+
+  it('timing tab lights the critical path on the board', () => {
+    const html = renderToString(<TimingTab intro={null} />)
+    expect(html).toContain('Critical path of addi')
+    expect(html).toContain('950 ps')
+    expect(html).toContain('flow-draw')
   })
 
   it('quiz tab blanks the row: no answer is on the page before checking', () => {
     const html = renderToString(<QuizTab intro={null} />)
     expect(html).toContain('Fill in the control row for beq')
+    expect(html).toContain('Check my answers')
     expect(html).not.toContain('Marked:')
     expect(html).not.toContain('Main control')
   })

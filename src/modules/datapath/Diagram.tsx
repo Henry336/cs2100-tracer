@@ -1,5 +1,6 @@
 import type { KeyboardEvent } from 'react'
 import type { UnitId } from '../../core/datapath'
+import { Flow } from '../../ui/board'
 import { BUS_PATH, CONTROL_LABELS, JUNCTIONS, LABELS, MUXES, MUX_W, UNIT_GEOM, UNIT_ORDER, VIEW, WIRE_PATH, type MuxId } from './geometry'
 
 /**
@@ -40,8 +41,8 @@ export function Diagram({
   selected?: string | null
   onSelect?: (id: string) => void
   label: string
-  /** Changes when the step changes, so the light animations restart. */
-  step?: number
+  /** Changes when the step (or the path shown) changes, so the light animations restart. */
+  step?: number | string
   /** Which wire tones get travelling light. */
   flow?: Tone[]
 }) {
@@ -70,18 +71,10 @@ export function Diagram({
       </g>
 
       {/* Light along the wires that carry a value in this step: each draws in from its source, then packets keep flowing (decorative). */}
-      {flowing.length ? (
+      {step !== undefined ? (
         <>
-          <g className="flow-draw" key={`d${step}`} aria-hidden="true">
-            {flowing.filter((id) => model.wires[id].tone === 'now').map((id) => (
-              <path key={id} d={WIRE_PATH[id]} pathLength={1} className={model.wires[id].control ? 'ctl' : undefined} />
-            ))}
-          </g>
-          <g className="flow-packets" key={`p${step}`} aria-hidden="true">
-            {flowing.map((id, i) => (
-              <path key={id} d={WIRE_PATH[id]} pathLength={1} className={model.wires[id].control ? 'ctl' : undefined} style={{ animationDelay: `${0.7 + (i % 5) * 0.18}s` }} />
-            ))}
-          </g>
+          <Flow id={step} paths={flowing.filter((id) => !model.wires[id].control).map((id) => WIRE_PATH[id])} />
+          <Flow id={step} paths={flowing.filter((id) => model.wires[id].control).map((id) => WIRE_PATH[id])} tone="ctl" />
         </>
       ) : null}
 

@@ -6,7 +6,8 @@ import {
 } from '../../core/datapath'
 import { bin, hex } from '../../core/mips'
 import { useUrlState } from '../../lib/url-state'
-import { Button, Callout, DataTable, Legend, Panel, Segmented, TextField, Workspace } from '../../ui/kit'
+import { Board, Details, Flow, Stage } from '../../ui/board'
+import { Button, Callout, DataTable, Legend, Segmented, TextField, Workspace } from '../../ui/kit'
 import { AluControlTable, AluopTable, MainControlTable, W, bitCell, mainRowName, parseNum, type TableOrder } from './common'
 import type { TraceInputs } from './TraceTab'
 
@@ -43,6 +44,16 @@ function PlaSvg({ opcode }: { opcode: number }) {
   const rowY = (j: number) => 130 + j * 56
   const outX = (j: number) => 520 + j * 30
   const bottom = rowY(3) + 34
+  // Light on the term that fires: its six literal inputs, the AND row, then each output column it drives.
+  const fj = PLA_TERMS.findIndex((t) => t.term === r.fired)
+  const flow =
+    fj < 0
+      ? []
+      : [
+          ...[...PLA_TERMS[fj].bits].map((b, i) => `M${litX(i, b === '0')} 84V${rowY(fj)}`),
+          `M100 ${rowY(fj)}H${outX(8) + 16}`,
+          ...PLA_OUTPUTS.flatMap((o, k) => (o.terms.includes(PLA_TERMS[fj].term) ? [`M${outX(k)} ${rowY(fj)}V${bottom + 40}`] : [])),
+        ]
   return (
     <svg className="dp-pla" viewBox="0 0 820 470" role="img" aria-label={`PLA for opcode ${r.opcodeBin}: ${r.fired ? `${r.fired} term fires` : 'no term fires'}`}>
       <text x={20} y={30} className="dp-t-port">Opcode bits</text>
@@ -94,17 +105,10 @@ function PlaSvg({ opcode }: { opcode: number }) {
           </g>
         )
       })}
+      <Flow id={opcode} paths={flow} />
       <text x={20} y={rowY(0) + 4} className="dp-t-port">AND plane</text>
       <text x={outX(0) - 12} y={rowY(0) - 26} className="dp-t-port">OR plane</text>
     </svg>
-  )
-}
-
-function Section({ title, children, cite }: { title: string; children: ReactNode; cite?: string }) {
-  return (
-    <Panel title={title} actions={cite ? <span className="dp-cite">{cite}</span> : undefined}>
-      {children}
-    </Panel>
   )
 }
 
@@ -143,90 +147,51 @@ export default function ControlTab({ intro, x }: { intro: ReactNode; x: TraceInp
       intro={intro}
       toolbar={ins ? <Button onClick={useTraced} title="Copy opcode, ALUop and funct from the instruction on the tracer tab">Use {ins.text}</Button> : undefined}
     >
-      <div className="dp-top">
-        <Section title="Opcode in" cite="L12 p32">
-          <BitButtons label="Inst[31:26]" names={['Op5', 'Op4', 'Op3', 'Op2', 'Op1', 'Op0']} value={op} width={6} onChange={setOp} />
-          <div className="dp-quick" role="group" aria-label="Opcode examples">
-            {QUICK.map((q) => (
-              <button key={q.name} type="button" className={`btn${q.op === op ? ' dp-quick-on' : ''}`} onClick={() => setOp(q.op)}>
-                {q.name} <span className="mono">{bin(q.op, 6)}</span>
-              </button>
-            ))}
-          </div>
-          <p className="dp-does">
-            <W e={pla.why}>{pla.fired ? `The ${pla.fired} term fires` : 'No AND term fires'}</W>. {tableRow ? `The L12 p34 row for ${tableRow.name} is lit below.` : 'This opcode has no row in L12 p34.'}
+      <div className="dp-opcode">
+        <BitButtons label="Opcode in, Inst[31:26] (L12 p32)" names={['Op5', 'Op4', 'Op3', 'Op2', 'Op1', 'Op0']} value={op} width={6} onChange={setOp} />
+        <div className="dp-quick" role="group" aria-label="Opcode examples">
+          {QUICK.map((q) => (
+            <button key={q.name} type="button" className={`btn${q.op === op ? ' dp-quick-on' : ''}`} onClick={() => setOp(q.op)}>
+              {q.name} <span className="mono">{bin(q.op, 6)}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <Stage>
+        <Board
+          title={`PLA for opcode ${pla.opcodeBin}`}
+          step={pla.fired ?? 'no term fires'}
+          note={
+            <>
+              <W e={pla.why}>{pla.fired ? `The ${pla.fired} term fires` : 'No AND term fires'}</W>.{' '}
+              {tableRow ? `The L12 p34 row for ${tableRow.name} is lit in the main control table.` : 'This opcode has no row in L12 p34.'}
+            </>
+          }
+          tools={<span className="dp-cite">{PLA_CITE}</span>}
+          foot={
+            <>
+              <Legend
+                items={[
+                  { signal: 'path', label: 'the term that fires and the outputs it sets' },
+                  { signal: 'hit', label: 'line carrying 1' },
+                  { signal: 'control', label: 'connection (dot) or gate' },
+                ]}
+              />
+              <p className="dp-hint">A dot on an AND row marks an input of that term. Each output ORs the terms it has dots for.</p>
+            </>
+          }
+        >
+          <PlaSvg opcode={op} />
+        </Board>
+
+        <aside className="story dp-side" aria-label="ALU control in">
+          <p className="dp-side-title">
+            ALU control in <span className="dp-cite">L12 p25</span>
           </p>
-        </Section>
-        <Section title="ALU control in" cite="L12 p25">
           <BitButtons label="ALUop (from the main control)" names={['ALUop1', 'ALUop0']} value={aop} width={2} onChange={setAop} />
           <BitButtons label="Funct, Inst[5:0]" names={['F5', 'F4', 'F3', 'F2', 'F1', 'F0']} value={fn} width={6} onChange={setFn} dim={(k) => k >= 4} />
           <p className="dp-hint">F5 and F4 are greyed: no gate reads them (L12 p27).</p>
-        </Section>
-      </div>
-
-      <Panel title={`PLA for opcode ${pla.opcodeBin}`} actions={<span className="dp-cite">{PLA_CITE}</span>} flush>
-        <div className="dp-scroll">
-          <PlaSvg opcode={op} />
-        </div>
-        <div className="dp-diagram-foot">
-          <Legend items={[{ signal: 'hit', label: 'line carrying 1' }, { signal: 'control', label: 'connection (dot) or gate' }]} />
-          <p className="dp-hint">A dot on an AND row marks an input of that term. Each output ORs the terms it has dots for.</p>
-        </div>
-      </Panel>
-
-      <div className="dp-grid">
-        <Panel title="PLA outputs against the table">
-          <DataTable
-            compact
-            columns={[
-              { key: 's', header: 'Signal', cell: (s) => s },
-              { key: 't', header: 'Terms', cell: (s) => PLA_OUTPUTS.find((o) => o.signal === s)!.terms.join(' + ') },
-              { key: 'p', header: 'PLA', mono: true, align: 'center', cell: (s) => pla.outputs[s] },
-              { key: 'r', header: 'L12 p34 row', mono: true, align: 'center', cell: (s) => (tableRow ? bitCell(tableRow.row[s]) : 'none') },
-            ]}
-            rows={SIGNAL_ORDER}
-            rowSignal={(s) => (pla.outputs[s] ? 'hit' : undefined)}
-            caption="Where the table has X the PLA outputs 0, which is one valid choice (L12 p33-34)"
-          />
-          <DataTable
-            compact
-            columns={[
-              { key: 't', header: 'AND term', cell: (t) => t.term },
-              { key: 'e', header: 'Expression', cell: (t) => t.expr, mono: true },
-              { key: 'v', header: 'Value', mono: true, align: 'center', cell: (t) => <W e={{ rule: `Each literal must be 1 for the ${t.term} term`, working: t.working, cite: PLA_CITE }}>{t.value}</W> },
-            ]}
-            rows={pla.terms}
-            rowSignal={(t) => (t.value ? 'path' : undefined)}
-          />
-        </Panel>
-        <Panel
-          title="Main control table"
-          actions={
-            <Segmented
-              label="Columns"
-              value={order}
-              onChange={setOrder}
-              options={[
-                { value: 'L12', label: 'L12 p34', title: 'Single-cycle column order' },
-                { value: 'L20', label: 'By stage (L20 p27)', title: 'Grouped by the pipeline stage that uses each signal' },
-              ]}
-            />
-          }
-        >
-          <MainControlTable active={rowName} order={order} />
-        </Panel>
-        <Panel title="ALU control gates" actions={<span className="dp-cite">{ALU_CONTROL_GATES_CITE}</span>}>
-          <DataTable
-            compact
-            columns={[
-              { key: 'b', header: 'Bit', cell: (b) => `ALUcontrol${b.bit}` },
-              { key: 'e', header: 'Expression', mono: true, cell: (b) => b.expr },
-              { key: 'w', header: 'Working', mono: true, cell: (b) => b.working },
-              { key: 'v', header: 'Value', mono: true, align: 'center', cell: (b) => b.value },
-            ]}
-            rows={gates.bits}
-            rowSignal={(b) => (b.value ? 'hit' : undefined)}
-          />
           <p className="dp-does">
             ALUcontrol ={' '}
             <W e={gates.why}>
@@ -242,42 +207,129 @@ export default function ControlTab({ intro, x }: { intro: ReactNode; x: TraceInp
             . The L12 p26 table gives {fromTable ? <span className="mono">{fromTable}</span> : 'no row for this input'}
             {fromTable && fromTable !== gates.code ? ', so the gates differ from the table here' : ''}.
           </p>
-          <AluopTable aluop={aluopStr} />
-          <AluControlTable aluop={aluopStr} funct={fn} />
-        </Panel>
-        <RawAlu code={rawCode} setCode={setRawCode} a={ra} setA={setRa} b={rb} setB={setRb} fromGates={gates.code} />
-        <Panel title="Traps and conventions">
-          <Callout kind="trap" cite="L12 p18, p23; AY23/24 S2 Q9">
-            For R-type, ALUop 10 hands the choice of ALUcontrol to funct. Every other signal comes from the opcode alone.
-          </Callout>
-          <Callout kind="trap" cite="L12 p33, AY15/16 Q9a">
-            The L12 PLA has no term for addi (001000) or bne (000101): every output is 0, so as drawn the control unit cannot run them.
-          </Callout>
-          <Callout kind="trap" cite="R06 p20, L11 p34">
-            ALUcontrol3 is always 0, so ALU control can never ask for NOR (1100). The ALU itself has NOR.
-          </Callout>
-          <Callout kind="course" cite="L12 p22, p27">
-            The 4 ALUcontrol bits are Ainvert, Binvert and Operation[1:0]. L12 p27 shrinks the table with X entries: beq is ALUop X1, R-type 1X, and F5 F4 are X.
-          </Callout>
-        </Panel>
-      </div>
+        </aside>
+      </Stage>
+
+      <Details
+        urlKey="cdt"
+        label="Tables for the control unit"
+        tabs={[
+          {
+            value: 'pla',
+            label: 'PLA outputs against the table',
+            body: (
+              <div className="dp-alu-tables">
+                <DataTable
+                  compact
+                  columns={[
+                    { key: 's', header: 'Signal', cell: (s) => s },
+                    { key: 't', header: 'Terms', cell: (s) => PLA_OUTPUTS.find((o) => o.signal === s)!.terms.join(' + ') },
+                    { key: 'p', header: 'PLA', mono: true, align: 'center', cell: (s) => pla.outputs[s] },
+                    { key: 'r', header: 'L12 p34 row', mono: true, align: 'center', cell: (s) => (tableRow ? bitCell(tableRow.row[s]) : 'none') },
+                  ]}
+                  rows={SIGNAL_ORDER}
+                  rowSignal={(s) => (pla.outputs[s] ? 'hit' : undefined)}
+                  caption="Where the table has X the PLA outputs 0, which is one valid choice (L12 p33-34)"
+                />
+                <DataTable
+                  compact
+                  columns={[
+                    { key: 't', header: 'AND term', cell: (t) => t.term },
+                    { key: 'e', header: 'Expression', cell: (t) => t.expr, mono: true },
+                    { key: 'v', header: 'Value', mono: true, align: 'center', cell: (t) => <W e={{ rule: `Each literal must be 1 for the ${t.term} term`, working: t.working, cite: PLA_CITE }}>{t.value}</W> },
+                  ]}
+                  rows={pla.terms}
+                  rowSignal={(t) => (t.value ? 'path' : undefined)}
+                />
+              </div>
+            ),
+          },
+          { value: 'main', label: 'Main control table', body: <MainTable active={rowName} order={order} setOrder={setOrder} /> },
+          {
+            value: 'gates',
+            label: 'ALU control gates',
+            body: (
+              <div className="dp-stack">
+                <DataTable
+                  compact
+                  columns={[
+                    { key: 'b', header: 'Bit', cell: (b) => `ALUcontrol${b.bit}` },
+                    { key: 'e', header: 'Expression', mono: true, cell: (b) => b.expr },
+                    { key: 'w', header: 'Working', mono: true, cell: (b) => b.working },
+                    { key: 'v', header: 'Value', mono: true, align: 'center', cell: (b) => b.value },
+                  ]}
+                  rows={gates.bits}
+                  rowSignal={(b) => (b.value ? 'hit' : undefined)}
+                  caption={`ALU control gates (${ALU_CONTROL_GATES_CITE})`}
+                />
+                <div className="dp-alu-tables">
+                  <AluopTable aluop={aluopStr} />
+                  <AluControlTable aluop={aluopStr} funct={fn} />
+                </div>
+              </div>
+            ),
+          },
+          { value: 'raw', label: 'ALU from its four control bits', body: <RawAlu code={rawCode} setCode={setRawCode} a={ra} setA={setRa} b={rb} setB={setRb} fromGates={gates.code} /> },
+          {
+            value: 'notes',
+            label: 'Traps and conventions',
+            body: (
+              <div className="dp-stack">
+                <Callout kind="trap" cite="L12 p18, p23; AY23/24 S2 Q9">
+                  For R-type, ALUop 10 hands the choice of ALUcontrol to funct. Every other signal comes from the opcode alone.
+                </Callout>
+                <Callout kind="trap" cite="L12 p33, AY15/16 Q9a">
+                  The L12 PLA has no term for addi (001000) or bne (000101): every output is 0, so as drawn the control unit cannot run them.
+                </Callout>
+                <Callout kind="trap" cite="R06 p20, L11 p34">
+                  ALUcontrol3 is always 0, so ALU control can never ask for NOR (1100). The ALU itself has NOR.
+                </Callout>
+                <Callout kind="course" cite="L12 p22, p27">
+                  The 4 ALUcontrol bits are Ainvert, Binvert and Operation[1:0]. L12 p27 shrinks the table with X entries: beq is ALUop X1, R-type 1X, and F5 F4 are X.
+                </Callout>
+              </div>
+            ),
+          },
+        ]}
+      />
     </Workspace>
   )
 }
 
+/** The main control table with its column order switch: L12 p34, or grouped by stage as on L20 p27. */
+export function MainTable({ active, order, setOrder }: { active: string | null; order: TableOrder; setOrder: (o: TableOrder) => void }) {
+  return (
+    <div className="dp-stack">
+      <Segmented
+        label="Columns"
+        value={order}
+        onChange={setOrder}
+        options={[
+          { value: 'L12', label: 'L12 p34', title: 'Single-cycle column order' },
+          { value: 'L20', label: 'By stage (L20 p27)', title: 'Grouped by the pipeline stage that uses each signal' },
+        ]}
+      />
+      <MainControlTable active={active} order={order} />
+    </div>
+  )
+}
+
 /** The ALU driven by Ainvert, Binvert and Operation directly, on two 32-bit operands (L12 p21-22). */
-function RawAlu({ code, setCode, a, setA, b, setB, fromGates }: { code: number; setCode: (v: number) => void; a: string; setA: (v: string) => void; b: string; setB: (v: string) => void; fromGates: string }) {
+export function RawAlu({ code, setCode, a, setA, b, setB, fromGates }: { code: number; setCode: (v: number) => void; a: string; setA: (v: string) => void; b: string; setB: (v: string) => void; fromGates: string }) {
   const av = parseNum(a)
   const bv = parseNum(b)
   const bits = bin(code & 15, 4)
   const r = av !== null && bv !== null ? aluRaw(+bits[0] as 0 | 1, +bits[1] as 0 | 1, bits.slice(2) as '00', av, bv) : null
   return (
-    <Panel title="ALU from its four control bits" actions={<span className="dp-cite">L12 p21-22</span>}>
+    <div className="dp-stack">
+      <p className="dp-side-title">
+        ALU from its four control bits <span className="dp-cite">L12 p21-22</span>
+      </p>
       <BitButtons label="ALUcontrol bits" names={['Ainvert', 'Binvert', 'Operation1', 'Operation0']} value={code & 15} width={4} onChange={setCode} />
       <div className="dp-input-row">
         <TextField label="A" value={a} onChange={setA} mono width="9em" />
         <TextField label="B" value={b} onChange={setB} mono width="9em" />
-        <Button onClick={() => setCode(parseInt(fromGates, 2))} title="Copy the ALUcontrol the gates above produce">
+        <Button onClick={() => setCode(parseInt(fromGates, 2))} title="Copy the ALUcontrol the gates produce">
           Use ALUcontrol {fromGates}
         </Button>
       </div>
@@ -298,6 +350,6 @@ function RawAlu({ code, setCode, a, setA, b, setB, fromGates }: { code: number; 
       <p className="dp-hint">
         Ainvert and Binvert flip every bit of A and B before the gates; Operation picks AND, OR, the adder or slt. Binvert is also the carry into bit 0, so 0110 gives A + B' + 1, which is A - B in two's complement. The slt wiring itself is not shown in the course.
       </p>
-    </Panel>
+    </div>
   )
 }
