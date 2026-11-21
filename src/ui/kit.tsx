@@ -268,9 +268,10 @@ export function Button({
   variant?: 'plain' | 'primary'
   title?: string
   disabled?: boolean
+  ariaLabel?: string
 }) {
   return (
-    <button type="button" className={`btn btn-${variant}`} onClick={onClick} title={title} disabled={disabled}>
+    <button type="button" className={`btn btn-${variant}`} onClick={onClick} title={title} disabled={disabled} aria-label={ariaLabel}>
       {children}
     </button>
   )
