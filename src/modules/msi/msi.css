@@ -1,0 +1,585 @@
+/* Combinational and MSI module. Colours come only from tokens; signal colours keep their fixed meanings. */
+
+.ms-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.ms-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: end;
+}
+
+.ms-row + .ms-row,
+.ms-fnfield + .ms-row,
+.ms-row + .ms-fnfield,
+.ms-row + .ms-status {
+  margin-top: var(--sp-3);
+}
+
+.ms-toggles {
+  align-items: center;
+}
+
+.ms-grow {
+  flex: 1 1 18em;
+  min-width: 0;
+}
+
+.ms-grow .field,
+.ms-grow .field-box {
+  display: flex;
+  width: 100%;
+}
+
+.ms-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--rule);
+  margin: 0 var(--sp-1);
+}
+
+.ms-muted {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+
+.ms-status {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.ms-fnfield {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.ms-fnfield > .ms-grow {
+  flex: none;
+}
+
+.ms-pad {
+  padding: var(--sp-2) var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.ms-scroll {
+  overflow-x: auto;
+  padding: var(--sp-3);
+}
+
+.ms-scroll svg {
+  display: block;
+  max-width: none;
+}
+
+.ms-tall {
+  max-height: 440px;
+  overflow: auto;
+}
+
+.ms-wrap {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.ms-callouts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.ms-errors {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3) var(--sp-2) 2em;
+  color: var(--sig-miss);
+  background: var(--tint-miss);
+  border-left: 3px solid var(--sig-miss);
+  font-size: var(--fs-sm);
+}
+
+/* ---------- Facts ---------- */
+
+.ms-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--sp-2) var(--sp-3);
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
+.ms-fact {
+  display: contents;
+}
+
+.ms-facts dt {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  padding-top: 2px;
+}
+
+.ms-facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 520px) {
+  .ms-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+  .ms-facts dd {
+    margin-bottom: var(--sp-2);
+  }
+}
+
+/* ---------- Bit switches and output ticks ---------- */
+
+.ms-bitrow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ms-bits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ms-bit {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 2.6em;
+  padding: 3px 6px 4px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--panel);
+  color: var(--ink-2);
+  cursor: pointer;
+  line-height: 1.15;
+}
+
+.ms-bit-name {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+
+.ms-bit-val {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.ms-bit.is-1 {
+  border-color: var(--sig-hit);
+  background: var(--tint-hit);
+  color: var(--ink);
+}
+
+.ms-bit.is-1 .ms-bit-val {
+  color: var(--sig-hit);
+}
+
+.ms-bit:hover,
+.ms-tick:hover {
+  border-color: var(--ink-3);
+}
+
+.ms-tick {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  padding: 4px 8px;
+  min-height: 32px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--panel);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.ms-tick.is-on {
+  border-color: var(--sig-data);
+  background: var(--tint-data);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.ms-bit:focus-visible,
+.ms-tick:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ms-bit,
+  .ms-tick {
+    transition:
+      background-color 120ms var(--ease),
+      border-color 120ms var(--ease);
+  }
+  .ms-net .ms-wire {
+    transition: stroke 160ms var(--ease);
+  }
+}
+
+/* ---------- Lists, equations, notes ---------- */
+
+.ms-solutions {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3) var(--sp-2) 2.2em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+
+.ms-solutions li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
+}
+
+.ms-sol-text {
+  font-weight: 600;
+  min-width: 9em;
+}
+
+.ms-sol-actions {
+  display: inline-flex;
+  gap: var(--sp-2);
+}
+
+.ms-eqs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+.ms-eqs p {
+  margin: 0;
+}
+
+.ms-eq-name {
+  color: var(--ink-3);
+}
+
+.ms-term {
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.ms-term.is-1 {
+  color: var(--sig-hit);
+  background: var(--tint-hit);
+  font-weight: 600;
+}
+
+.ms-term.is-now {
+  background: var(--tint-path);
+  box-shadow: inset 0 -2px 0 var(--sig-path);
+}
+
+.ms-yeq {
+  font-size: var(--fs-sm);
+  margin: 0;
+}
+
+.ms-note {
+  padding: var(--sp-2) var(--sp-3);
+  border-top: 1px solid var(--grid);
+  border-left: 3px solid var(--sig-path);
+  font-size: var(--fs-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 4.4em;
+}
+
+.ms-note p {
+  margin: 0;
+}
+
+.ms-note-title {
+  font-weight: 600;
+}
+
+/* ---------- Column addition and the split truth table ---------- */
+
+.ms-cols,
+.ms-split {
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  margin: var(--sp-1) 0;
+}
+
+.ms-cols th,
+.ms-cols td,
+.ms-split th,
+.ms-split td {
+  padding: 4px 9px;
+  text-align: center;
+  border-bottom: 1px solid var(--grid);
+  white-space: nowrap;
+}
+
+.ms-cols tbody th,
+.ms-split tbody th {
+  text-align: left;
+  color: var(--ink-3);
+  font-weight: 500;
+  font-family: var(--font-sans);
+  font-size: var(--fs-xs);
+}
+
+.ms-cols thead th,
+.ms-split thead th {
+  color: var(--ink-3);
+  font-weight: 500;
+  font-size: var(--fs-xs);
+  border-bottom: 1px solid var(--rule);
+}
+
+.ms-cols-sum td,
+.ms-cols-sum th {
+  border-top: 2px solid var(--ink-2);
+  font-weight: 600;
+}
+
+.ms-cols td.is-now,
+.ms-split .is-now {
+  background: var(--tint-path);
+  box-shadow: inset 0 -2px 0 var(--sig-path);
+}
+
+.ms-cols td.is-wait {
+  color: var(--sig-stall);
+}
+
+.ms-split .is-later {
+  color: var(--ink-3);
+}
+
+.ms-split td {
+  position: relative;
+}
+
+.ms-v.v-1 {
+  color: var(--sig-hit);
+  font-weight: 600;
+}
+
+.ms-v.v-x {
+  color: var(--sig-dontcare);
+}
+
+.ms-rowno {
+  margin-left: 6px;
+  font-size: 0.68rem;
+  color: var(--ink-3);
+}
+
+.ms-split-data td {
+  font-weight: 600;
+  border-top: 2px solid var(--ink-2);
+}
+
+.ms-din {
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--rule);
+}
+
+.ms-din.is-bad {
+  border-color: var(--sig-miss);
+  background: var(--tint-miss);
+  color: var(--sig-miss);
+}
+
+.ms-din.is-x {
+  border-style: dashed;
+  color: var(--sig-dontcare);
+}
+
+/* ---------- Diagrams ---------- */
+
+.ms-svg text {
+  font-family: var(--font-mono);
+}
+
+.ms-wire {
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.ms-dot {
+  fill: var(--ink-2);
+}
+
+.ms-gate {
+  fill: var(--panel);
+  stroke: var(--ink);
+  stroke-width: 1.6;
+}
+
+.ms-block {
+  fill: var(--sunken);
+  stroke: var(--ink);
+  stroke-width: 1.6;
+}
+
+.ms-group {
+  fill: none;
+  stroke: var(--rule);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.ms-label {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+.ms-label-sm {
+  font-size: 11px;
+  fill: var(--ink);
+}
+
+.ms-small {
+  font-size: 10px;
+  fill: var(--ink-3);
+}
+
+.ms-ctl-text {
+  font-size: 10px;
+  fill: var(--sig-control);
+}
+
+.ms-val {
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--ink-3);
+}
+
+.ms-val.v-1 {
+  fill: var(--sig-hit);
+}
+
+.ms-val.v-x {
+  fill: var(--sig-dontcare);
+}
+
+.ms-net.is-ready .ms-wire {
+  stroke: var(--sig-data);
+}
+
+.ms-net.is-ready .ms-dot {
+  fill: var(--sig-data);
+}
+
+.ms-net.is-now .ms-wire {
+  stroke: var(--sig-path);
+  stroke-width: 2.4;
+}
+
+.ms-net.is-now .ms-dot {
+  fill: var(--sig-path);
+}
+
+.ms-net.is-now .ms-gate,
+.ms-net.is-now .ms-block {
+  stroke: var(--sig-path);
+  stroke-width: 2.2;
+}
+
+.ms-net.is-now .ms-block {
+  fill: var(--tint-path);
+}
+
+.ms-net.is-ctl .ms-wire {
+  stroke: var(--sig-control);
+}
+
+.ms-net.is-bad .ms-wire {
+  stroke: var(--sig-miss);
+  stroke-dasharray: 5 2;
+}
+
+.ms-net.is-bad .ms-gate {
+  stroke: var(--sig-miss);
+}
+
+.ms-net.is-wait {
+  opacity: 0.4;
+}
+
+.ms-net.is-wait .ms-wire {
+  stroke: var(--sig-stall);
+  stroke-dasharray: 3 3;
+}
+
+.ms-net.is-off {
+  opacity: 0.45;
+}
+
+.ms-net.is-hidden,
+.ms-focus .ms-net.is-off {
+  visibility: hidden;
+}
+
+/* ---------- Block workbench ---------- */
+
+.ms-wb-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: flex-start;
+}
+
+.ms-wb-cards svg {
+  border: 1px solid var(--grid);
+  border-radius: var(--r-control);
+}
+
+@media print {
+  .ms-scroll,
+  .ms-tall {
+    overflow: visible;
+    max-height: none;
+  }
+  .ms-scroll svg {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* ---------- Narrow screens ---------- */
+
+/* The shared header grid uses a plain 1fr track on phones, so the tab strip would set the page width. */
+.ms-root .ws-intro,
+.ms-root .ws-title {
+  min-width: 0;
+}
+
+.ms-root .segmented-track {
+  flex-wrap: wrap;
+}
+
+.ms-root .ws-toolbar select {
+  max-width: 100%;
+  text-overflow: ellipsis;
+}
