@@ -275,7 +275,7 @@ export const TRACE_PRESETS: TracePreset[] = [
     source: 'AY20/21 Q15, derived, no key',
     cfg: { cache: 512, block: 16, ways: 1 },
     ...loopPreset(thrash(3200)),
-    expect: 'A and B share every index: 0 hits for both (by simulation). Set n to 3216 in the loop builder and watch the thrash warning go.',
+    expect: 'A and B share every index: 0 hits for both (by simulation). Set n to 3216 and the thrash warning goes.',
   },
   {
     id: 'ay2021-3216',

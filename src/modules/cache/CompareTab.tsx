@@ -97,7 +97,7 @@ export default function CompareTab({ intro, input }: { intro: ReactNode; input: 
                 onChange={setView}
               />
             </div>
-            <p className="ca-board-sub ca-muted">Same size and block size; only the number of ways changes (L23 p28).</p>
+            <p className="ca-board-sub ca-muted">Same cache and block size in every row (L23 p28).</p>
             <div className="ca-bars">
               {runs.runs.map((r) => (
                 <Strip key={String(r.ways)} name={orgName(r.ways)} trace={r.trace} lv={lv} index={i} />
@@ -252,7 +252,7 @@ function Observations({ runs }: { runs: RunList }) {
       n: 2,
       ok: c.every((x, k) => k === 0 || x.conflict <= c[k - 1].conflict),
       text: 'Conflict misses go down as the ways go up.',
-      why: ' It is a trend, not a promise for every trace.',
+      why: ' This is a trend, and some traces break it.',
     },
     ...(fa ? [{ n: 3, ok: fa.trace.summary.threeC.conflict === 0, text: 'The fully associative cache has no conflict misses.', why: '' }] : []),
     {
@@ -272,7 +272,7 @@ function Observations({ runs }: { runs: RunList }) {
             {o.ok ? '' : o.why}
           </li>
         ))}
-        <li>5. Capacity misses fall as the cache grows. Change the cache size to see it; this view holds the size fixed.</li>
+        <li>5. Capacity misses fall as the cache grows. Change the cache size to see it.</li>
         <li>
           <Chip signal={missFalls ? 'hit' : 'miss'}>{missFalls ? 'holds' : 'not here'}</Chip> Total misses never rise with more ways
           {missFalls ? '.' : '. More ways do not always help (L23 p34).'}
@@ -287,7 +287,7 @@ function Rules({ runs, half }: { runs: RunList; half: { bytes: number; misses: n
   return (
     <div className="ca-callouts">
       <Callout kind="course" title="Rule of thumb" cite="L23 p16; R12 p26; AY25/26 Q5">
-        A direct mapped cache of size N has about the same miss rate as a 2-way set associative cache of size N/2. Not 4-way of size N/4.
+        A direct mapped cache of size N has about the same miss rate as a 2-way set associative cache of size N/2. It does not extend to 4-way of size N/4.
         {half ? (
           <>
             {' '}
@@ -297,13 +297,13 @@ function Rules({ runs, half }: { runs: RunList; half: { bytes: number; misses: n
         ) : null}
       </Callout>
       <Callout kind="trap" title="More ways is not always better" cite="L23 p32-34">
-        On the L23 p32-34 trace, 2-way gives 7 misses, the same as direct mapped. Load that example and see.
+        On the L23 p32-34 trace, 2-way gives 7 misses, the same as direct mapped.
       </Callout>
       <Callout kind="trap" title="More ways cost hit time" cite="L23 p13, p25; AY25/26 Q5 option D">
         Every way's tag is compared in parallel, so higher associativity does not lower the hit time.
       </Callout>
       <Callout kind="course" title="Two ways to name a repeat miss" cite="R12 p23-25; L23 p28">
-        R12 labels: a repeat miss is conflict in DM and set associative caches, capacity in FA. L23 p28 view: capacity if an equal-size FA LRU cache also misses, otherwise conflict.
+        R12: a repeat miss is conflict in DM and set associative caches, capacity in FA. L23 p28: capacity if an equal-size FA LRU cache also misses, otherwise conflict. No key says which a paper wants, so the app defaults to R12.
       </Callout>
     </div>
   )

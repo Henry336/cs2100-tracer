@@ -493,7 +493,7 @@ export function TraceEditor({ input, rows = 7 }: { input: Input; rows?: number }
         <>
           <CodeEditor label="Accesses" value={input.text} onChange={input.setText} rows={rows} errors={input.lineErrors} />
           <p className="ca-muted">
-            Addresses in decimal, 0x hex or 0b binary, split by commas, spaces or lines. Plain addresses are loads; W stores (<span className="mono">W 24=X</span> stores X). # starts a comment.
+            Addresses in decimal, 0x hex or 0b binary, split by commas, spaces or lines. Plain addresses are loads. <span className="mono">W 24=X</span> stores X. # starts a comment.
           </p>
           <div className="ca-buttons">
             <Button onClick={input.buildLoop}>Build an array loop</Button>
@@ -525,7 +525,7 @@ function LoopBuilder({ input }: { input: Input }) {
   return (
     <div className="ca-loop">
       <p className="ca-muted">
-        One loop over arrays, as the exam papers write it: <span className="mono">for (i = 0; i &lt; n; i++)</span>, then the accesses of one iteration in order.
+        Runs <span className="mono">for (i = 0; i &lt; n; i++)</span> over the arrays below.
       </p>
       {f.arrays.map((a, k) => (
         <fieldset key={k} className="ca-config ca-arr">
@@ -576,10 +576,10 @@ function LoopBuilder({ input }: { input: Input }) {
           <p className="ca-muted">{plural(input.accesses.length, 'access')}.</p>
           {hits.map((h) => (
             <Callout key={h.arrays.join()} kind={h.thrash ? 'trap' : 'note'} title={h.thrash ? `Thrashing: ${h.arrays.join(', ')}` : `${h.arrays.join(', ')} share a set`} cite="AY20/21 Q15; AY23/24 S2 Q18">
-              Their starts are a multiple of {fmtBytes(h.span)} apart (sets x block size), so on every iteration they land in the same {g?.mapping === 'direct' ? 'index' : 'set'} with
-              different tags.{' '}
+              Their starts are a multiple of {fmtBytes(h.span)} apart (sets x block size), so each iteration maps them to the same {g?.mapping === 'direct' ? 'index' : 'set'} with different
+              tags.{' '}
               {h.thrash
-                ? `${h.arrays.length} arrays take turns in ${plural(g?.ways ?? 1, 'way')}: each access throws out the block another array needs next, so their accesses keep missing.`
+                ? `${h.arrays.length} arrays share ${plural(g?.ways ?? 1, 'way')}, so each access evicts the block the next one needs.`
                 : `The set has ${plural(g?.ways ?? 1, 'way')}, enough to keep all ${h.arrays.length}.`}
             </Callout>
           ))}

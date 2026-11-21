@@ -72,7 +72,7 @@ type DetailTab = 'access' | 'totals' | 'notes'
 const DETAIL_TABS: { value: DetailTab; label: string }[] = [
   { value: 'access', label: 'Every access' },
   { value: 'totals', label: 'Tallies' },
-  { value: 'notes', label: 'Traps and conventions' },
+  { value: 'notes', label: 'Rules and traps' },
 ]
 
 export default function SimulatorTab({ intro, input }: { intro: ReactNode; input: Input }) {
@@ -115,7 +115,7 @@ export default function SimulatorTab({ intro, input }: { intro: ReactNode; input
             <>
               <ConfigBar cfg={input.cfg} setCfg={input.setCfg} core={false} />
               {trace && trace.geometry.ways > 1 ? (
-                <Toggle label="Way 0 holds the lower address" checked={byAddr === true} onChange={setByAddr} hint="Display order asked for in AY23/24 S1 Q20(b)" />
+                <Toggle label="Way 0 holds the lower address" checked={byAddr === true} onChange={setByAddr} hint="Order used in AY23/24 S1 Q20(b)" />
               ) : null}
               {trace ? <Geo trace={trace} /> : null}
             </>
@@ -389,7 +389,7 @@ function AccessStory({ trace, f, lv, tf }: { trace: Trace; f: Frame; lv: LabelVi
       ) : null}
       {coldValid ? (
         <Callout kind="trap" title="Valid, but still a cold miss" cite="L22 p45">
-          The line is valid and holds another block, but this block was never in the cache. A first access is always a cold miss.
+          The line holds another block, but this one was never in the cache. A first access is always cold.
         </Callout>
       ) : null}
       {notFull ? (
@@ -481,7 +481,7 @@ function Results({
               {score} of {frames.length} right
             </Chip>
             {typed.length !== frames.length ? <span className="ca-muted"> You gave {plural(typed.length, 'result')}; the trace has {frames.length}.</span> : null}
-            <span className="ca-muted"> Miss types follow the miss labels picked on the board.</span>
+            <span className="ca-muted"> Miss types use the board's miss labels.</span>
           </p>
         ) : null}
       </div>
@@ -601,7 +601,7 @@ function Notes({ trace }: { trace: Trace }) {
   return (
     <div className="ca-callouts">
       <Callout kind="trap" title="Cut the fields from the block number" cite="L22 p25-26">
-        Index = block number mod sets and tag = block number / sets, where block number = address {'>>'} offset bits. Not the byte address.
+        Block number = address {'>>'} offset bits. Index = block number mod sets, tag = block number / sets.
       </Callout>
       {g.mapping !== 'direct' && g.config.replacement === 'lru' ? (
         <Callout kind="trap" title="Hits refresh LRU too" cite="L23 p29-30">
@@ -609,7 +609,7 @@ function Notes({ trace }: { trace: Trace }) {
         </Callout>
       ) : null}
       <Callout kind="course" title="Two ways to name a repeat miss" cite="R12 p23-25; L23 p28">
-        R12 calls every repeat miss conflict in DM and set associative caches, and capacity in fully associative ones. The L23 p28 view asks whether an equal-size fully associative LRU cache would also miss. No key settles which one a paper wants; the app defaults to R12.
+        R12: a repeat miss is conflict in DM and set associative caches, capacity in FA. L23 p28: capacity if an equal-size FA LRU cache also misses, otherwise conflict. No key says which a paper wants, so the app defaults to R12.
       </Callout>
       {g.config.wordBytes !== 4 ? (
         <Callout kind="course" title={`${g.config.wordBytes}-byte words`} cite="T11 Q1">

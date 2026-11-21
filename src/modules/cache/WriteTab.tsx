@@ -84,7 +84,6 @@ export default function WriteTab({ intro, input }: { intro: ReactNode; input: In
                   'The trace has no accesses'
                 )}
               </p>
-              <p className="ca-muted">The same trace under each pairing of write policies.</p>
             </div>
             <div className="ca-quad">
               {runs.runs.map((run, k) => (
@@ -271,7 +270,7 @@ function Totals({ runs, buffered }: { runs: Run[]; buffered: boolean }) {
           { key: 'd', header: 'Dirty at end', align: 'right', mono: true, cell: (r) => r.s.dirtyAtEnd },
         ]}
       />
-      {buffered ? <p className="ca-muted">With the write buffer, each word write goes into the buffer and the memory controller writes it to memory (L22 p67).</p> : null}
+      {buffered ? <p className="ca-muted">Word writes go into the write buffer, and the memory controller drains it to memory (L22 p67).</p> : null}
     </>
   )
 }
@@ -280,10 +279,10 @@ function Rules() {
   return (
     <div className="ca-callouts">
       <Callout kind="course" title="Hit policy and miss policy are separate choices" cite="L22 p66-70; L23 p37">
-        On a write hit the write policy applies: write-through writes the cache and memory, write-back writes the cache only. On a write miss the write miss policy applies: write allocate loads the block first, write around (write no allocate) writes memory only. The slides fix no pairing.
+        Write hit: write-through writes the cache and memory, write-back writes the cache only. Write miss: write allocate loads the block first, write around (write no allocate) writes memory only. The slides fix no pairing.
       </Callout>
       <Callout kind="course" title="When a dirty block goes back to memory" cite="L22 p68">
-        Each block has one dirty bit. A write sets it to 1. Only when the block is replaced, and only if its dirty bit is 1, is the whole block written back. A clean eviction costs nothing.
+        Each block has one dirty bit, and a write sets it to 1. The whole block is written back when it is replaced, and only if its dirty bit is 1.
       </Callout>
       <Callout kind="trap" title="Write-back does not write every evicted block" cite="L22 p68">
         Blocks that were only read leave the cache without any memory write.
@@ -292,10 +291,10 @@ function Rules() {
         Without a buffer every store runs at memory speed. The write buffer lets the processor carry on while the memory controller drains it.
       </Callout>
       <Callout kind="trap" title="Read the paper's wording" cite="AY23/24 S2 Q18">
-        That paper says "write-back policy for write misses", mixing the two names. Decide which choice is the hit policy and which is the miss policy before you trace.
+        It says "write-back policy for write misses", mixing the two names. Work out which is the hit policy and which the miss policy before you trace.
       </Callout>
       <Callout kind="beyond" title="Traffic counts are the app's own">
-        The course treats write policies in words only. The counters, the buffer drawing and the rule that dirty blocks left at the end are not written back are this app's model.
+        The course describes write policies in words only. The counters, the buffer drawing and leaving dirty blocks unwritten at the end are the app's model.
       </Callout>
     </div>
   )

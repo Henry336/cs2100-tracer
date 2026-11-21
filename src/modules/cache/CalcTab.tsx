@@ -195,7 +195,7 @@ function FieldWidths() {
               {ft === 'ways' ? (
                 <div className="table-wrap">
                   <table className="dtable dtable-compact">
-                    <caption>Same size, more ways: each doubling moves one bit from the index to the tag (L23 p11-12, p26).</caption>
+                    <caption>Each doubling of the ways moves one bit from the index to the tag (L23 p11-12, p26).</caption>
                     <thead>
                       <tr>
                         <th>Organisation</th>

@@ -10,10 +10,10 @@ import './cache.css'
 type Tab = 'sim' | 'write' | 'compare' | 'calc'
 
 const TABS: { value: Tab; label: string; blurb: string }[] = [
-  { value: 'sim', label: 'Simulator', blurb: 'Step through a trace of loads and stores and watch each lookup, hit, miss and eviction.' },
-  { value: 'write', label: 'Write policies', blurb: 'Run the same trace under write-through and write-back, with write allocate and write around, and count the memory traffic.' },
-  { value: 'compare', label: 'Compare organisations', blurb: 'Run the same trace on direct mapped, set associative and fully associative caches of one size, and see which misses go away.' },
-  { value: 'calc', label: 'Calculators', blurb: 'Field widths, storage bits, average access time and the pipeline miss penalty, as the exam questions ask them.' },
+  { value: 'sim', label: 'Simulator', blurb: 'Step through loads and stores one access at a time.' },
+  { value: 'write', label: 'Write policies', blurb: 'One trace under all four write policy pairs, with the memory traffic counted.' },
+  { value: 'compare', label: 'Compare organisations', blurb: 'One trace on every associativity. See which misses go away.' },
+  { value: 'calc', label: 'Calculators', blurb: 'The cache sums exam questions ask for.' },
 ]
 
 export default function CachePage() {
@@ -22,7 +22,7 @@ export default function CachePage() {
   const current = TABS.find((t) => t.value === tab) ?? TABS[0]
   const intro = (
     <div className="ca-intro">
-      <p>{current.blurb} Click any underlined value to see how it was worked out. The first three tabs share one trace and cache.</p>
+      <p>{current.blurb} Click an underlined value to see its working.</p>
       <Tabs label="Cache tools" value={current.value} onChange={setTab} tabs={TABS} />
     </div>
   )

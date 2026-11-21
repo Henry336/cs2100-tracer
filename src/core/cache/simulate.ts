@@ -50,7 +50,7 @@ export const LIMITS = { accesses: 20_000, waysPerSet: 4096, wordsPerBlock: 4096,
 
 /** Hint shown when a loop is too long to step through. */
 export const REPEAT_HINT =
-  'Loop hit rates repeat every few blocks, so the same loop over a smaller array usually gives the same hit rate. Try two smaller sizes and check that they agree.'
+  'Loop hit rates repeat every few blocks, so a smaller array usually gives the same hit rate. Try two smaller sizes and check they agree.'
 
 /** Last entry of `at` that is <= i, or -1. */
 function lastAtOrBefore(at: number[], i: number): number {
@@ -613,7 +613,7 @@ export function simulate(config: CacheConfig, accesses: Access[]): Result<Trace>
               working:
                 `cold ${cold}, capacity ${capacity}, conflict ${conflict} (total ${misses})` +
                 (faOnly > 0
-                  ? `. The FA cache misses ${faMisses} times, so the L23 p28 formula gives capacity ${faMisses} - ${cold} = ${faMisses - cold}, but ${faOnly} of those FA misses are hits here, so they are not counted`
+                  ? `. The L23 p28 formula gives capacity ${faMisses} - ${cold} = ${faMisses - cold}, but ${faOnly} of the ${faMisses} FA misses are hits here, so they are left out`
                   : `. This matches the L23 p28 formula: capacity = FA misses - cold = ${faMisses} - ${cold}`),
               cite: 'L23 p28 (per-access labels follow R12 p23-25)',
             },
