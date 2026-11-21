@@ -12,8 +12,8 @@ import {
   storageBits,
 } from '../../core/cache'
 import { useUrlState } from '../../lib/url-state'
-import { Button, Callout, Chip, Legend, NumberField, Panel, Presets, Segmented, Select, TextField, Toggle, Workspace } from '../../ui/kit'
-import { AddressBar, Errors, W, plural, pow2Options } from './common'
+import { Button, Callout, Chip, Legend, NumberField, Panel, Presets, Segmented, Select, Tabs, TextField, Toggle, Workspace } from '../../ui/kit'
+import { AddressBar, BarSelect, Errors, W, plural, pow2Options } from './common'
 
 const KB = 1024
 const MB = KB * KB
@@ -76,6 +76,15 @@ function waysSelect(blocks: number) {
   return out
 }
 
+type FwTab = 'widths' | 'ways' | 'storage' | 'traps'
+
+const FW_TABS: { value: FwTab; label: string }[] = [
+  { value: 'widths', label: 'Field widths' },
+  { value: 'ways', label: 'More ways' },
+  { value: 'storage', label: 'Storage bits' },
+  { value: 'traps', label: 'Traps' },
+]
+
 function FieldWidths() {
   const [raw, setRaw] = useUrlState<unknown>('fw', FW)
   const [dirty, setDirty] = useUrlState<boolean>('sd', true)
@@ -105,94 +114,152 @@ function FieldWidths() {
     })
   }, [g])
 
+  const [rawFt, setFt] = useUrlState<FwTab>('ft', 'widths')
+  const ft: FwTab = FW_TABS.some((t) => t.value === rawFt) ? rawFt : 'widths'
+  const org = g ? (g.mapping === 'full' ? 'Fully associative' : g.mapping === 'direct' ? 'Direct mapped' : `${g.ways}-way`) : ''
+
   return (
     <>
-      <Panel title="Field widths" actions={<Presets presets={FW_PRESETS} onPick={(v) => setRaw({ ...FW, ...v })} />}>
-        <div className="ca-config">
-          <Select label="Memory size" value={String(fw.mem)} options={MEM_SIZES} onChange={(v) => set({ mem: Number(v) })} />
-          {!fw.mem ? <NumberField label="Address" value={fw.addr} min={1} max={48} suffix="bits" width="4em" onChange={(v) => set({ addr: v })} /> : null}
-          <Select label="Cache size" value={String(fw.cache)} options={pow2Options(2, 30)} onChange={(v) => set({ cache: Number(v) })} />
-          <Select label="Block size" value={String(fw.block)} options={pow2Options(0, 16)} onChange={(v) => set({ block: Number(v) })} />
-          <Select label="Word size" value={String(fw.word)} options={pow2Options(0, 3)} onChange={(v) => set({ word: Number(v) })} />
-          <Select label="Associativity" value={String(fw.ways)} options={waysSelect(blocks)} onChange={(v) => set({ ways: v === 'full' ? 'full' : Number(v) })} />
-          <TextField label="Address to split (optional)" value={text} onChange={(v) => set({ a: v })} placeholder="0x12345678" width="10em" />
+      <div className="ca-command-wrap">
+        <div className="ca-command-row">
+          <div className="ca-command glow-input">
+            <span className="ca-command-label">Cache</span>
+            <BarSelect label="Size" name="Cache size" value={String(fw.cache)} options={pow2Options(2, 30)} onChange={(v) => set({ cache: Number(v) })} />
+            <BarSelect label="Blocks of" name="Block size" value={String(fw.block)} options={pow2Options(0, 16)} onChange={(v) => set({ block: Number(v) })} />
+            <BarSelect label="Ways" name="Associativity" value={String(fw.ways)} options={waysSelect(blocks)} onChange={(v) => set({ ways: v === 'full' ? 'full' : Number(v) })} />
+          </div>
+          <Presets presets={FW_PRESETS} onPick={(v) => setRaw({ ...FW, ...v })} />
         </div>
-        {mem && !mem.ok ? <Errors list={mem.errors} /> : null}
-        {!geo.ok ? <Errors list={geo.errors} /> : null}
-        {addrError ? <Errors list={[addrError]} /> : null}
-        {g ? (
-          <div className="ca-calc">
-            <AddressBar g={g} split={split} />
-            <Legend
-              items={[
-                { signal: 'path', label: 'index: picks the set' },
-                { signal: 'data', label: 'offset: picks the byte in the block' },
-              ]}
-            />
-            <Facts
-              items={[
-                ...(mem && mem.ok ? [['Address width', <W e={mem.value.why}>{mem.value.bits} bits</W>] as [ReactNode, ReactNode]] : []),
-                ['Offset N', <W e={g.why.offset}>{g.offsetBits} bits</W>],
-                ['Block number', <W e={g.why.blockNumber}>{g.blockNumberBits} bits</W>],
-                ['Cache blocks', <W e={g.why.blocks}>{g.blocks}</W>],
-                ['Sets', <W e={g.why.sets}>{g.sets}</W>],
-                [g.mapping === 'direct' ? 'Index M' : 'Set index M', <W e={g.why.index}>{g.indexBits} bits</W>],
-                ['Tag', <W e={g.why.tag}>{g.tagBits} bits</W>],
-                ['Words per block', <W e={g.why.wordsPerBlock}>{g.wordsPerBlock}</W>],
-                ['Bit ranges', [g.ranges.tag, g.ranges.index, g.ranges.offset].map((r) => r?.text ?? '-').join(' | ')],
-                ...(split
-                  ? ([
-                      ['Block of the address', <W e={split.why.block}>{split.block}</W>],
-                      ['Word in block', <W e={split.why.word}>Word{split.wordInBlock}</W>],
-                    ] as [ReactNode, ReactNode][])
-                  : []),
-              ]}
-            />
-            <div className="table-wrap">
-              <table className="dtable dtable-compact">
-                <caption>Same size, more ways: each doubling moves one bit from the index to the tag (L23 p11-12, p26).</caption>
-                <thead>
-                  <tr>
-                    <th>Organisation</th>
-                    <th style={{ textAlign: 'right' }}>Sets</th>
-                    <th style={{ textAlign: 'right' }}>Index bits</th>
-                    <th style={{ textAlign: 'right' }}>Tag bits</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ladder.map((r) => (
-                    <tr key={String(r.ways)} className={String(r.ways) === String(g.mapping === 'full' ? 'full' : g.ways) ? 'row-path' : undefined}>
-                      <td>{r.ways === 1 ? 'Direct mapped' : r.ways === 'full' ? 'Fully associative' : `${r.ways}-way`}</td>
-                      <td className="mono" style={{ textAlign: 'right' }}>
-                        {r.sets}
-                      </td>
-                      <td className="mono" style={{ textAlign: 'right' }}>
-                        {r.index}
-                      </td>
-                      <td className="mono" style={{ textAlign: 'right' }}>
-                        {r.tag}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <details className="ca-more">
+          <summary>Address width and word size</summary>
+          <div className="ca-config">
+            <Select label="Memory size" value={String(fw.mem)} options={MEM_SIZES} onChange={(v) => set({ mem: Number(v) })} />
+            {!fw.mem ? <NumberField label="Address" value={fw.addr} min={1} max={48} suffix="bits" width="4em" onChange={(v) => set({ addr: v })} /> : null}
+            <Select label="Word size" value={String(fw.word)} options={pow2Options(0, 3)} onChange={(v) => set({ word: Number(v) })} />
+          </div>
+        </details>
+      </div>
+      {mem && !mem.ok ? <Errors list={mem.errors} /> : null}
+      {!geo.ok ? <Errors list={geo.errors} /> : null}
+      {g ? (
+        <>
+          <div className="ca-board canvas">
+            <div className="ca-board-bar">
+              <p className="ca-board-title">
+                <span>{mem && mem.ok ? <W e={mem.value.why}>{mem.value.bits}-bit address</W> : `${g.config.addressBits}-bit address`}</span>
+                <span className="ca-board-step">{org}</span>
+              </p>
+              <label className="ca-split glow-input">
+                <span className="ca-bar-label">Split an address</span>
+                <input className="mono" value={text} onChange={(e) => set({ a: e.target.value })} placeholder="0x12345678" spellCheck={false} autoComplete="off" />
+              </label>
+            </div>
+            {addrError ? <Errors list={[addrError]} /> : null}
+            <div className="ca-board-top">
+              <div className="ca-board-addr">
+                <AddressBar g={g} split={split} />
+                {split ? (
+                  <p className="ca-line">
+                    Block <W e={split.why.block}>{split.block}</W>, word in block <W e={split.why.word}>Word{split.wordInBlock}</W>.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            <div className="ca-board-foot">
+              <Legend
+                items={[
+                  { signal: 'path', label: 'index: picks the set' },
+                  { signal: 'data', label: 'offset: picks the byte in the block' },
+                ]}
+              />
             </div>
           </div>
-        ) : null}
-      </Panel>
-      {g && st ? (
-        <Panel title="Storage bits" actions={<Toggle label="Dirty bit (write-back)" checked={dirty === true} onChange={setDirty} />}>
-          <Facts
-            items={[
-              ['Bits per line', <W e={st.why.perLine}>{st.perLine.total}</W>],
-              ['Lines', st.lines],
-              ['Total', <W e={st.why.total}>{st.totalBits.toLocaleString('en')} bits</W>],
-              ['Data only', `${st.dataBits.toLocaleString('en')} bits (${fmtBytes(g.config.cacheBytes)})`],
-              ['Tag, valid and dirty', `${st.overheadBits.toLocaleString('en')} bits`],
-              ['Tag bits per set', <W e={st.why.tagBitsPerSet}>{st.tagBitsPerSet}</W>],
-            ]}
-          />
-        </Panel>
+          <section className="ca-details" aria-label="Field width tables">
+            <Tabs label="Tables" value={ft} onChange={setFt} tabs={FW_TABS} />
+            <div className="ca-detail-body">
+              {ft === 'widths' ? (
+                <Facts
+                  items={[
+                    ...(mem && mem.ok ? [['Address width', <W e={mem.value.why}>{mem.value.bits} bits</W>] as [ReactNode, ReactNode]] : []),
+                    ['Offset N', <W e={g.why.offset}>{g.offsetBits} bits</W>],
+                    ['Block number', <W e={g.why.blockNumber}>{g.blockNumberBits} bits</W>],
+                    ['Cache blocks', <W e={g.why.blocks}>{g.blocks}</W>],
+                    ['Sets', <W e={g.why.sets}>{g.sets}</W>],
+                    [g.mapping === 'direct' ? 'Index M' : 'Set index M', <W e={g.why.index}>{g.indexBits} bits</W>],
+                    ['Tag', <W e={g.why.tag}>{g.tagBits} bits</W>],
+                    ['Words per block', <W e={g.why.wordsPerBlock}>{g.wordsPerBlock}</W>],
+                    ['Bit ranges', [g.ranges.tag, g.ranges.index, g.ranges.offset].map((r) => r?.text ?? '-').join(' | ')],
+                  ]}
+                />
+              ) : null}
+              {ft === 'ways' ? (
+                <div className="table-wrap">
+                  <table className="dtable dtable-compact">
+                    <caption>Same size, more ways: each doubling moves one bit from the index to the tag (L23 p11-12, p26).</caption>
+                    <thead>
+                      <tr>
+                        <th>Organisation</th>
+                        <th style={{ textAlign: 'right' }}>Sets</th>
+                        <th style={{ textAlign: 'right' }}>Index bits</th>
+                        <th style={{ textAlign: 'right' }}>Tag bits</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ladder.map((r) => (
+                        <tr key={String(r.ways)} className={String(r.ways) === String(g.mapping === 'full' ? 'full' : g.ways) ? 'row-path' : undefined}>
+                          <td>{r.ways === 1 ? 'Direct mapped' : r.ways === 'full' ? 'Fully associative' : `${r.ways}-way`}</td>
+                          <td className="mono" style={{ textAlign: 'right' }}>
+                            {r.sets}
+                          </td>
+                          <td className="mono" style={{ textAlign: 'right' }}>
+                            {r.index}
+                          </td>
+                          <td className="mono" style={{ textAlign: 'right' }}>
+                            {r.tag}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+              {ft === 'storage' && st ? (
+                <div className="ca-results">
+                  <Toggle label="Dirty bit (write-back)" checked={dirty === true} onChange={setDirty} />
+                  <Facts
+                    items={[
+                      ['Bits per line', <W e={st.why.perLine}>{st.perLine.total}</W>],
+                      ['Lines', st.lines],
+                      ['Total', <W e={st.why.total}>{st.totalBits.toLocaleString('en')} bits</W>],
+                      ['Data only', `${st.dataBits.toLocaleString('en')} bits (${fmtBytes(g.config.cacheBytes)})`],
+                      ['Tag, valid and dirty', `${st.overheadBits.toLocaleString('en')} bits`],
+                      ['Tag bits per set', <W e={st.why.tagBitsPerSet}>{st.tagBitsPerSet}</W>],
+                    ]}
+                  />
+                </div>
+              ) : null}
+              {ft === 'traps' ? (
+                <div className="ca-callouts">
+                  <Callout kind="trap" title="Sets, not blocks" cite="L23 p11-12">
+                    In an N-way cache the set index is log2(number of sets). Using log2(number of blocks) gives too many index bits.
+                  </Callout>
+                  <Callout kind="trap" title="Fully associative has no index" cite="L23 p26-28; AY23/24 S1 Q13">
+                    The tag is the whole block number. FA still has cold and capacity misses, but no conflict misses.
+                  </Callout>
+                  <Callout kind="course" title="Address width from memory size" cite="R12 p40-42">
+                    Memory is byte addressed, so 2^k bytes need k address bits: 4 GB gives 32, 16 GB gives 34.
+                  </Callout>
+                  <Callout kind="trap" title="Check the word size" cite="T11 Q1">
+                    T11 uses 2-byte words, so a 2-word block is 4 bytes and its words are M[4] and M[6].
+                  </Callout>
+                  <Callout kind="beyond" title="Multilevel caches" cite="L23 p38-41">
+                    The L1, L2 and L3 presets come from an exploration slide. Only their field splits are worked here.
+                  </Callout>
+                </div>
+              ) : null}
+            </div>
+          </section>
+        </>
       ) : null}
     </>
   )
@@ -443,6 +510,9 @@ function PipelineCalc() {
                 {n}
               </Callout>
             ))}
+            <Callout kind="trap" title="beq never waits for the data cache" cite="R12 p48; AY25/26 Q20(d)">
+              Only lw and sw use data memory, so a data-cache miss cannot slow beq.
+            </Callout>
           </div>
         </>
       )}
@@ -450,40 +520,27 @@ function PipelineCalc() {
   )
 }
 
+type Tool = 'fw' | 'drill' | 'tag' | 'amat' | 'pipe'
+
+const TOOLS: { value: Tool; label: string }[] = [
+  { value: 'fw', label: 'Field widths' },
+  { value: 'drill', label: 'Drill' },
+  { value: 'tag', label: 'Solve from the tag' },
+  { value: 'amat', label: 'Average access time' },
+  { value: 'pipe', label: 'Pipeline and cache' },
+]
+
 export default function CalcTab({ intro }: { intro: ReactNode }) {
+  const [raw, setTool] = useUrlState<Tool>('kt', 'fw')
+  const tool: Tool = TOOLS.some((t) => t.value === raw) ? raw : 'fw'
   return (
-    <Workspace
-      title="Cache"
-      lectures="L22 p20-30, L23 p11-27, R12 p40-48"
-      intro={intro}
-      inspector={
-        <div className="ca-callouts">
-          <Callout kind="trap" title="Sets, not blocks" cite="L23 p11-12">
-            In an N-way cache the set index is log2(number of sets). Using log2(number of blocks) gives too many index bits.
-          </Callout>
-          <Callout kind="trap" title="Fully associative has no index" cite="L23 p26-28; AY23/24 S1 Q13">
-            The tag is the whole block number. FA still has cold and capacity misses, but no conflict misses.
-          </Callout>
-          <Callout kind="course" title="Address width from memory size" cite="R12 p40-42">
-            Memory is byte addressed, so 2^k bytes need k address bits: 4 GB gives 32, 16 GB gives 34.
-          </Callout>
-          <Callout kind="trap" title="Check the word size" cite="T11 Q1">
-            T11 uses 2-byte words, so a 2-word block is 4 bytes and its words are M[4] and M[6].
-          </Callout>
-          <Callout kind="trap" title="beq never waits for the data cache" cite="R12 p48; AY25/26 Q20(d)">
-            Only lw and sw use data memory, so a data-cache miss cannot slow beq.
-          </Callout>
-          <Callout kind="beyond" title="Multilevel caches" cite="L23 p38-41">
-            The L1, L2 and L3 presets come from an exploration slide. Only their field splits are worked here.
-          </Callout>
-        </div>
-      }
-    >
-      <FieldWidths />
-      <Drill />
-      <FromTag />
-      <Amat />
-      <PipelineCalc />
+    <Workspace title="Cache" lectures="L22 p20-30, L23 p11-27, R12 p40-48" intro={intro}>
+      <Tabs label="Calculators" value={tool} onChange={setTool} tabs={TOOLS} />
+      {tool === 'fw' ? <FieldWidths /> : null}
+      {tool === 'drill' ? <Drill /> : null}
+      {tool === 'tag' ? <FromTag /> : null}
+      {tool === 'amat' ? <Amat /> : null}
+      {tool === 'pipe' ? <PipelineCalc /> : null}
     </Workspace>
   )
 }

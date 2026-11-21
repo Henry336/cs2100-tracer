@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react'
+import { useLayoutEffect, useMemo, useState, type ReactNode, type RefObject } from 'react'
 import {
   bin,
   fmtBytes,
@@ -20,6 +20,7 @@ import {
 } from '../../core/cache'
 import { useUrlState } from '../../lib/url-state'
 import { Button, Callout, CodeEditor, NumberField, Presets, Segmented, Select, TextField, Toggle, Why } from '../../ui/kit'
+import type { Stepper } from '../../ui/stepper'
 import { DEFAULT_LOOP, collisions, loopTrace, normLoop, type LoopForm, type LoopRun } from './loop'
 import { DEFAULT_CFG, PRESET_BY_ID, TRACE_PRESETS, normCfg, toConfig, toText, type Cfg, type TracePreset } from './presets'
 
@@ -200,32 +201,210 @@ export function waysOptions(blocks: number, max = 16): { value: number | 'full';
   return out
 }
 
+/** Apply a config change, keeping the associativity valid when the size shrinks under it. */
+export function patchCfg(cfg: Cfg, patch: Partial<Cfg>): Cfg {
+  const next = { ...cfg, ...patch }
+  const b = next.cache / next.block
+  if (typeof next.ways === 'number' && next.ways > 1 && next.ways >= b) next.ways = b > 1 ? 'full' : 1
+  return next
+}
+
+const blocksOf = (cfg: Cfg) => (isPow2(cfg.cache) && isPow2(cfg.block) ? Math.max(1, cfg.cache / cfg.block) : 1)
+
+/** A small labelled select for the one-line command bar. */
+export function BarSelect({ label, name, value, options, onChange }: { label: string; name: string; value: string; options: { value: string; label: string }[]; onChange: (v: string) => void }) {
+  return (
+    <label className="ca-bar-field">
+      <span className="ca-bar-label">{label}</span>
+      <select aria-label={name} value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+/** The one-line cache picker above the board: size, block size and (optionally) associativity. */
+export function CommandBar({ input, ways = true }: { input: Input; ways?: boolean }) {
+  const { cfg, setCfg } = input
+  const set = (patch: Partial<Cfg>) => setCfg(patchCfg(cfg, patch))
+  const bad = Object.keys(input.lineErrors).length > 0 || input.genErrors.length > 0
+  return (
+    <div className="ca-command glow-input">
+      <span className="ca-command-label">Cache</span>
+      <BarSelect label="Size" name="Cache size" value={String(cfg.cache)} options={CACHE_SIZES} onChange={(v) => set({ cache: Number(v) })} />
+      <BarSelect label="Blocks of" name="Block size" value={String(cfg.block)} options={BLOCK_SIZES} onChange={(v) => set({ block: Number(v) })} />
+      {ways ? (
+        <BarSelect
+          label="Ways"
+          name="Associativity"
+          value={String(cfg.ways)}
+          options={waysOptions(blocksOf(cfg)).map((o) => ({ value: String(o.value), label: o.value === 1 ? 'Direct mapped' : o.value === 'full' ? 'Fully associative' : o.label }))}
+          onChange={(v) => set({ ways: v === 'full' ? 'full' : Number(v) })}
+        />
+      ) : null}
+      <span className={`ca-command-word mono${bad ? ' is-bad' : ''}`}>{bad ? 'trace has errors' : plural(input.accesses.length, 'access', 'accesses')}</span>
+    </div>
+  )
+}
+
+/** Everything else (the trace text, word size, policies) folds into one disclosure, closed unless the trace has errors. */
+export function Setup({ input, config, rows }: { input: Input; config: ReactNode; rows?: number }) {
+  const bad = Object.keys(input.lineErrors).length > 0 || input.genErrors.length > 0
+  return (
+    <details className="ca-more" open={bad || undefined}>
+      <summary>Edit the trace and options</summary>
+      <div className="ca-setup">
+        <section>
+          <h3 className="ca-h">Trace</h3>
+          <TraceEditor input={input} rows={rows} />
+        </section>
+        <section>
+          <h3 className="ca-h">More options</h3>
+          {config}
+        </section>
+      </div>
+    </details>
+  )
+}
+
+/** The primary action inside a board: a labelled Play pill and a quiet Next button, both driving the page stepper. */
+export function BoardPlay({ stepper, start, next = 'Next access' }: { stepper: Stepper; start: string; next?: string }) {
+  if (stepper.count === 0) return null
+  const atEnd = stepper.index >= stepper.count - 1
+  const label = stepper.playing ? 'Pause' : atEnd ? 'Run it again' : stepper.index === 0 ? start : 'Play from here'
+  return (
+    <div className="ca-board-play">
+      <button type="button" className="ca-play" onClick={stepper.toggle} data-playing={stepper.playing}>
+        {stepper.playing ? (
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4 3h3v10H4zM9 3h3v10H9z" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4.5 2.8l9 5.2-9 5.2z" />
+          </svg>
+        )}
+        {label}
+      </button>
+      {!atEnd ? (
+        <button type="button" className="ca-next" onClick={stepper.next}>
+          {next}
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M3 8h10M9 4l4 4-4 4" />
+          </svg>
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+/* ---------- Light along the lookup and the line fill ---------- */
+
+interface Wire {
+  id: string
+  d: string
+  cls: string
+}
+
+/**
+ * Wires drawn over an HTML board: address field to the set it selects, memory to the line being filled,
+ * the line back to memory on a write. Anchors are data-wire attributes inside the board.
+ * shortcut: re-measures on board resize and step change only, not on a sideways scroll of the table.
+ */
+export function BoardWires({
+  board,
+  step,
+  read,
+  write,
+  layout = '',
+}: {
+  board: RefObject<HTMLDivElement | null>
+  step: number
+  read: boolean
+  write: boolean
+  /** Anything that can move the anchors without resizing the board (tag format, way order). */
+  layout?: string
+}) {
+  const [box, setBox] = useState<{ w: number; h: number; wires: Wire[] } | null>(null)
+  useLayoutEffect(() => {
+    const el = board.current
+    if (!el) return
+    const measure = () => {
+      const b = el.getBoundingClientRect()
+      const r = (s: string) => el.querySelector(`[data-wire="${s}"]`)?.getBoundingClientRect()
+      const src = r('src')
+      const row = r('row')
+      const wrap = r('table')
+      const memo = r('mem')
+      const wires: Wire[] = []
+      if (row && wrap) {
+        const ry = row.top + row.height / 2 - b.top
+        const left = wrap.left - b.left
+        const right = Math.min(row.right, wrap.right) - b.left
+        if (src) {
+          const sx = Math.min(Math.max(src.left + src.width / 2, b.left + 8), b.right - 8) - b.left
+          const sy = src.bottom - b.top
+          wires.push({ id: 'look', d: `M${sx} ${sy} V${sy + 10} H${left - 10} V${ry} H${left + 4}`, cls: '' })
+        }
+        if (memo) {
+          const mx = memo.left + memo.width / 2 - b.left
+          const my = memo.bottom - b.top
+          if (read) wires.push({ id: 'read', d: `M${mx} ${my} V${my + 10} H${right + 10} V${ry} H${right - 4}`, cls: 'ca-wire-r' })
+          if (write) wires.push({ id: 'write', d: `M${right - 4} ${ry + 4} H${right + 16} V${my + 16} H${mx + 6} V${my}`, cls: 'ca-wire-w' })
+        }
+      }
+      setBox({ w: b.width, h: b.height, wires })
+    }
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [board, step, read, write, layout])
+  if (!box || !box.wires.length) return null
+  return (
+    <svg className="ca-wires" width={box.w} height={box.h} viewBox={`0 0 ${box.w} ${box.h}`} aria-hidden="true">
+      <g className="flow-draw" key={`d${step}`}>
+        {box.wires.map((w) => (
+          <path key={w.id} d={w.d} pathLength={1} className={w.cls || undefined} />
+        ))}
+      </g>
+      <g className="flow-packets" key={`p${step}`}>
+        {box.wires.map((w, i) => (
+          <path key={w.id} d={w.d} pathLength={1} className={w.cls || undefined} style={{ animationDelay: `${0.7 + i * 0.25}s` }} />
+        ))}
+      </g>
+    </svg>
+  )
+}
+
 export function ConfigBar({
   cfg,
   setCfg,
   ways = true,
   writePolicies = true,
+  core = true,
 }: {
   cfg: Cfg
   setCfg: (c: Cfg) => void
   ways?: boolean
   writePolicies?: boolean
+  /** false leaves out cache size, block size and associativity, which the command bar already shows. */
+  core?: boolean
 }) {
-  const blocks = isPow2(cfg.cache) && isPow2(cfg.block) ? Math.max(1, cfg.cache / cfg.block) : 1
-  const set = (patch: Partial<Cfg>) => {
-    const next = { ...cfg, ...patch }
-    const b = next.cache / next.block
-    // Keep the associativity valid when the size shrinks under it.
-    if (typeof next.ways === 'number' && next.ways > 1 && next.ways >= b) next.ways = b > 1 ? 'full' : 1
-    setCfg(next)
-  }
+  const blocks = blocksOf(cfg)
+  const set = (patch: Partial<Cfg>) => setCfg(patchCfg(cfg, patch))
   return (
     <div className="ca-config">
-      <Select label="Cache size" value={String(cfg.cache)} options={CACHE_SIZES} onChange={(v) => set({ cache: Number(v) })} />
-      <Select label="Block size" value={String(cfg.block)} options={BLOCK_SIZES} onChange={(v) => set({ block: Number(v) })} />
+      {core ? <Select label="Cache size" value={String(cfg.cache)} options={CACHE_SIZES} onChange={(v) => set({ cache: Number(v) })} /> : null}
+      {core ? <Select label="Block size" value={String(cfg.block)} options={BLOCK_SIZES} onChange={(v) => set({ block: Number(v) })} /> : null}
       <Select label="Word size" value={String(cfg.word)} options={WORD_SIZES} onChange={(v) => set({ word: Number(v) })} />
       <NumberField label="Address" value={cfg.addr} min={1} max={48} suffix="bits" width="4em" onChange={(v) => set({ addr: v })} />
-      {ways ? <Segmented label="Associativity" value={cfg.ways} options={waysOptions(blocks)} onChange={(v) => set({ ways: v })} /> : null}
+      {ways && core ? <Segmented label="Associativity" value={cfg.ways} options={waysOptions(blocks)} onChange={(v) => set({ ways: v })} /> : null}
       {!ways || cfg.ways !== 1 ? (
         <Segmented
           label="Replacement"
@@ -418,17 +597,19 @@ function LoopBuilder({ input }: { input: Input }) {
 
 /* ---------- Address breakdown ---------- */
 
-export function AddressBar({ g, split }: { g: Geometry; split?: AddressSplit }) {
+export function AddressBar({ g, split, compact = false }: { g: Geometry; split?: AddressSplit; compact?: boolean }) {
   const parts = [
     { key: 'tag', name: 'Tag', width: g.tagBits, range: g.ranges.tag, field: split?.tag, why: split?.why.tag ?? g.why.tag },
     { key: 'index', name: g.mapping === 'direct' ? 'Index' : 'Set index', width: g.indexBits, range: g.ranges.index, field: split?.index, why: split?.why.set ?? g.why.index },
     { key: 'offset', name: 'Offset', width: g.offsetBits, range: g.ranges.offset, field: split?.offset, why: split?.why.offset ?? g.why.offset },
   ].filter((p) => p.width > 0)
+  // The lookup wire leaves from the field that picks the set: the index, or the tag when there is none (FA).
+  const src = parts.some((p) => p.key === 'index') ? 'index' : 'tag'
   return (
     <div className="ca-addr">
       <div className="ca-addr-bar" role="group" aria-label="Address fields">
         {parts.map((p) => (
-          <div key={p.key} className={`ca-seg ca-seg-${p.key}`} style={{ flexGrow: p.width, minWidth: `calc(${p.width}ch + 14px)` }}>
+          <div key={p.key} className={`ca-seg ca-seg-${p.key}`} data-wire={p.key === src ? 'src' : undefined} style={{ flexGrow: p.width, minWidth: `calc(${p.width}ch + 14px)` }}>
             <div className="ca-seg-head">
               <span>{p.name}</span>
               <span className="mono">{p.range?.text}</span>
@@ -438,15 +619,17 @@ export function AddressBar({ g, split }: { g: Geometry; split?: AddressSplit }) 
           </div>
         ))}
       </div>
+      {compact && g.mapping !== 'full' ? null : (
       <p className="ca-line">
-        {parts.map((p, i) => (
+        {compact ? null : parts.map((p, i) => (
           <span key={p.key}>
             {i ? ', ' : ''}
             {p.name.toLowerCase()} <W e={p.why}>{p.field ? p.field.value : `${p.width} bit${p.width === 1 ? '' : 's'}`}</W>
           </span>
         ))}
-        {g.mapping === 'full' ? '. Fully associative: no index field, the tag is the whole block number (L23 p26).' : '.'}
+        {g.mapping === 'full' ? `${compact ? '' : '. '}Fully associative: no index field, the tag is the whole block number (L23 p26).` : '.'}
       </p>
+      )}
     </div>
   )
 }
@@ -519,7 +702,7 @@ export function CacheTable({
   const orderName = g.config.replacement === 'lru' ? 'LRU to MRU' : 'Oldest to newest'
 
   return (
-    <div className="table-wrap">
+    <div className="table-wrap" data-wire="table">
       <table className="dtable dtable-compact ca-cache">
         {caption || hiddenSets > 0 || windowed ? (
           <caption>
@@ -561,7 +744,7 @@ export function CacheTable({
             const isCur = s.index === cur?.set
             const cp = isCur ? curPos(lines) : -1
             return (
-              <tr key={s.index} className={isCur ? 'row-path' : undefined}>
+              <tr key={s.index} className={isCur ? 'row-path' : undefined} data-wire={isCur ? 'row' : undefined}>
                 <td className="mono">{s.index}</td>
                 {positions.map((p) => (
                   <LineCells

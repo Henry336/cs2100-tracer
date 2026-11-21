@@ -34,6 +34,17 @@ describe('cache page renders', () => {
     expect(renderToString(<CalcTab intro={null} />)).toContain('Storage bits')
   })
 
+  it('each stepping tab puts its Play pill inside the board', () => {
+    const sim = renderToString(<WithInput Tab={SimulatorTab} />)
+    expect(sim).toContain('Run this trace')
+    expect(sim).toContain('data-wire="src"')
+    expect(sim).toContain('data-wire="row"')
+    expect(renderToString(<WithInput Tab={WriteTab} />)).toContain('flow-draw')
+    const cmp = renderToString(<WithInput Tab={CompareTab} />)
+    expect(cmp).toContain('Run the trace on every cache')
+    expect(cmp).toContain('ca-strip')
+  })
+
   it('every preset simulates and its cache table renders', () => {
     for (const p of TRACE_PRESETS) {
       const t = run(p.id)
