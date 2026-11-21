@@ -1,6 +1,6 @@
 // Tab 1: the cycle grid with stalls, flushes and forwarding, the reasons, totals and an answer check.
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { regLabel, type InstrResult, type PipelineTrace } from '../../core/pipeline'
+import { STAGES, regLabel, type InstrResult, type PipelineTrace, type Stage, type StallKind } from '../../core/pipeline'
 import { useUrlState } from '../../lib/url-state'
 import { Button, Callout, Chip, Legend, Panel, Segmented, TextField, Workspace } from '../../ui/kit'
 import { useStepper } from '../../ui/stepper'
@@ -277,11 +277,94 @@ export function Traps({ trace }: { trace: PipelineTrace }) {
   )
 }
 
+type View = 'actual' | 'ideal' | 'compare'
+
+/** The same instruction stream with no stalls or flushes: instruction k is fetched in cycle k (L20 p32). */
+export function idealTrace(t: PipelineTrace): PipelineTrace {
+  const at = (k: number) => Object.fromEntries(STAGES.map((s, j) => [s, k + 1 + j])) as Record<Stage, number>
+  return {
+    ...t,
+    rows: t.rows.filter((r) => !r.wrongPath).map((r, k) => ({ ...r, stages: at(k), flushedAt: undefined })),
+    instructions: t.instructions.map((i, k) => ({ ...i, stages: at(k), stalls: [], delay: 0 })),
+    frames: [],
+    totals: { ...t.totals, cycles: t.totals.ideal },
+  }
+}
+
+const CAUSE_TEXT: Record<StallKind, string> = {
+  raw: 'RAW data hazard',
+  'load-use': 'load-use (lw value ready only after MEM)',
+  'branch-operand': 'branch operand not ready for the early branch',
+  'store-data': 'store data not ready',
+  branch: 'waiting for a branch to be decided',
+  jump: 'waiting for a jump target',
+}
+
+/** Ideal versus actual, with the gap split by cause. */
+export function IdealCompare({ trace }: { trace: PipelineTrace }) {
+  const x = trace.totals
+  const other = x.stallCycles - x.dataStallCycles - x.controlStallCycles
+  const delayed = trace.instructions.filter((i) => i.delay > 0)
+  return (
+    <div className="pl-pad">
+      <dl className="pl-facts">
+        <div>
+          <dt>Ideal, no stalls or flushes (I + 4)</dt>
+          <dd className="mono">
+            <W e={x.why.ideal}>{x.ideal}</W>
+          </dd>
+        </div>
+        <div>
+          <dt>+ data stall cycles</dt>
+          <dd className="mono">{x.dataStallCycles}</dd>
+        </div>
+        <div>
+          <dt>+ control stall cycles{x.flushed ? `, ${plural(x.flushed, 'fetch', 'fetches')} flushed` : ''}</dt>
+          <dd className="mono">{x.controlStallCycles}</dd>
+        </div>
+        {other ? (
+          <div>
+            <dt>+ other</dt>
+            <dd className="mono">{other}</dd>
+          </div>
+        ) : null}
+        <div>
+          <dt>= actual total</dt>
+          <dd className="mono pl-big">
+            <W e={x.why.cycles}>{x.cycles}</W>
+          </dd>
+        </div>
+      </dl>
+      {delayed.length ? (
+        <ul className="pl-list">
+          {delayed.map((i) => {
+            const kind = (i.stalls.find((s) => s.binding) ?? i.stalls[0])?.kind
+            return (
+              <li key={i.uid}>
+                <span className="mono">
+                  {i.name} {i.text}
+                </span>
+                : <W e={i.delayWhy}>+{i.delay}</W>
+                {kind ? `, ${CAUSE_TEXT[kind]}` : ''}
+              </li>
+            )
+          })}
+        </ul>
+      ) : (
+        <p className="pl-muted">Nothing waits, so the actual run is already ideal.</p>
+      )}
+    </div>
+  )
+}
+
 export default function DiagramTab({ intro, p }: { intro: ReactNode; p: ProgramState }) {
   const t = p.trace
   const stepper = useCycleStepper(t)
   const frame = t.frames[stepper.index]
   const [names, setNames] = useUrlState<StageNames>('names', 'long')
+  const [view, setView] = useUrlState<View>('view', 'actual')
+  const ideal = useMemo(() => idealTrace(t), [t])
+  const idealCycle = frame && frame.cycle <= t.totals.ideal ? frame.cycle : undefined
   const marks = useMemo(() => frameMarks(t.frames), [t.frames])
   return (
     <Workspace
@@ -308,23 +391,58 @@ export default function DiagramTab({ intro, p }: { intro: ReactNode; p: ProgramS
       <Panel
         title="Pipeline diagram"
         actions={
-          <Segmented
-            label="Stage names"
-            value={names}
-            onChange={setNames}
-            options={[
-              { value: 'long', label: 'IF ID EX' },
-              { value: 'short', label: 'F D E' },
-              { value: 'units', label: 'IM Reg ALU', title: 'The unit each stage uses, as drawn in L21 p6 and p18' },
-            ]}
-          />
+          <div className="pl-row">
+            <Segmented
+              label="Show"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: 'actual', label: 'Actual' },
+                { value: 'ideal', label: 'Ideal', title: 'The same instructions with no stalls or flushes: I + 4 cycles' },
+                { value: 'compare', label: 'Compare', title: 'Ideal and actual together, with the difference split by cause' },
+              ]}
+            />
+            <Segmented
+              label="Stage names"
+              value={names}
+              onChange={setNames}
+              options={[
+                { value: 'long', label: 'IF ID EX' },
+                { value: 'short', label: 'F D E' },
+                { value: 'units', label: 'IM Reg ALU', title: 'The unit each stage uses, as drawn in L21 p6 and p18' },
+              ]}
+            />
+          </div>
         }
         flush
       >
         <div className="pl-pad">
-          <GridLegend forwarding={t.options.forwarding} />
+          {view === 'ideal' ? (
+            <p className="pl-muted">
+              Ideal: each instruction starts one cycle after the one before, with no stalls or flushes. {t.totals.instructions} instructions take {t.totals.ideal} cycles (I + 4, L20 p32); the actual run takes {t.totals.cycles}.
+            </p>
+          ) : (
+            <GridLegend forwarding={t.options.forwarding} />
+          )}
         </div>
-        {t.ok ? <PipelineGrid trace={t} cycle={frame?.cycle} onPick={(c) => stepper.set(c - 1)} names={names} /> : <p className="pl-pad pl-err">Fix the code to see the diagram.</p>}
+        {!t.ok ? (
+          <p className="pl-pad pl-err">Fix the code to see the diagram.</p>
+        ) : view === 'ideal' ? (
+          <PipelineGrid trace={ideal} cycle={idealCycle} names={names} label="Ideal pipeline diagram" />
+        ) : (
+          <>
+            {view === 'compare' ? <h3 className="pl-pad pl-subhead">Actual: {t.totals.cycles} cycles</h3> : null}
+            <PipelineGrid trace={t} cycle={frame?.cycle} onPick={(c) => stepper.set(c - 1)} names={names} />
+            {view === 'compare' ? (
+              <>
+                <h3 className="pl-pad pl-subhead">Ideal: {t.totals.ideal} cycles, no stalls or flushes</h3>
+                <PipelineGrid trace={ideal} cycle={idealCycle} names={names} label="Ideal pipeline diagram" />
+                <h3 className="pl-pad pl-subhead">Ideal to actual: +{t.totals.stallCycles}, by cause</h3>
+                <IdealCompare trace={t} />
+              </>
+            ) : null}
+          </>
+        )}
       </Panel>
       <Panel title={frame ? `Cycle ${frame.cycle}: what happens` : 'Cycle'}>
         <EventList frame={frame} />

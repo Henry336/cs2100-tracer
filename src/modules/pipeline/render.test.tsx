@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { PRESETS } from './presets'
 import BranchesTab from './BranchesTab'
 import DatapathTab from './DatapathTab'
-import DiagramTab from './DiagramTab'
+import DiagramTab, { idealTrace } from './DiagramTab'
 import ExamTab, { changedLine, nopListing, replaceInstruction } from './ExamTab'
 import { tracePipeline } from '../../core/pipeline'
 import HazardsTab from './HazardsTab'
@@ -57,5 +57,18 @@ describe('pipeline page renders', () => {
     expect(r.stream.stopAfter).toEqual({ instr: 'i20', occurrence: 2 })
     expect(r.stream.regs).toEqual({ 8: 5 })
     expect(parseRun({ regs: '', mem: '', outcomes: 'maybe', stop: '4', occ: 1 }).errors.outcomes).toBeTruthy()
+  })
+})
+
+describe('ideal view', () => {
+  it('redraws the same stream with no stalls or flushes in I + 4 cycles', () => {
+    const src = ['lw $1, 0($2)', 'add $3, $1, $1', 'beq $3, $0, L', 'add $4, $4, $4', 'L: sub $5, $5, $5'].join('\n')
+    const t = tracePipeline(src, { forwarding: true, prediction: 'not-taken' })
+    expect(t.ok).toBe(true)
+    const i = idealTrace(t)
+    expect(i.totals.cycles).toBe(t.totals.instructions + 4)
+    expect(i.rows.every((r) => !r.wrongPath)).toBe(true)
+    i.rows.forEach((r, k) => expect(r.stages).toEqual({ IF: k + 1, ID: k + 2, EX: k + 3, MEM: k + 4, WB: k + 5 }))
+    expect(t.totals.ideal + t.totals.dataStallCycles + t.totals.controlStallCycles).toBe(t.totals.cycles)
   })
 })
