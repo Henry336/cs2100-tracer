@@ -3,7 +3,8 @@ import { useMemo, type ReactNode } from 'react'
 import { parseMemInit, parseRegInit, type AsmError } from '../../core/mips'
 import { normalizeOptions, tracePipeline, type CycleFrame, type Explain, type PipelineOptions, type PipelineTrace, type StreamOptions } from '../../core/pipeline'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, CodeEditor, NumberField, Panel, Presets, Segmented, TextField, Toggle, Why } from '../../ui/kit'
+import { Callout, CodeEditor, NumberField, Presets, Segmented, Tabs, TextField, Toggle, Why } from '../../ui/kit'
+import type { Stepper } from '../../ui/stepper'
 import { DEFAULT_PRESET, PRESETS, type FlatPreset, type RunSettings } from './presets'
 
 /** A value whose derivation is one engine Explain. */
@@ -114,61 +115,62 @@ export function lineMarks(trace: PipelineTrace, frame: CycleFrame | undefined): 
   return marks
 }
 
-/** Code editor, presets and run settings (initial values, branch outcomes, where to stop). */
-export function ProgramPanel({ p, marks, title = 'Program' }: { p: ProgramState; marks?: Record<number, 'data' | 'stall' | 'flush'>; title?: string }) {
+/** The preset picker, for the Workspace toolbar (as on the datapath page). */
+export function PresetPicker({ p }: { p: ProgramState }) {
+  return <Presets presets={PRESETS.map((x) => ({ name: x.name, source: x.cite, value: x }))} onPick={(v) => p.load(v)} />
+}
+
+/** Code editor and run settings (initial values, branch outcomes, where to stop). */
+export function ProgramFields({ p, marks }: { p: ProgramState; marks?: Record<number, 'data' | 'stall' | 'flush'> }) {
   const { run, setRun, runErrors } = p
   const set = (k: keyof RunSettings, v: string | number) => setRun({ ...run, [k]: v })
   const lines = p.src.split('\n').length
   return (
-    <Panel
-      title={title}
-      actions={<Presets presets={PRESETS.map((x) => ({ name: x.name, source: x.cite, value: x }))} onPick={(v) => p.load(v)} />}
-    >
-      <div className="pl-program">
-        <CodeEditor label="MIPS code (labels, # i3 or #inst A tags name the rows)" value={p.src} onChange={p.setSrc} rows={Math.min(14, Math.max(6, lines))} marks={marks} errors={errorMap(p.trace.errors)} />
-        {p.preset ? (
-          <p className="pl-muted">
-            {p.presetIntact ? 'Loaded: ' : 'Edited since loading: '}
-            {p.preset.name} ({p.preset.cite}){p.preset.official ? '' : ', derived (no key)'}
-          </p>
-        ) : null}
-        <details className="pl-details">
-          <summary>Run settings: registers, memory, branch outcomes, where to stop</summary>
-          <div className="pl-run">
-            <label className="field pl-area">
-              <span className="control-label">Initial registers (one $t0 = 5 per line)</span>
-              <textarea className="mono" rows={3} value={run.regs} spellCheck={false} onChange={(e) => set('regs', e.target.value)} />
-              {runErrors.regs ? <span className="pl-err">{runErrors.regs}</span> : null}
-            </label>
-            <label className="field pl-area">
-              <span className="control-label">Initial memory (address: word, word, ...)</span>
-              <textarea className="mono" rows={3} value={run.mem} spellCheck={false} onChange={(e) => set('mem', e.target.value)} />
-              {runErrors.mem ? <span className="pl-err">{runErrors.mem}</span> : null}
-            </label>
-            <div className="pl-row">
-              <TextField label="Branch outcomes in order (T or N; empty runs the code)" value={run.outcomes} onChange={(v) => set('outcomes', v)} placeholder="T N T" />
-              <TextField label="Stop after instruction" value={run.stop} onChange={(v) => set('stop', v)} placeholder="i20 or 4" width="7em" />
-              <NumberField label="Its execution number" value={run.occ || 1} min={1} onChange={(v) => set('occ', v)} />
-            </div>
-            {runErrors.outcomes ? <span className="pl-err">{runErrors.outcomes}</span> : null}
-            <p className="pl-muted">
-              With outcomes given, the code is walked without values, so the pipeline registers show register names only. The count stops at the last stage of the stop instruction, as AY23/24 S2 Q17 asks.
-            </p>
+    <div className="pl-program">
+      <CodeEditor label="MIPS code (labels, # i3 or #inst A tags name the rows)" value={p.src} onChange={p.setSrc} rows={Math.min(14, Math.max(6, lines))} marks={marks} errors={errorMap(p.trace.errors)} />
+      {p.preset ? (
+        <p className="pl-muted">
+          {p.presetIntact ? 'Loaded: ' : 'Edited since loading: '}
+          {p.preset.name} ({p.preset.cite}){p.preset.official ? '' : ', derived (no key)'}
+        </p>
+      ) : null}
+      <details className="pl-details">
+        <summary>Run settings: registers, memory, branch outcomes, where to stop</summary>
+        <div className="pl-run">
+          <label className="field pl-area">
+            <span className="control-label">Initial registers (one $t0 = 5 per line)</span>
+            <textarea className="mono" rows={3} value={run.regs} spellCheck={false} onChange={(e) => set('regs', e.target.value)} />
+            {runErrors.regs ? <span className="pl-err">{runErrors.regs}</span> : null}
+          </label>
+          <label className="field pl-area">
+            <span className="control-label">Initial memory (address: word, word, ...)</span>
+            <textarea className="mono" rows={3} value={run.mem} spellCheck={false} onChange={(e) => set('mem', e.target.value)} />
+            {runErrors.mem ? <span className="pl-err">{runErrors.mem}</span> : null}
+          </label>
+          <div className="pl-row">
+            <TextField label="Branch outcomes in order (T or N; empty runs the code)" value={run.outcomes} onChange={(v) => set('outcomes', v)} placeholder="T N T" />
+            <TextField label="Stop after instruction" value={run.stop} onChange={(v) => set('stop', v)} placeholder="i20 or 4" width="7em" />
+            <NumberField label="Its execution number" value={run.occ || 1} min={1} onChange={(v) => set('occ', v)} />
           </div>
-        </details>
-      </div>
-    </Panel>
+          {runErrors.outcomes ? <span className="pl-err">{runErrors.outcomes}</span> : null}
+          <p className="pl-muted">
+            With outcomes given, the code is walked without values, so the pipeline registers show register names only. The count stops at the last stage of the stop instruction, as AY23/24 S2 Q17 asks.
+          </p>
+        </div>
+      </details>
+    </div>
   )
 }
 
 /** The hazard-handling options. `only` limits which ones show (the branches tab sets its own). */
-export function OptionsPanel({ p, only }: { p: ProgramState; only?: (keyof PipelineOptions)[] }) {
+export function OptionsFields({ p, only }: { p: ProgramState; only?: (keyof PipelineOptions)[] }) {
   const o = p.options
   const show = (k: keyof PipelineOptions) => !only || only.includes(k)
   const hasJump = p.trace.stream.items.some((i) => i.cls === 'jump')
   const hasStore = p.trace.stream.items.some((i) => i.cls === 'store')
   return (
-    <Panel title="Hazard handling">
+    <div className="pl-optbox">
+      <p className="pl-optbox-title">Hazard handling</p>
       <div className="pl-options">
         {show('forwarding') ? <Toggle label="Forwarding (L21 p18)" checked={o.forwarding} onChange={(v) => p.setOption('forwarding', v)} /> : null}
         {show('branchStage') ? (
@@ -220,11 +222,120 @@ export function OptionsPanel({ p, only }: { p: ProgramState; only?: (keyof Pipel
       </div>
       {show('jumpStage') ? <p className="pl-muted">The two keys disagree on j: AY23/24 S2 Q17 resolves it in ID, the T10 Additional Question in MEM.</p> : null}
       {o.prediction === 'taken' && show('prediction') ? (
-        <Callout kind="beyond" title="Beyond the course">
+        <Callout kind="beyond" title="Predict taken">
           Predict taken is not taught (L21 p40 covers only predict not taken). It is here because R11 Quiz Q7 uses it.
         </Callout>
       ) : null}
-    </Panel>
+    </div>
+  )
+}
+
+/** One-line state of the options, shown on the folded disclosure. */
+function optionSummary(o: PipelineOptions, only?: (keyof PipelineOptions)[]): string {
+  const show = (k: keyof PipelineOptions) => !only || only.includes(k)
+  const out: string[] = []
+  if (show('forwarding')) out.push(o.forwarding ? 'forwarding' : 'no forwarding')
+  if (show('branchStage')) out.push(`branch in ${o.branchStage}`)
+  if (show('prediction')) out.push(o.prediction === 'none' ? 'no prediction' : o.prediction === 'not-taken' ? 'predict not taken' : 'predict taken')
+  if (show('delayedBranch') && o.delayedBranch) out.push('delay slot')
+  return out.join(', ')
+}
+
+/**
+ * The compact input row: assembler errors stay visible; the code, run settings and options
+ * sit in one disclosure that is closed on first load (docs/design.md rule 3).
+ */
+export function Setup({ p, marks, only, extra }: { p: ProgramState; marks?: Record<number, 'data' | 'stall' | 'flush'>; only?: (keyof PipelineOptions)[]; extra?: ReactNode }) {
+  const n = p.trace.stream.program.instructions.length
+  const opts = optionSummary(p.options, only)
+  return (
+    <div className="pl-command">
+      {p.trace.errors.length ? (
+        <ul className="code-errors">
+          {p.trace.errors.map((e, i) => (
+            <li key={i}>
+              {e.line > 0 ? `Line ${e.line}: ` : ''}
+              {e.message}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <details className="pl-machine">
+        <summary>
+          Code and options
+          <span className="pl-machine-note">
+            {plural(n, 'instruction')}
+            {opts ? `, ${opts}` : ''}
+          </span>
+        </summary>
+        <div className="pl-machine-body">
+          <ProgramFields p={p} marks={marks} />
+          <OptionsFields p={p} only={only} />
+          {extra}
+        </div>
+      </details>
+    </div>
+  )
+}
+
+/** The dot-grid board the picture sits on, with the step name and quiet view controls in its top bar. */
+export function Board({ title, step, actions, children, play, foot, label }: { title: ReactNode; step?: ReactNode; actions?: ReactNode; children: ReactNode; play?: ReactNode; foot?: ReactNode; label?: string }) {
+  return (
+    <section className="pl-board canvas" aria-label={label}>
+      <div className="pl-board-bar">
+        <p className="pl-board-title">
+          <span>{title}</span>
+          {step !== undefined ? <span className="pl-board-step">{step}</span> : null}
+        </p>
+        {actions ? <div className="pl-board-actions">{actions}</div> : null}
+      </div>
+      <div className="pl-board-body">{children}</div>
+      {play}
+      {foot ? <div className="pl-board-foot">{foot}</div> : null}
+    </section>
+  )
+}
+
+/** The one primary action inside the board: a Play pill and a quiet Next, both driving the page stepper. */
+export function PlayBar({ stepper, start, next }: { stepper: Stepper; start: string; next: (i: number) => string }) {
+  if (stepper.count < 2) return null
+  const atEnd = stepper.index >= stepper.count - 1
+  const label = stepper.playing ? 'Pause' : atEnd ? 'Play it again' : stepper.index === 0 ? start : 'Play from here'
+  return (
+    <div className="pl-board-play">
+      <button type="button" className="pl-play" onClick={stepper.toggle} data-playing={stepper.playing}>
+        {stepper.playing ? (
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4 3h3v10H4zM9 3h3v10H9z" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4.5 2.8l9 5.2-9 5.2z" />
+          </svg>
+        )}
+        {label}
+      </button>
+      {!atEnd ? (
+        <button type="button" className="pl-next" onClick={stepper.next}>
+          {next(stepper.index + 1)}
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M3 8h10M9 4l4 4-4 4" />
+          </svg>
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+/** Secondary material under the board: one tab strip, one table visible at a time. The open tab lives in the URL. */
+export function Strip<T extends string>({ urlKey, label, tabs, children }: { urlKey: string; label: string; tabs: { value: T; label: string }[]; children: (cur: T) => ReactNode }) {
+  const [v, setV] = useUrlState<T>(urlKey, tabs[0].value)
+  const cur = tabs.some((x) => x.value === v) ? v : tabs[0].value
+  return (
+    <section className="pl-strip" aria-label={label}>
+      <Tabs label={label} value={cur} onChange={setV} tabs={tabs} />
+      <div className="pl-strip-body">{children(cur)}</div>
+    </section>
   )
 }
 

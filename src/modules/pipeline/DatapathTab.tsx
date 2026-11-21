@@ -3,10 +3,10 @@ import { useMemo, type ReactNode } from 'react'
 import { controlRow, PIPE_REGS, regLabel, STAGES, type ControlRow, type CycleFrame, type PipeReg, type PipelineTrace, type RegContents, type Stage } from '../../core/pipeline'
 import type { Instr } from '../../core/mips'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, Chip, Legend, Panel, Toggle, Workspace } from '../../ui/kit'
+import { Callout, Chip, Legend, Toggle, Workspace } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
-import { EventList, Notes, OptionsPanel, ProgramPanel, describeFrame, frameMarks, lineMarks, type ProgramState } from './common'
-import { useCycleStepper } from './DiagramTab'
+import { Board, Notes, PlayBar, PresetPicker, Setup, Strip, describeFrame, frameMarks, lineMarks, type ProgramState } from './common'
+import { CycleStory, useCycleStepper } from './DiagramTab'
 
 type Ctl = ControlRow
 type Need = (c: Ctl, ins: Instr) => boolean
@@ -114,7 +114,19 @@ function Diagram({ t, f, bug, focus }: { t: PipelineTrace; f: CycleFrame | undef
   const forwards = (f?.forwards ?? []).filter((x) => x.from !== 'register file')
   const rl = (r: number) => regLabel(r, t.stream.regStyle)
   const consumerIns = (seq: number) => t.stream.items[seq - 1]?.instr
-  const box = (x: number, y: number, w: number, h: number, label: ReactNode, s: Stage) => (
+  // Forwarding paths this cycle (L21 p18, p38-39), from the producer's pipeline register back to the ALU input or the ID comparator.
+  const fwd = forwards.map((x) => {
+    const srcX = x.from === 'EX/MEM' ? 672 : 900
+    const srcY = x.from === 'EX/MEM' ? 235 : 248
+    const lane = x.from === 'EX/MEM' ? 172 : 162
+    if (x.to === 'ID') return { d: `M${srcX} ${srcY}V${lane}H414V151`, lx: (srcX + 414) / 2, ly: lane - 4, text: `${x.path}: ${rl(x.register)}` }
+    const ins = consumerIns(x.consumer)
+    const toB = x.input === 'ForwardB' || (!x.input && ins && ins.rt === x.register && ins.rs !== x.register)
+    const tx = toB ? 534 : 528
+    const ty = toB ? 255 : 200
+    return { d: `M${srcX} ${srcY}V${lane}H${tx}V${ty}H540`, lx: (srcX + tx) / 2, ly: lane - 4, text: `${x.path}: ${rl(x.register)}${x.input ? ` (${x.input})` : ''}` }
+  })
+  const box =(x: number, y: number, w: number, h: number, label: ReactNode, s: Stage) => (
     <g className={`pl-unit${occ[s].status === 'active' || occ[s].status === 'wrong' ? ' pl-unit-on' : ''}`}>
       <rect x={x} y={y} width={w} height={h} rx={3} />
       <text x={x + w / 2} y={y + h / 2 + 4} textAnchor="middle">
@@ -253,28 +265,25 @@ function Diagram({ t, f, bug, focus }: { t: PipelineTrace; f: CycleFrame | undef
       })}
 
       {/* Forwarding paths this cycle (L21 p18, p38-39) */}
-      {forwards.map((x, i) => {
-        const ins = consumerIns(x.consumer)
-        const toB = x.input === 'ForwardB' || (!x.input && ins && ins.rt === x.register && ins.rs !== x.register)
-        const srcX = x.from === 'EX/MEM' ? 672 : 900
-        const lane = x.from === 'EX/MEM' ? 172 : 162
-        if (x.to === 'ID') {
-          return (
-            <g key={i}>
-              <path d={`M${srcX} ${x.from === 'EX/MEM' ? 235 : 248}V${lane}H414V151`} className="pl-wire pl-fwdwire" />
-              <text x={(srcX + 414) / 2} y={lane - 4} textAnchor="middle" className="pl-dp-fwd">{`${x.path}: ${rl(x.register)}`}</text>
-            </g>
-          )
-        }
-        const tx = toB ? 534 : 528
-        const ty = toB ? 255 : 200
-        return (
-          <g key={i}>
-            <path d={`M${srcX} ${x.from === 'EX/MEM' ? 235 : 248}V${lane}H${tx}V${ty}H540`} className="pl-wire pl-fwdwire" />
-            <text x={(srcX + tx) / 2} y={lane - 4} textAnchor="middle" className="pl-dp-fwd">{`${x.path}: ${rl(x.register)}${x.input ? ` (${x.input})` : ''}`}</text>
+      {fwd.map((w, i) => (
+        <g key={i}>
+          <path d={w.d} className="pl-wire pl-fwdwire" />
+          <text x={w.lx} y={w.ly} textAnchor="middle" className="pl-dp-fwd">
+            {w.text}
+          </text>
+        </g>
+      ))}
+      {/* The forwarded value travels back against the pipeline: draw it in, then let packets run along it. */}
+      {fwd.length ? (
+        <>
+          <g className="flow-draw" key={`fd${f?.cycle ?? 0}`} aria-hidden="true">
+            {fwd.map((w, i) => <path key={i} d={w.d} pathLength={1} className="pl-flow-fwd" />)}
           </g>
-        )
-      })}
+          <g className="flow-packets" key={`fp${f?.cycle ?? 0}`} aria-hidden="true">
+            {fwd.map((w, i) => <path key={i} d={w.d} pathLength={1} className="pl-flow-fwd" style={{ animationDelay: `${0.7 + i * 0.18}s` }} />)}
+          </g>
+        </>
+      ) : null}
     </svg>
   )
 }
@@ -343,6 +352,13 @@ function RegisterCard({ name, c, filling, bug }: { name: PipeReg; c: RegContents
   )
 }
 
+type Detail = 'regs' | 'notes'
+
+const DETAILS: { value: Detail; label: string }[] = [
+  { value: 'regs', label: 'Pipeline registers' },
+  { value: 'notes', label: 'About this drawing' },
+]
+
 export default function DatapathTab({ intro, p }: { intro: ReactNode; p: ProgramState }) {
   const t = p.trace
   const stepper = useCycleStepper(t)
@@ -361,66 +377,73 @@ export default function DatapathTab({ intro, p }: { intro: ReactNode; p: Program
       title="Pipeline"
       lectures="L20 to L21, T10, R11"
       intro={intro}
-      inspector={
-        <>
-          <Panel title={f ? `Pipeline registers, cycle ${f.cycle}` : 'Pipeline registers'}>
-            <p className="pl-muted pl-gap">What each stage reads this cycle, latched at the end of the cycle before (L20 p18-22). Control groups drop off as their stage uses them (L20 p27-28).</p>
-            {PIPE_REGS.map((r) => (
-              <RegisterCard key={r} name={r} c={f?.regs[r]} filling={!!f && f.cycle <= PIPE_REGS.indexOf(r) + 1} bug={bug} />
-            ))}
-          </Panel>
-          {f?.regWrite && !bug ? (
-            <Callout kind="course" title="Register file this cycle" cite="L21 p10-11">
-              {writer} writes {rl(f.regWrite.register)}
-              {f.regWrite.value === undefined ? '' : ` = ${f.regWrite.value}`} in the first half of the cycle; ID reads in the second half.
-            </Callout>
-          ) : null}
-          {f?.regWrite && bug ? (
-            <Callout kind="trap" title="Bug mode: the wrong register is written" cite="L20 p22-23">
-              {writer} should write {rl(f.regWrite.register)}
-              {f.regWrite.value === undefined ? '' : ` = ${f.regWrite.value}`}. Without the write register in MEM/WB, the number comes from IF/ID, which holds {idRow ? `${idRow.name} (${idRow.text})` : 'no instruction now'}
-              {wrongReg === undefined ? '.' : wrongReg === f.regWrite.register ? `, which names ${rl(wrongReg)} too, so this time the result happens to land in the right place.` : `, so the value goes into ${rl(wrongReg)} instead.`}
-            </Callout>
-          ) : null}
-          <Callout kind="trap" title="The write register travels with the instruction" cite="L20 p22-24">
-            The destination number goes down ID/EX, EX/MEM and MEM/WB. Without it, WB would write into the register named by whatever is in ID now.
-          </Callout>
-        </>
-      }
+      toolbar={<PresetPicker p={p} />}
       transport={<Transport stepper={stepper} label="Cycle" marks={marks} describe={describeFrame(t, f)} />}
     >
-      <Panel
-        title={f ? `Pipelined datapath, cycle ${f.cycle}` : 'Pipelined datapath'}
-        actions={
-          <>
-            <Toggle label="Show only what this instruction uses" checked={focus} onChange={setFocus} hint="Each stage keeps only the units and wires its own instruction uses; the rest are hidden, not moved" />
-            <Toggle label="Bug mode: drop the write register (L20 p22)" checked={bug} onChange={setBug} />
-          </>
+      <Setup p={p} marks={lineMarks(t, f)} extra={<Toggle label="Bug mode: drop the write register (L20 p22)" checked={bug} onChange={setBug} />} />
+      <div className="pl-stage">
+        <Board
+          label="Pipelined datapath"
+          title="Pipelined datapath"
+          step={f ? `Cycle ${f.cycle}` : undefined}
+          actions={<Toggle label="Show only what this instruction uses" checked={focus} onChange={setFocus} hint="Each stage keeps only the units and wires its own instruction uses; the rest are hidden, not moved" />}
+          play={t.ok ? <PlayBar stepper={stepper} start="Step through the cycles" next={(i) => `Next: cycle ${t.frames[i]?.cycle ?? i + 1}`} /> : null}
+          foot={
+            <Legend
+              items={[
+                { signal: 'path', label: 'wires the instruction in that stage uses' },
+                { signal: 'control', label: 'control signals' },
+                { signal: 'forward', label: 'forwarding' },
+                { signal: 'stall', label: 'bubble' },
+                { signal: 'flush', label: 'wrong-path instruction, to be flushed' },
+              ]}
+            />
+          }
+        >
+          <div className="pl-dp-scroll">{t.ok ? <Diagram t={t} f={f} bug={bug} focus={focus} /> : <p className="pl-pad pl-err">Fix the code to see the datapath.</p>}</div>
+        </Board>
+        {t.ok ? (
+          <CycleStory t={t} frame={f}>
+            {f?.regWrite && !bug ? (
+              <Callout kind="course" title="Register file this cycle" cite="L21 p10-11">
+                {writer} writes {rl(f.regWrite.register)}
+                {f.regWrite.value === undefined ? '' : ` = ${f.regWrite.value}`} in the first half of the cycle; ID reads in the second half.
+              </Callout>
+            ) : null}
+            {f?.regWrite && bug ? (
+              <Callout kind="trap" title="Bug mode: the wrong register is written" cite="L20 p22-23">
+                {writer} should write {rl(f.regWrite.register)}
+                {f.regWrite.value === undefined ? '' : ` = ${f.regWrite.value}`}. Without the write register in MEM/WB, the number comes from IF/ID, which holds {idRow ? `${idRow.name} (${idRow.text})` : 'no instruction now'}
+                {wrongReg === undefined ? '.' : wrongReg === f.regWrite.register ? `, which names ${rl(wrongReg)} too, so this time the result happens to land in the right place.` : `, so the value goes into ${rl(wrongReg)} instead.`}
+              </Callout>
+            ) : null}
+          </CycleStory>
+        ) : null}
+      </div>
+      <Strip urlKey="pdd" label="Tables for this cycle" tabs={DETAILS}>
+        {(cur) =>
+          cur === 'regs' ? (
+            <>
+              <p className="pl-muted pl-gap">What each stage reads this cycle, latched at the end of the cycle before (L20 p18-22). Control groups drop off as their stage uses them (L20 p27-28).</p>
+              <div className="pl-regcards">
+                {PIPE_REGS.map((r) => (
+                  <RegisterCard key={r} name={r} c={f?.regs[r]} filling={!!f && f.cycle <= PIPE_REGS.indexOf(r) + 1} bug={bug} />
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="pl-notes">
+              <p className="pl-muted">
+                Simplified from L20 p29. Forwarding paths (L21 p18) and the early-branch comparator (L21 p34) are drawn only when they are used. The forwarding unit and hazard detection unit are left out; their rules are not tested (R11 p14).
+              </p>
+              <Callout kind="trap" title="The write register travels with the instruction" cite="L20 p22-24">
+                The destination number goes down ID/EX, EX/MEM and MEM/WB. Without it, WB would write into the register named by whatever is in ID now.
+              </Callout>
+              <Notes notes={t.notes} />
+            </div>
+          )
         }
-        flush
-      >
-        <div className="pl-pad">
-          <Legend
-            items={[
-              { signal: 'path', label: 'wires the instruction in that stage uses' },
-              { signal: 'control', label: 'control signals' },
-              { signal: 'forward', label: 'forwarding' },
-              { signal: 'stall', label: 'bubble' },
-              { signal: 'flush', label: 'wrong-path instruction, to be flushed' },
-            ]}
-          />
-        </div>
-        <div className="pl-dp-scroll">{t.ok ? <Diagram t={t} f={f} bug={bug} focus={focus} /> : <p className="pl-pad pl-err">Fix the code to see the datapath.</p>}</div>
-        <p className="pl-pad pl-muted">
-          Simplified from L20 p29. Forwarding paths (L21 p18) and the early-branch comparator (L21 p34) are drawn only when they are used. The forwarding unit and hazard detection unit are left out; their rules are not tested (R11 p14).
-        </p>
-      </Panel>
-      <Panel title={f ? `Cycle ${f.cycle}: what happens` : 'Cycle'}>
-        <EventList frame={f} />
-      </Panel>
-      <ProgramPanel p={p} marks={lineMarks(t, f)} />
-      <OptionsPanel p={p} />
-      <Notes notes={t.notes} />
+      </Strip>
     </Workspace>
   )
 }

@@ -113,6 +113,26 @@ export function PipelineGrid({
 
   if (!rows.length) return <p className="pl-muted">No instructions to draw.</p>
 
+  /** The arrow for one forward, or undefined when a row is not drawn. */
+  const fwdPath = (f: Forward): string | undefined => {
+    const p = uidRow.get(`c${f.producer}`)
+    const q = uidRow.get(`c${f.consumer}`)
+    if (p === undefined || q === undefined) return undefined
+    if (f.from === 'register file') {
+      // Split-cycle read: WB and ID share the cycle (L21 p10-11).
+      const x = (f.cycle - 1) * cw + 4
+      return `M${x} ${p * rh + rh / 2}V${q * rh + rh / 2}`
+    }
+    // Down from the producer's stage one cycle before the use (its output latch), then right into the consumer's stage (L21 p18).
+    const xs = (f.cycle - 2) * cw + cw / 2
+    const ys = p * rh + rh - 2
+    const xe = (f.cycle - 1) * cw + 3
+    const ye = q * rh + 7 // above the stage text
+    const r = Math.max(0, Math.min(6, (ye - ys) / 2))
+    return `M${xs} ${ys}V${ye - r}Q${xs} ${ye} ${xs + r} ${ye}H${xe}`
+  }
+  const liveFwd = cycle ? forwards.filter((f) => f.cycle === cycle && fwdPath(f)) : []
+
   const W = total * cw
   const H = rows.length * rh
   const stageText = (s: Stage) => (compact || names === 'short' ? SHORT[s] : names === 'units' ? UNITS[s] : s)
@@ -185,23 +205,26 @@ export function PipelineGrid({
               </marker>
             </defs>
             {forwards.map((f, i) => {
-              const p = uidRow.get(`c${f.producer}`)
-              const q = uidRow.get(`c${f.consumer}`)
-              if (p === undefined || q === undefined) return null
+              const d = fwdPath(f)
+              if (!d) return null
               const live = f.cycle === cycle ? ' pl-live' : ''
-              if (f.from === 'register file') {
-                // Split-cycle read: WB and ID share the cycle (L21 p10-11).
-                const x = (f.cycle - 1) * cw + 4
-                return <line key={i} x1={x} y1={p * rh + rh / 2} x2={x} y2={q * rh + rh / 2} className={`pl-split${live}`} />
-              }
-              // Down from the producer's stage one cycle before the use (its output latch), then right into the consumer's stage (L21 p18).
-              const xs = (f.cycle - 2) * cw + cw / 2
-              const ys = p * rh + rh - 2
-              const xe = (f.cycle - 1) * cw + 3
-              const ye = q * rh + 7 // above the stage text
-              const r = Math.max(0, Math.min(6, (ye - ys) / 2))
-              return <path key={i} d={`M${xs} ${ys}V${ye - r}Q${xs} ${ye} ${xs + r} ${ye}H${xe}`} className={`pl-fwd${live}`} markerEnd={`url(#${markId})`} />
+              return f.from === 'register file' ? <path key={i} d={d} className={`pl-split${live}`} /> : <path key={i} d={d} className={`pl-fwd${live}`} markerEnd={`url(#${markId})`} />
             })}
+            {/* Light along the values passed this cycle: the arrow draws in from the producer, then packets keep flowing. */}
+            {liveFwd.length ? (
+              <>
+                <g className="flow-draw" key={`d${cycle}`}>
+                  {liveFwd.map((f, i) => (
+                    <path key={i} d={fwdPath(f)} pathLength={1} className={f.from === 'register file' ? 'pl-flow-data' : 'pl-flow-fwd'} />
+                  ))}
+                </g>
+                <g className="flow-packets" key={`p${cycle}`}>
+                  {liveFwd.map((f, i) => (
+                    <path key={i} d={fwdPath(f)} pathLength={1} className={f.from === 'register file' ? 'pl-flow-data' : 'pl-flow-fwd'} style={{ animationDelay: `${0.7 + i * 0.18}s` }} />
+                  ))}
+                </g>
+              </>
+            ) : null}
           </svg>
         </div>
       </div>

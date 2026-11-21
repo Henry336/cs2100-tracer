@@ -2,8 +2,8 @@
 import { useMemo, type ReactNode } from 'react'
 import { delaySlotCandidates, tracePipeline, type Explain, type PipelineOptions, type PipelineTrace } from '../../core/pipeline'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, Chip, DataTable, Panel, Toggle, Workspace, type Column } from '../../ui/kit'
-import { Notes, OptionsPanel, ProgramPanel, W, plural, type ProgramState } from './common'
+import { Callout, Chip, DataTable, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Board, Notes, PresetPicker, Setup, Strip, W, plural, type ProgramState } from './common'
 import { GridLegend } from './DiagramTab'
 import { PipelineGrid } from './Grid'
 
@@ -27,9 +27,9 @@ function SlotCandidates({ t }: { t: PipelineTrace }) {
   const branches = t.stream.program.instructions.map((ins, k) => ({ ins, k })).filter(({ ins }) => ['beq', 'bne'].includes(ins.mnemonic))
   if (!branches.length) return null
   return (
-    <Panel title="Which instruction could fill the delay slot">
+    <div className="pl-slots">
       <p className="pl-muted pl-gap">
-        The trace above simply runs the next instruction in the slot. A compiler would rather move an earlier instruction there, as long as the move keeps every RAW, WAR and WAW order and the branch does not use its result (L21 p46-48).
+        The delayed-branch trace simply runs the next instruction in the slot. A compiler would rather move an earlier instruction there, as long as the move keeps every RAW, WAR and WAW order and the branch does not use its result (L21 p46-48).
       </p>
       {branches.map(({ ins, k }) => {
         const c = delaySlotCandidates(t.stream, k)
@@ -52,12 +52,15 @@ function SlotCandidates({ t }: { t: PipelineTrace }) {
           </div>
         )
       })}
-    </Panel>
+    </div>
   )
 }
 
+type Detail = 'score' | 'slot' | 'run' | 'rules'
+
 export default function BranchesTab({ intro, p }: { intro: ReactNode; p: ProgramState }) {
   const [withTaken, setWithTaken] = useUrlState('ptk', false)
+  const [pick, setPick] = useUrlState('bs', STRATEGIES[0].id)
   const base = p.options
   const shown = STRATEGIES.filter((s) => !s.beyond || withTaken)
   const traces = useMemo(
@@ -66,8 +69,10 @@ export default function BranchesTab({ intro, p }: { intro: ReactNode; p: Program
   )
   const ok = traces.every((x) => x.t.ok)
   const best = Math.min(...traces.map((x) => x.t.totals.cycles))
+  const cur = traces.find((x) => x.s.id === pick) ?? traces[0]
   const branches = p.trace.stream.items.filter((i) => i.cls === 'branch')
   const taken = branches.filter((i) => i.taken).length
+  const hasBranch = p.trace.stream.program.instructions.some((ins) => ['beq', 'bne'].includes(ins.mnemonic))
   const cols: Column<(typeof traces)[number]>[] = [
     { key: 's', header: 'Strategy', cell: (x) => <W e={x.s.mechanism}>{x.s.label}</W> },
     { key: 'c', header: 'Total cycles', align: 'right', cell: (x) => <W e={x.t.totals.why.cycles}><strong>{x.t.totals.cycles}</strong></W> },
@@ -76,14 +81,56 @@ export default function BranchesTab({ intro, p }: { intro: ReactNode; p: Program
     { key: 'f', header: 'Flushed', align: 'right', cell: (x) => x.t.totals.flushed },
     { key: 'b', header: '', cell: (x) => (x.t.totals.cycles === best ? <span className="pl-best">fewest</span> : x.s.beyond ? <span className="pl-muted">beyond the course</span> : null) },
   ]
+  const details: { value: Detail; label: string }[] = [
+    { value: 'score', label: 'Scoreboard' },
+    ...(hasBranch ? [{ value: 'slot' as const, label: 'Delay slot candidates' }] : []),
+    { value: 'run', label: 'This run' },
+    { value: 'rules', label: 'Course rules' },
+  ]
   return (
-    <Workspace
-      title="Pipeline"
-      lectures="L20 to L21, T10, R11"
-      intro={intro}
-      inspector={
-        <>
-          <Panel title="This run">
+    <Workspace title="Pipeline" lectures="L20 to L21, T10, R11" intro={intro} toolbar={<PresetPicker p={p} />}>
+      <Setup p={p} only={['forwarding', 'jumpStage', 'storeData']} />
+      <Board
+        label="One code, each way of handling branches"
+        title="Branch handling"
+        step={ok ? plural(cur.t.totals.cycles, 'cycle') : undefined}
+        actions={<Toggle label="Add predict taken (beyond the course)" checked={withTaken} onChange={setWithTaken} />}
+        foot={ok ? <GridLegend forwarding={cur.t.options.forwarding} /> : null}
+      >
+        {ok ? (
+          <>
+            <div className="pl-picks" role="group" aria-label="Pick a strategy">
+              {traces.map(({ s, t }) => (
+                <button key={s.id} type="button" className="pl-pick" aria-pressed={s.id === cur.s.id} onClick={() => setPick(s.id)}>
+                  <span>{s.label}</span>
+                  <span className="mono pl-pick-n">{t.totals.cycles}</span>
+                  {t.totals.cycles === best ? <span className="pl-best">fewest</span> : null}
+                </button>
+              ))}
+            </div>
+            <p className="pl-board-note">
+              {cur.s.mechanism.rule} ({cur.s.mechanism.cite}).
+            </p>
+            <PipelineGrid key={cur.s.id} trace={cur.t} label={`${cur.s.label} pipeline diagram`} />
+          </>
+        ) : (
+          <p className="pl-pad pl-err">Fix the code to compare strategies.</p>
+        )}
+      </Board>
+      <Strip urlKey="pdb" label="Tables for this code" tabs={details}>
+        {(tab) =>
+          tab === 'score' ? (
+            ok ? (
+              <>
+                <DataTable columns={cols} rows={traces} compact />
+                <p className="pl-muted pl-gap-top">Every row uses the same code, run settings and forwarding choice. Click a strategy name for the mechanism and its slide.</p>
+              </>
+            ) : (
+              <p className="pl-err">Fix the code to compare strategies.</p>
+            )
+          ) : tab === 'slot' ? (
+            ok ? <SlotCandidates t={traces.find((x) => x.s.id === 'delay')!.t} /> : null
+          ) : tab === 'run' ? (
             <dl className="pl-facts">
               <div>
                 <dt>Branches executed</dt>
@@ -102,44 +149,22 @@ export default function BranchesTab({ intro, p }: { intro: ReactNode; p: Program
                 </dd>
               </div>
             </dl>
-          </Panel>
-          <Callout kind="trap" title="No branch handling is not predict not taken" cite="L21 p31, p40-42; AY23/24 S1 Q5 key D">
-            With no handling, wrong-path instructions would run and give wrong results. Predict not taken flushes them when the branch is taken.
-          </Callout>
-          <Callout kind="trap" title="Early branch is hungry for operands" cite="L21 p37-39">
-            After an ALU instruction right before the branch, add 1 stall (ALU to ID). After a lw right before it, add 2 (MEM to ID): 3 in total with no prediction, no better than deciding in MEM.
-          </Callout>
-          <Callout kind="course" title="Delay slot size" cite="L21 p46">
-            The course uses one delay slot with the early branch. The slot runs whatever the outcome.
-          </Callout>
-          <Notes notes={p.trace.notes} />
-        </>
-      }
-    >
-      <ProgramPanel p={p} />
-      <OptionsPanel p={p} only={['forwarding', 'jumpStage', 'storeData']} />
-      <Panel
-        title="Scoreboard"
-        actions={<Toggle label="Add predict taken (beyond the course)" checked={withTaken} onChange={setWithTaken} />}
-        flush
-      >
-        {ok ? <DataTable columns={cols} rows={traces} compact /> : <p className="pl-pad pl-err">Fix the code to compare strategies.</p>}
-        <p className="pl-pad pl-muted">Every row uses the same code, run settings and forwarding choice. Click a strategy name for the mechanism and its slide.</p>
-      </Panel>
-      {ok
-        ? traces.map(({ s, t }) => (
-            <Panel key={s.id} title={`${s.label}: ${plural(t.totals.cycles, 'cycle')}`} flush>
-              <div className="pl-pad">
-                {s.id === traces[0].s.id ? <GridLegend forwarding={t.options.forwarding} /> : null}
-                <p className="pl-muted">
-                  {s.mechanism.rule} ({s.mechanism.cite}).
-                </p>
-              </div>
-              <PipelineGrid trace={t} compact label={`${s.label} pipeline diagram`} />
-            </Panel>
-          ))
-        : null}
-      {ok ? <SlotCandidates t={traces.find((x) => x.s.id === 'delay')!.t} /> : null}
+          ) : (
+            <div className="pl-notes">
+              <Callout kind="trap" title="No branch handling is not predict not taken" cite="L21 p31, p40-42; AY23/24 S1 Q5 key D">
+                With no handling, wrong-path instructions would run and give wrong results. Predict not taken flushes them when the branch is taken.
+              </Callout>
+              <Callout kind="trap" title="Early branch is hungry for operands" cite="L21 p37-39">
+                After an ALU instruction right before the branch, add 1 stall (ALU to ID). After a lw right before it, add 2 (MEM to ID): 3 in total with no prediction, no better than deciding in MEM.
+              </Callout>
+              <Callout kind="course" title="Delay slot size" cite="L21 p46">
+                The course uses one delay slot with the early branch. The slot runs whatever the outcome.
+              </Callout>
+              <Notes notes={p.trace.notes} />
+            </div>
+          )
+        }
+      </Strip>
     </Workspace>
   )
 }

@@ -2,8 +2,8 @@
 import { useMemo, type ReactNode } from 'react'
 import { idealCycles, loopIdeal, timing, type DesignTime, type TimingResult } from '../../core/pipeline'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, DataTable, Legend, NumberField, Panel, Presets, Segmented, TextField, Workspace, type Column } from '../../ui/kit'
-import { W } from './common'
+import { Callout, DataTable, Legend, NumberField, Presets, Segmented, TextField, Workspace, type Column } from '../../ui/kit'
+import { Board, Strip, W } from './common'
 import { DEFAULT_LOOP, DEFAULT_TIMING, LOOP_PRESETS, TIMING_PRESETS, timingInput, type LoopSettings, type TimingSettings } from './presets'
 
 const fmt = (x: number) => String(Math.round(x * 1e6) / 1e6)
@@ -56,7 +56,10 @@ function LoopCounter() {
   const bad = !l.init.trim() || !Number.isInteger(init)
   const r = useMemo(() => (bad ? undefined : loopIdeal({ init, step: l.step, exit: l.exit, body: l.body, before: l.before, after: l.after, stages: l.n })), [bad, init, l])
   return (
-    <Panel title="Loop ideal-cycle counter" actions={<Presets presets={LOOP_PRESETS.map((x) => ({ name: `${x.name} (${x.expect})`, source: x.source, value: x.value }))} onPick={(v) => setL(v)} />}>
+    <div className="pl-loop">
+      <div className="pl-row">
+        <Presets presets={LOOP_PRESETS.map((x) => ({ name: `${x.name} (${x.expect})`, source: x.source, value: x.value }))} onPick={(v) => setL(v)} />
+      </div>
       <p className="pl-muted pl-gap">For a loop that updates a counter and then tests it with bne against an exit value. Ideal means no hazards, so only the dynamic count matters. Assume registers start at 0 unless set (AY25/26 Q2).</p>
       <div className="pl-row">
         <TextField label="Counter starts at (0x for hex)" value={l.init} onChange={(v) => set('init', v)} width="6em" />
@@ -99,7 +102,7 @@ function LoopCounter() {
       <Callout kind="trap" title="Hex and pseudo-instructions" cite="AY24/25 Q13; AY25/26 Q2">
         0x32 is 50, not 32. A line like bne $s0, 0, Loop is a pseudo-instruction, but the keys count it as one instruction. To check against a full trace, load P17a or P17b on the Pipeline diagram tab.
       </Callout>
-    </Panel>
+    </div>
   )
 }
 
@@ -133,6 +136,14 @@ function TimeBars({ r, unit }: { r: TimingResult; unit: string }) {
   )
 }
 
+type Detail = 'results' | 'loop' | 'rules'
+
+const DETAILS: { value: Detail; label: string }[] = [
+  { value: 'results', label: 'Results' },
+  { value: 'loop', label: 'Loop ideal-cycle counter' },
+  { value: 'rules', label: 'Course rules' },
+]
+
 export default function TimingTab({ intro }: { intro: ReactNode }) {
   const [s, setS] = useUrlState<TimingSettings>('tm', DEFAULT_TIMING)
   const set = <K extends keyof TimingSettings>(k: K, v: TimingSettings[K]) => setS({ ...s, [k]: v })
@@ -161,104 +172,127 @@ export default function TimingTab({ intro }: { intro: ReactNode }) {
     ['branch', 'beq, bne (3)'],
     ['jump', 'j (2)'],
   ]
+  const fastest = rows.length ? rows.reduce((a, b) => (b[1].time < a[1].time ? b : a)) : undefined
   return (
     <Workspace
       title="Pipeline"
       lectures="L20 p30-34, L12 p35-38"
       intro={intro}
-      inspector={
-        <>
-          <Panel title="Results">
-            {rows.length ? <DataTable columns={cols} rows={rows} compact /> : <p className="pl-muted">Give stage times or cycle times to compare designs.</p>}
-            <dl className="pl-facts pl-gap-top">
-              <div>
-                <dt>Pipelined cycles, I + N - 1</dt>
-                <dd className="mono">
-                  <W e={ideal.why}>{ideal.cycles}</W>
-                </dd>
-              </div>
-              {r.multiClockGHz !== undefined && u === 'ns' ? (
-                <div>
-                  <dt>Multi-cycle clock rate</dt>
-                  <dd className="mono">
-                    <W e={{ rule: 'Clock rate = 1 / cycle time; the cycle time is the slowest stage', working: `1 / ${fmt(Math.max(...stageTimes))} ns = ${fmt(r.multiClockGHz)} GHz`, cite: 'L20 p31; AY23/24 S1 Q2' }}>{fmt(r.multiClockGHz)} GHz</W>
-                  </dd>
-                </div>
-              ) : null}
-              {r.speedup ? (
-                <div>
-                  <dt>Speedup, single-cycle over pipelined</dt>
-                  <dd className="mono">
-                    <W e={r.speedup.why}>{fmt(r.speedup.value)}</W>
-                  </dd>
-                </div>
-              ) : null}
-            </dl>
-          </Panel>
-          <Callout kind="trap" title="Remember the minus 1 and Td" cite="L20 p32">
-            Pipelined cycles are I + N - 1, and the pipelined cycle time is the slowest stage plus the pipeline register delay Td.
-          </Callout>
-          <Callout kind="trap" title="Multi-cycle is not automatically faster" cite="L20 p31">
-            In the lecture example it takes 920 ns against 800 ns for single-cycle.
-          </Callout>
-          <Callout kind="course" title="Throughput, not latency" cite="L20 p11; AY23/24 S1 Q11">
-            Pipelining finishes the workload sooner; one instruction still takes N cycles. Speedup tends to N only with equal stages, Td = 0 and I much larger than N (L20 p33).
-          </Callout>
-          <Callout kind="course" title="Multi-cycle CPI" cite="L12 p37; AY23/24 S1 Q3">
-            Multi-cycle is not covered in detail, so the CPI is given, or comes from a mix where each class skips the stages it does not use.
-          </Callout>
-        </>
-      }
+      toolbar={<Presets presets={TIMING_PRESETS.map((x) => ({ name: `${x.name} (${x.expect})`, source: x.source, value: x.value }))} onPick={(v) => setS(v)} />}
     >
-      <Panel title="Inputs" actions={<Presets presets={TIMING_PRESETS.map((x) => ({ name: `${x.name} (${x.expect})`, source: x.source, value: x.value }))} onPick={(v) => setS(v)} />}>
-        <div className="pl-row">
+      <div className="pl-command">
+        <div className="pl-row pl-command-row">
           <NumberField label="Instructions executed (I)" value={s.instructions} min={0} onChange={(v) => set('instructions', v)} />
           <TextField label={`Stage times T1..TN (${u})`} value={s.stages} onChange={(v) => set('stages', v)} placeholder="2, 1, 2, 2, 1" width="12em" />
           <NumberField label={`Pipeline register delay Td (${u})`} value={s.td} min={0} step={0.05} onChange={(v) => set('td', v)} />
-          {stageTimes.length ? null : <NumberField label="Stages N" value={s.n} min={1} onChange={(v) => set('n', v)} />}
-          <TextField label="Time unit" value={s.unit} onChange={(v) => set('unit', v)} width="4em" />
         </div>
-        <div className="pl-row">
-          <TextField label={`Single-cycle cycle time, if given (${u})`} value={s.single} onChange={(v) => set('single', v)} placeholder="sum of stages" width="9em" />
-          <TextField label={`Pipelined cycle time, if given (${u})`} value={s.pipe} onChange={(v) => set('pipe', v)} placeholder="max stage + Td" width="9em" />
-        </div>
-        <div className="pl-row">
-          <Segmented
-            label="Multi-cycle cycles from"
-            value={s.mode}
-            onChange={(v) => set('mode', v)}
-            options={[
-              { value: 'cpi', label: 'Average CPI' },
-              { value: 'mix', label: 'Instruction mix' },
+        {errors.length ? <p className="pl-err">{errors.join('; ')}</p> : null}
+        <details className="pl-machine">
+          <summary>
+            More inputs
+            <span className="pl-machine-note">
+              multi-cycle from {s.mode === 'cpi' ? `CPI ${s.cpi}` : 'the instruction mix'}, unit {u}
+            </span>
+          </summary>
+          <div className="pl-machine-body">
+            <div className="pl-row">
+              {stageTimes.length ? null : <NumberField label="Stages N" value={s.n} min={1} onChange={(v) => set('n', v)} />}
+              <TextField label="Time unit" value={s.unit} onChange={(v) => set('unit', v)} width="4em" />
+              <TextField label={`Single-cycle cycle time, if given (${u})`} value={s.single} onChange={(v) => set('single', v)} placeholder="sum of stages" width="9em" />
+              <TextField label={`Pipelined cycle time, if given (${u})`} value={s.pipe} onChange={(v) => set('pipe', v)} placeholder="max stage + Td" width="9em" />
+            </div>
+            <div className="pl-row">
+              <Segmented
+                label="Multi-cycle cycles from"
+                value={s.mode}
+                onChange={(v) => set('mode', v)}
+                options={[
+                  { value: 'cpi', label: 'Average CPI' },
+                  { value: 'mix', label: 'Instruction mix' },
+                ]}
+              />
+              {s.mode === 'cpi' ? (
+                <NumberField label="Average CPI" value={s.cpi} min={1} step={0.1} onChange={(v) => set('cpi', v)} />
+              ) : (
+                mixKeys.map(([k, label]) => <NumberField key={k} label={`${label}`} value={s.mix[k]} min={0} onChange={(v) => setS({ ...s, mix: { ...s.mix, [k]: v } })} width="5em" />)
+              )}
+            </div>
+            {s.mode === 'mix' ? <p className="pl-muted">Numbers in brackets are the stages each class uses when unused stages are skipped (AY23/24 S1 Q3 key).</p> : null}
+          </div>
+        </details>
+      </div>
+      <Board
+        label="Stage times and total time"
+        title="Total time for the workload"
+        step={fastest ? `Fastest: ${fastest[0].replace(' (ideal)', '').toLowerCase()}` : undefined}
+        foot={
+          <Legend
+            items={[
+              { signal: 'data', label: 'stage time (solid: the slowest)' },
+              { signal: 'stall', label: 'idle part of the cycle' },
             ]}
           />
-          {s.mode === 'cpi' ? (
-            <NumberField label="Average CPI" value={s.cpi} min={1} step={0.1} onChange={(v) => set('cpi', v)} />
+        }
+      >
+        <div className="pl-timing">
+          <div className="pl-dp-scroll">
+            {rows.length ? <TimeBars r={r} unit={u} /> : <p className="pl-board-note">Give stage times or cycle times to compare designs.</p>}
+          </div>
+          <p className="pl-board-note">Single-cycle: I x (sum of stages). Multi-cycle: cycles x slowest stage. Pipelined: (I + N - 1) x (slowest stage + Td).</p>
+          <p className="pl-board-sub">Stage times: the slowest one sets the clock</p>
+          <StageChart stages={stageTimes} td={input.td ?? 0} unit={u} />
+        </div>
+      </Board>
+      <Strip urlKey="pdm" label="Timing tables" tabs={DETAILS}>
+        {(cur) =>
+          cur === 'results' ? (
+            <>
+              {rows.length ? <DataTable columns={cols} rows={rows} compact /> : <p className="pl-muted">Give stage times or cycle times to compare designs.</p>}
+              <dl className="pl-facts pl-gap-top">
+                <div>
+                  <dt>Pipelined cycles, I + N - 1</dt>
+                  <dd className="mono">
+                    <W e={ideal.why}>{ideal.cycles}</W>
+                  </dd>
+                </div>
+                {r.multiClockGHz !== undefined && u === 'ns' ? (
+                  <div>
+                    <dt>Multi-cycle clock rate</dt>
+                    <dd className="mono">
+                      <W e={{ rule: 'Clock rate = 1 / cycle time; the cycle time is the slowest stage', working: `1 / ${fmt(Math.max(...stageTimes))} ns = ${fmt(r.multiClockGHz)} GHz`, cite: 'L20 p31; AY23/24 S1 Q2' }}>{fmt(r.multiClockGHz)} GHz</W>
+                    </dd>
+                  </div>
+                ) : null}
+                {r.speedup ? (
+                  <div>
+                    <dt>Speedup, single-cycle over pipelined</dt>
+                    <dd className="mono">
+                      <W e={r.speedup.why}>{fmt(r.speedup.value)}</W>
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+            </>
+          ) : cur === 'loop' ? (
+            <LoopCounter />
           ) : (
-            mixKeys.map(([k, label]) => <NumberField key={k} label={`${label}`} value={s.mix[k]} min={0} onChange={(v) => setS({ ...s, mix: { ...s.mix, [k]: v } })} width="5em" />)
-          )}
-        </div>
-        {s.mode === 'mix' ? <p className="pl-muted">Numbers in brackets are the stages each class uses when unused stages are skipped (AY23/24 S1 Q3 key).</p> : null}
-        {errors.length ? <p className="pl-err">{errors.join('; ')}</p> : null}
-      </Panel>
-      <Panel title="Stage times">
-        <Legend
-          items={[
-            { signal: 'data', label: 'stage time (solid: the slowest)' },
-            { signal: 'stall', label: 'idle part of the cycle' },
-          ]}
-        />
-        <StageChart stages={stageTimes} td={input.td ?? 0} unit={u} />
-      </Panel>
-      <Panel title="Total time for the workload">
-        <div className="pl-dp-scroll">
-          <TimeBars r={r} unit={u} />
-        </div>
-        <p className="pl-muted">
-          Single-cycle: I x (sum of stages). Multi-cycle: cycles x slowest stage. Pipelined: (I + N - 1) x (slowest stage + Td). The shortest time is the solid bar.
-        </p>
-      </Panel>
-      <LoopCounter />
+            <div className="pl-notes">
+              <Callout kind="trap" title="Remember the minus 1 and Td" cite="L20 p32">
+                Pipelined cycles are I + N - 1, and the pipelined cycle time is the slowest stage plus the pipeline register delay Td.
+              </Callout>
+              <Callout kind="trap" title="Multi-cycle is not automatically faster" cite="L20 p31">
+                In the lecture example it takes 920 ns against 800 ns for single-cycle.
+              </Callout>
+              <Callout kind="course" title="Throughput, not latency" cite="L20 p11; AY23/24 S1 Q11">
+                Pipelining finishes the workload sooner; one instruction still takes N cycles. Speedup tends to N only with equal stages, Td = 0 and I much larger than N (L20 p33).
+              </Callout>
+              <Callout kind="course" title="Multi-cycle CPI" cite="L12 p37; AY23/24 S1 Q3">
+                Multi-cycle is not covered in detail, so the CPI is given, or comes from a mix where each class skips the stages it does not use.
+              </Callout>
+            </div>
+          )
+        }
+      </Strip>
     </Workspace>
   )
 }

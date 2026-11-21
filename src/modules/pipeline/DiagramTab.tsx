@@ -1,11 +1,11 @@
 // Tab 1: the cycle grid with stalls, flushes and forwarding, the reasons, totals and an answer check.
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { STAGES, regLabel, type InstrResult, type PipelineTrace, type Stage, type StallKind } from '../../core/pipeline'
+import { STAGES, regLabel, type CycleFrame, type InstrResult, type PipelineTrace, type Stage, type StallKind } from '../../core/pipeline'
 import { useUrlState } from '../../lib/url-state'
-import { Button, Callout, Chip, Legend, Panel, Segmented, TextField, Workspace } from '../../ui/kit'
+import { Button, Callout, Chip, Legend, Segmented, TextField, Toggle, Workspace } from '../../ui/kit'
 import { useStepper } from '../../ui/stepper'
 import { Transport } from '../../ui/Transport'
-import { EventList, Notes, OptionsPanel, ProgramPanel, W, describeFrame, frameMarks, lineMarks, plural, type ProgramState } from './common'
+import { Board, EventList, Notes, PlayBar, PresetPicker, Setup, Strip, W, describeFrame, frameMarks, lineMarks, plural, type ProgramState } from './common'
 import { PipelineGrid, type StageNames } from './Grid'
 
 export function useCycleStepper(trace: PipelineTrace) {
@@ -38,11 +38,11 @@ export function GridLegend({ forwarding = true }: { forwarding?: boolean }) {
 const mnem = (t: PipelineTrace, seq: number) => t.stream.items[seq - 1]?.instr.mnemonic ?? ''
 
 /** One line per dependency and control wait, in exam words, each number explorable. */
-export function Reasons({ trace, cycle }: { trace: PipelineTrace; cycle?: number }) {
+export function Reasons({ trace, cycle, only }: { trace: PipelineTrace; cycle?: number; only?: Set<string> }) {
   const rl = (r: number) => regLabel(r, trace.stream.regStyle)
   const byseq = new Map(trace.instructions.map((i) => [i.seq, i]))
-  const listed = trace.instructions.filter((i) => i.operands.length || i.stalls.length || i.flushes.length)
-  if (!listed.length) return <p className="pl-muted">No instruction reads a register written by an earlier one, and there are no branches: the pipeline never waits.</p>
+  const listed = trace.instructions.filter((i) => (i.operands.length || i.stalls.length || i.flushes.length) && (!only || only.has(i.uid)))
+  if (!listed.length) return only ? null : <p className="pl-muted">No instruction reads a register written by an earlier one, and there are no branches: the pipeline never waits.</p>
   const active = (i: InstrResult) => cycle !== undefined && Object.values(i.stages).some((c) => c === cycle)
   return (
     <ol className="pl-reasons">
@@ -363,6 +363,39 @@ export function IdealCompare({ trace }: { trace: PipelineTrace }) {
   )
 }
 
+type Detail = 'totals' | 'check' | 'why' | 'rules'
+
+const DETAILS: { value: Detail; label: string }[] = [
+  { value: 'totals', label: 'Totals in exam terms' },
+  { value: 'check', label: 'Check my answer' },
+  { value: 'why', label: 'Why each instruction waits' },
+  { value: 'rules', label: 'Traps and conventions' },
+]
+
+/** The step story beside the board: only the current cycle, in the engine's words. */
+export function CycleStory({ t, frame, children }: { t: PipelineTrace; frame: CycleFrame | undefined; children?: ReactNode }) {
+  if (!frame) return null
+  const waiting = new Set(frame.waiting.map((w) => w.uid))
+  return (
+    <aside className="pl-story" aria-label="What happens this cycle">
+      <p className="pl-story-head">
+        <span className="pl-story-cycle">Cycle {frame.cycle}</span>
+        <span className="pl-story-of">of {t.frames.length}</span>
+      </p>
+      <div className="pl-story-body" key={frame.cycle}>
+        <EventList frame={frame} />
+        {waiting.size ? (
+          <div className="pl-story-why">
+            <p className="pl-story-sub">Why it waits</p>
+            <Reasons trace={t} cycle={frame.cycle} only={waiting} />
+          </div>
+        ) : null}
+        {children}
+      </div>
+    </aside>
+  )
+}
+
 export default function DiagramTab({ intro, p }: { intro: ReactNode; p: ProgramState }) {
   const t = p.trace
   const stepper = useCycleStepper(t)
@@ -372,93 +405,104 @@ export default function DiagramTab({ intro, p }: { intro: ReactNode; p: ProgramS
   const ideal = useMemo(() => idealTrace(t), [t])
   const idealCycle = frame && frame.cycle <= t.totals.ideal ? frame.cycle : undefined
   const marks = useMemo(() => frameMarks(t.frames), [t.frames])
+  const stageNames = (
+    <Segmented
+      label="Stage names"
+      value={names}
+      onChange={setNames}
+      options={[
+        { value: 'long', label: 'IF ID EX' },
+        { value: 'short', label: 'F D E' },
+        { value: 'units', label: 'IM Reg ALU', title: 'The unit each stage uses, as drawn in L21 p6 and p18' },
+      ]}
+    />
+  )
   return (
     <Workspace
       title="Pipeline"
       lectures="L20 to L21, T10, R11"
       intro={intro}
-      inspector={
-        <>
-          <Panel title="Totals in exam terms">
-            <Totals trace={t} />
-            <KeyCheck p={p} />
-          </Panel>
-          <Panel title="Check my answer">
-            <AnswerCheck trace={t} />
-          </Panel>
-          <Notes notes={t.notes} />
-          <Traps trace={t} />
-        </>
-      }
+      toolbar={<PresetPicker p={p} />}
       transport={<Transport stepper={stepper} label="Cycle" marks={marks} describe={describeFrame(t, frame)} />}
     >
-      <ProgramPanel p={p} marks={lineMarks(t, frame)} />
-      <OptionsPanel p={p} />
-      <Panel
-        title="Pipeline diagram"
-        actions={
-          <div className="pl-row">
-            <Segmented
-              label="Show"
-              value={view}
-              onChange={setView}
-              options={[
-                { value: 'actual', label: 'Actual' },
-                { value: 'ideal', label: 'Ideal', title: 'The same instructions with no stalls or flushes: I + 4 cycles' },
-                { value: 'compare', label: 'Compare', title: 'Ideal and actual together, with the difference split by cause' },
-              ]}
-            />
-            <Segmented
-              label="Stage names"
-              value={names}
-              onChange={setNames}
-              options={[
-                { value: 'long', label: 'IF ID EX' },
-                { value: 'short', label: 'F D E' },
-                { value: 'units', label: 'IM Reg ALU', title: 'The unit each stage uses, as drawn in L21 p6 and p18' },
-              ]}
-            />
-          </div>
-        }
-        flush
-      >
-        <div className="pl-pad">
-          {view === 'ideal' ? (
-            <p className="pl-muted">
-              Ideal: each instruction starts one cycle after the one before, with no stalls or flushes. {t.totals.instructions} instructions take {t.totals.ideal} cycles (I + 4, L20 p32); the actual run takes {t.totals.cycles}.
-            </p>
+      <Setup p={p} marks={lineMarks(t, frame)} extra={stageNames} />
+      <div className="pl-stage">
+        <Board
+          label="Pipeline diagram"
+          title="Pipeline diagram"
+          step={frame && view !== 'ideal' ? `Cycle ${frame.cycle}` : view === 'ideal' ? 'Ideal' : undefined}
+          actions={
+            <>
+              <Segmented
+                label="Show"
+                value={view}
+                onChange={setView}
+                options={[
+                  { value: 'actual', label: 'Actual' },
+                  { value: 'ideal', label: 'Ideal', title: 'The same instructions with no stalls or flushes: I + 4 cycles' },
+                  { value: 'compare', label: 'Compare', title: 'Ideal and actual together, with the difference split by cause' },
+                ]}
+              />
+              <Toggle label="Forwarding" checked={t.options.forwarding} onChange={(v) => p.setOption('forwarding', v)} hint="L21 p18. The other hazard options are under Code and options." />
+            </>
+          }
+          play={t.ok ? <PlayBar stepper={stepper} start="Step through the cycles" next={(i) => `Next: cycle ${t.frames[i]?.cycle ?? i + 1}`} /> : null}
+          foot={view === 'ideal' ? null : <GridLegend forwarding={t.options.forwarding} />}
+        >
+          {!t.ok ? (
+            <p className="pl-pad pl-err">Fix the code to see the diagram.</p>
+          ) : view === 'ideal' ? (
+            <>
+              <p className="pl-board-note">
+                {t.totals.instructions} instructions with no stalls or flushes take {t.totals.ideal} cycles (I + 4, L20 p32); the actual run takes {t.totals.cycles}.
+              </p>
+              <PipelineGrid trace={ideal} cycle={idealCycle} names={names} label="Ideal pipeline diagram" />
+            </>
           ) : (
-            <GridLegend forwarding={t.options.forwarding} />
+            <>
+              {view === 'compare' ? <h3 className="pl-subhead">Actual: {t.totals.cycles} cycles</h3> : null}
+              <PipelineGrid trace={t} cycle={frame?.cycle} onPick={(c) => stepper.set(c - 1)} names={names} />
+              {view === 'compare' ? (
+                <>
+                  <h3 className="pl-subhead">Ideal: {t.totals.ideal} cycles, no stalls or flushes</h3>
+                  <PipelineGrid trace={ideal} cycle={idealCycle} names={names} label="Ideal pipeline diagram" />
+                  <h3 className="pl-subhead">Ideal to actual: +{t.totals.stallCycles}, by cause</h3>
+                  <IdealCompare trace={t} />
+                </>
+              ) : null}
+            </>
           )}
-        </div>
-        {!t.ok ? (
-          <p className="pl-pad pl-err">Fix the code to see the diagram.</p>
-        ) : view === 'ideal' ? (
-          <PipelineGrid trace={ideal} cycle={idealCycle} names={names} label="Ideal pipeline diagram" />
-        ) : (
-          <>
-            {view === 'compare' ? <h3 className="pl-pad pl-subhead">Actual: {t.totals.cycles} cycles</h3> : null}
-            <PipelineGrid trace={t} cycle={frame?.cycle} onPick={(c) => stepper.set(c - 1)} names={names} />
-            {view === 'compare' ? (
-              <>
-                <h3 className="pl-pad pl-subhead">Ideal: {t.totals.ideal} cycles, no stalls or flushes</h3>
-                <PipelineGrid trace={ideal} cycle={idealCycle} names={names} label="Ideal pipeline diagram" />
-                <h3 className="pl-pad pl-subhead">Ideal to actual: +{t.totals.stallCycles}, by cause</h3>
-                <IdealCompare trace={t} />
-              </>
-            ) : null}
-          </>
-        )}
-      </Panel>
-      <Panel title={frame ? `Cycle ${frame.cycle}: what happens` : 'Cycle'}>
-        <EventList frame={frame} />
-      </Panel>
-      <Panel title="Why each instruction waits">
-        <p className="pl-muted pl-gap">
-          The +n after each instruction is its extra delay: WB minus (previous WB + 1), the way the AY23/24 S2 Q17 key counts. Click any underlined value for the rule and the slide.
-        </p>
-        <Reasons trace={t} cycle={frame?.cycle} />
-      </Panel>
+        </Board>
+        {t.ok ? (
+          <CycleStory t={t} frame={frame}>
+            <p className="pl-tip">Click a cycle number in the grid to jump there.</p>
+          </CycleStory>
+        ) : null}
+      </div>
+      <Strip urlKey="pdt" label="Tables for this trace" tabs={DETAILS}>
+        {(cur) =>
+          cur === 'totals' ? (
+            <>
+              <Totals trace={t} />
+              <KeyCheck p={p} />
+            </>
+          ) : cur === 'check' ? (
+            <AnswerCheck trace={t} />
+          ) : cur === 'why' ? (
+            <>
+              <p className="pl-muted pl-gap">
+                The +n after each instruction is its extra delay: WB minus (previous WB + 1), the way the AY23/24 S2 Q17 key counts. Click any underlined value for the rule and the slide.
+              </p>
+              <Reasons trace={t} cycle={frame?.cycle} />
+            </>
+          ) : (
+            <div className="pl-notes">
+              <Notes notes={t.notes} />
+              <Traps trace={t} />
+            </div>
+          )
+        }
+      </Strip>
     </Workspace>
   )
 }

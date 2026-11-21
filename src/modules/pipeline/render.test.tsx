@@ -23,7 +23,12 @@ describe('pipeline page renders', () => {
     const page = renderToString(<PipelinePage />)
     expect(page).toContain('Totals in exam terms')
     expect(page).toContain('Why each instruction waits')
-    expect(renderToString(<With tab="datapath" />)).toContain('Pipeline registers')
+    // The primary action sits inside the board, and the code is folded behind one disclosure.
+    expect(page).toContain('Step through the cycles')
+    expect(page).toContain('Code and options')
+    const dp = renderToString(<With tab="datapath" />)
+    expect(dp).toContain('Pipeline registers')
+    expect(dp).toContain('Step through the cycles')
     expect(renderToString(<With tab="hazards" />)).toContain('RAW')
     expect(renderToString(<With tab="branches" />)).toContain('Scoreboard')
     expect(renderToString(<With tab="exam" />)).toContain('Your answers')
