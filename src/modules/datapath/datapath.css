@@ -1,0 +1,702 @@
+/* Datapath module. Signal colours only for their fixed meanings (tokens.css). */
+
+.dp-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.dp-top {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.dp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.dp-grid .dp-span {
+  grid-column: 1 / -1;
+}
+
+.dp-grid .panel-body > * + * {
+  margin-top: var(--sp-3);
+}
+
+.dp-cite {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+}
+
+.dp-hint {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  margin-top: var(--sp-2);
+}
+
+.dp-err {
+  font-size: var(--fs-sm);
+  color: var(--sig-miss);
+}
+
+.dp-none {
+  color: var(--ink-3);
+}
+
+.dp-note {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.dp-x {
+  color: var(--sig-dontcare);
+  font-weight: 600;
+}
+
+/* ---------- Inputs ---------- */
+
+.dp-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.dp-input-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: end;
+}
+
+.dp-input-row > .code-editor {
+  flex: 1 1 200px;
+}
+
+.dp-input-row .field-box input {
+  max-width: 100%;
+}
+
+.dp-decoded {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+/* ---------- Stage panel ---------- */
+
+.dp-does {
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  margin-top: var(--sp-2);
+}
+
+.dp-idle {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.dp-signals {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: var(--sp-3);
+}
+
+.dp-sig {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: baseline;
+  font-size: var(--fs-xs);
+}
+
+.dp-sig-m {
+  color: var(--ink-2);
+}
+
+.dp-outputs {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px var(--sp-3);
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-sm);
+}
+
+.dp-outputs > div {
+  display: contents;
+}
+
+.dp-outputs dt {
+  color: var(--ink-3);
+}
+
+.dp-outputs dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dp-commit {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: var(--fs-sm);
+}
+
+.dp-commit-k {
+  display: inline-block;
+  min-width: 6em;
+  color: var(--ink-3);
+}
+
+/* ---------- Explanations ---------- */
+
+.dp-explain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-sm);
+}
+
+.dp-working {
+  background: var(--sunken);
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-size: var(--fs-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.dp-selected {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+
+.dp-traps {
+  margin: 0;
+  padding-left: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-sm);
+}
+
+.dp-linkbtn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline dotted var(--ink-3);
+}
+
+.dp-linkbtn:focus-visible,
+.dp-bit:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---------- Diagram ---------- */
+
+.dp-scroll {
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.dp-svg {
+  display: block;
+  width: 100%;
+  min-width: 960px;
+  height: auto;
+  font-family: var(--font-sans);
+}
+
+.dp-diagram-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-4);
+  padding: var(--sp-2) var(--sp-3);
+  border-top: 1px solid var(--rule);
+}
+
+.dp-diagram-foot .dp-hint {
+  margin: 0;
+}
+
+.dp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+}
+
+.dp-sw {
+  width: 16px;
+  height: 0;
+  border-top: 2px solid var(--ink-2);
+}
+
+.dp-sw-disc {
+  border-top: 2px dashed var(--ink-3);
+}
+
+.dp-sw-future {
+  border-top: 2px solid var(--grid);
+}
+
+/* Wires */
+.dp-w {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.dp-w.t-future {
+  stroke: var(--grid);
+  stroke-width: 1.2;
+}
+
+.dp-w.t-disc {
+  stroke: var(--ink-3);
+  stroke-width: 1.3;
+  stroke-dasharray: 5 3;
+  opacity: 0.7;
+}
+
+.dp-w.t-x {
+  stroke: var(--sig-dontcare);
+  stroke-width: 1.4;
+  stroke-dasharray: 2 3;
+}
+
+.dp-w.t-past {
+  stroke: var(--ink-2);
+  stroke-width: 1.8;
+}
+
+.dp-w.t-now,
+.dp-w.t-path {
+  stroke: var(--sig-path);
+  stroke-width: 3;
+}
+
+.dp-w.ctl.t-past {
+  stroke: var(--sig-control);
+  stroke-width: 1.4;
+}
+
+.dp-w.ctl.t-now {
+  stroke: var(--sig-control);
+  stroke-width: 2.4;
+}
+
+.dp-w.sel {
+  filter: drop-shadow(0 0 3px var(--focus));
+}
+
+.dp-dot {
+  fill: var(--ink-2);
+}
+
+.dp-dot.t-now,
+.dp-dot.t-path {
+  fill: var(--sig-path);
+}
+
+.dp-dot.t-future {
+  fill: var(--grid);
+}
+
+.dp-dot.t-disc,
+.dp-dot.t-x {
+  fill: var(--ink-3);
+}
+
+/* Units */
+.dp-u rect,
+.dp-u ellipse,
+.dp-u polygon,
+.dp-u path:not(.dp-pass) {
+  fill: var(--panel);
+  stroke: var(--ink-2);
+  stroke-width: 1.4;
+}
+
+.dp-u.t-now :is(rect, ellipse, polygon, path:not(.dp-pass)),
+.dp-u.t-path :is(rect, ellipse, polygon, path:not(.dp-pass)) {
+  stroke: var(--sig-path);
+  fill: var(--tint-path);
+  stroke-width: 2;
+}
+
+.dp-u.ctl.t-now :is(rect, ellipse, polygon, path:not(.dp-pass)) {
+  stroke: var(--sig-control);
+  fill: var(--tint-control);
+}
+
+.dp-u.ctl.t-past :is(rect, ellipse, polygon, path:not(.dp-pass)) {
+  stroke: var(--sig-control);
+}
+
+.dp-u.t-disc :is(rect, ellipse, polygon, path:not(.dp-pass)) {
+  stroke: var(--ink-3);
+  stroke-dasharray: 4 3;
+}
+
+.dp-u.t-future :is(rect, ellipse, polygon, path:not(.dp-pass)) {
+  stroke: var(--rule);
+}
+
+.dp-u.t-disc text,
+.dp-u.t-future text {
+  fill: var(--ink-3);
+}
+
+.dp-u.sel :is(rect, ellipse, polygon, path:not(.dp-pass)) {
+  filter: drop-shadow(0 0 3px var(--focus));
+}
+
+.dp-pass {
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.dp-u.t-now .dp-pass,
+.dp-u.t-path .dp-pass {
+  stroke: var(--sig-path);
+}
+
+.dp-u.t-future .dp-pass {
+  stroke: var(--rule);
+}
+
+/* SVG text: 10.5 user units stay at 10 px or more because the diagram never shrinks below 960 px. */
+.dp-t-unit {
+  font-size: 12.5px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+.dp-t-port,
+.dp-t-name {
+  font-size: 10.5px;
+  fill: var(--ink-2);
+}
+
+.dp-u .dp-t-name {
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+.dp-t-field {
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  fill: var(--ink-3);
+}
+
+.dp-t-mux {
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  fill: var(--ink-3);
+}
+
+.dp-t-mux.on {
+  fill: var(--ink);
+  font-weight: 700;
+}
+
+.dp-t-mux.x {
+  fill: var(--sig-dontcare);
+  font-weight: 700;
+}
+
+.dp-labels text {
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+}
+
+.dp-t-val {
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  fill: var(--sig-data);
+  font-weight: 600;
+}
+
+.dp-t-val.t-disc,
+.dp-t-val.t-x {
+  fill: var(--ink-3);
+  font-weight: 400;
+}
+
+.dp-t-ctl {
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  fill: var(--sig-control);
+}
+
+.dp-t-ctl.t-x {
+  fill: var(--sig-dontcare);
+}
+
+.dp-t-ctl.t-disc,
+.dp-t-ctl.t-future {
+  fill: var(--ink-3);
+}
+
+.dp-t-ctl.t-path {
+  fill: var(--sig-path);
+  font-weight: 600;
+}
+
+.dp-badge {
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  fill: var(--ink-2);
+}
+
+.dp-badge.t-path {
+  fill: var(--sig-path);
+  font-weight: 600;
+}
+
+.dp-badge.t-future {
+  fill: var(--ink-3);
+}
+
+/* Hit targets: invisible until focused */
+.dp-hit-w {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12;
+  cursor: pointer;
+  outline: none;
+}
+
+.dp-hit-u {
+  fill: transparent;
+  stroke: none;
+  cursor: pointer;
+  outline: none;
+}
+
+.dp-hit-w:hover {
+  stroke: var(--tint-data);
+  stroke-opacity: 0.6;
+}
+
+.dp-hit-w:focus-visible {
+  stroke: var(--focus);
+  stroke-opacity: 0.35;
+}
+
+.dp-hit-u:focus-visible,
+.dp-hit-u:hover {
+  stroke: var(--focus);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+}
+
+/* ---------- Control tab ---------- */
+
+.dp-bits {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--sp-3);
+}
+
+.dp-bits-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dp-bit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 46px;
+  padding: 3px 6px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--panel);
+  cursor: pointer;
+  color: var(--ink-2);
+}
+
+.dp-bit.on {
+  background: var(--tint-hit);
+  border-color: var(--sig-hit);
+  color: var(--ink);
+}
+
+.dp-bit.dim {
+  opacity: 0.55;
+}
+
+.dp-bit-n {
+  font-size: var(--fs-xs);
+}
+
+.dp-bit-v {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.dp-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dp-quick .btn {
+  font-size: var(--fs-xs);
+  padding: 3px 8px;
+}
+
+.dp-quick-on {
+  border-color: var(--sig-path) !important;
+  background: var(--tint-path) !important;
+}
+
+.dp-pla {
+  display: block;
+  width: 100%;
+  min-width: 720px;
+  height: auto;
+  font-family: var(--font-sans);
+}
+
+.dp-pla text {
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 3px;
+}
+
+.dp-pl {
+  stroke: var(--rule);
+  stroke-width: 1.4;
+  fill: none;
+}
+
+.dp-pl.on {
+  stroke: var(--sig-hit);
+  stroke-width: 2.4;
+}
+
+.dp-pl-join {
+  stroke: var(--rule);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+}
+
+.dp-pl-dot {
+  fill: var(--sig-control);
+  opacity: 0.5;
+}
+
+.dp-pl-dot.on {
+  opacity: 1;
+}
+
+.dp-pl-gate {
+  fill: var(--panel);
+  stroke: var(--sig-control);
+  stroke-width: 1.4;
+}
+
+.dp-pl-gate.on {
+  fill: var(--tint-hit);
+  stroke: var(--sig-hit);
+  stroke-width: 2;
+}
+
+/* ---------- Timing tab ---------- */
+
+.dp-delays {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: var(--sp-2) var(--sp-3);
+  margin-top: var(--sp-3);
+}
+
+.dp-delays .field-box input[type='number'] {
+  width: 100%;
+}
+
+.dp-total {
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+}
+
+.dp-chain {
+  list-style: none;
+  margin: var(--sp-2) 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  font-size: var(--fs-xs);
+}
+
+.dp-chain li {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.dp-chain li + li::before {
+  content: '+';
+  color: var(--ink-3);
+  margin-right: 3px;
+}
+
+@media print {
+  .dp-svg,
+  .dp-pla {
+    min-width: 0;
+  }
+  .dp-hits {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dp-w,
+  .dp-u :is(rect, ellipse, polygon, path) {
+    transition: stroke 0.2s var(--ease), stroke-width 0.2s var(--ease), fill 0.2s var(--ease);
+  }
+}
+
+.dp-diagram-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: end;
+}
+
+.dp-diagram-actions .control-label {
+  display: none;
+}
+
+/* ---------- Quiz tab ---------- */
+
+.dp-quiz {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--sp-2) var(--sp-3);
+  margin: var(--sp-3) 0;
+}
