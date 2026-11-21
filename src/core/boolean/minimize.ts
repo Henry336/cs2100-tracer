@@ -180,7 +180,7 @@ export function minimize(fn: BoolFunction, form: Form = 'sop'): Minimization {
             cite: 'L15 p36',
           }
         : {
-            rule: 'A PI is essential only if some minterm has no other PI over it. Only real minterms count, not don\'t-cares.',
+            rule: 'A PI is essential only if some minterm has no other PI over it. Don\'t-cares do not count.',
             working: `every one of its ${form === 'sop' ? '1s' : '0s'} is also covered by another PI: ${others.join('; ')}`,
             cite: 'L15 p36; T06 Ans p5',
           },
@@ -301,7 +301,7 @@ export function minimize(fn: BoolFunction, form: Form = 'sop'): Minimization {
       implicants: {
         value: implicantCount,
         why: {
-          rule: `An implicant is a product term that could cover minterms of the function: any valid group of ${ones} (don't-cares allowed) with at least one ${ones.slice(0, -1)}.`,
+          rule: `An implicant is any valid group of ${ones}, don't-cares allowed, with at least one ${ones.slice(0, -1)}.`,
           working: `${implicantCount} implicants, of which ${primes.length} are prime`,
           cite: 'L15 p34; R07 p37',
         },
@@ -332,7 +332,7 @@ export function minimize(fn: BoolFunction, form: Form = 'sop'): Minimization {
         value: count,
         exact,
         why: {
-          rule: `Take every EPI, then the fewest other PIs that cover the ${ones} left. Count distinct minimal ${what}s (fewest terms, then fewest literals); term order does not matter.`,
+          rule: `Take every EPI, then the fewest other PIs that cover the ${ones} left: fewest terms, then fewest literals. ${what}s that differ only in term order count once.`,
           working:
             (minimal ? '' : 'search limit reached, so these may not be minimal: ') +
             `${exact || !minimal ? '' : 'at least '}${count} minimal ${what}${count === 1 ? '' : 's'}, each ${first.terms} term${first.terms === 1 ? '' : 's'} and ${first.literals} literal${first.literals === 1 ? '' : 's'}` +

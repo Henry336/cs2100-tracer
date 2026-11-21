@@ -154,8 +154,8 @@ export function lintAnswer(text: string, fn: BoolFunction, opts: LintOptions = {
     checks.push({
       id: 'symbols',
       status: 'fail',
-      message: "remove the brackets: an SOP fill-in-the-blank answer uses only letters, ' . and +",
-      why: { rule: "Do not type anything other than letters, ' . and + in an SOP blank.", cite: 'AY23/24 S2 Q19(d)' },
+      message: 'remove the brackets',
+      why: { rule: "An SOP blank takes only letters, ' . and +.", cite: 'AY23/24 S2 Q19(d)' },
     })
   }
 
@@ -189,7 +189,7 @@ export function lintAnswer(text: string, fn: BoolFunction, opts: LintOptions = {
           status: 'fail',
           message: `${tx} covers only don't-cares; remove it`,
           at: t.span,
-          why: { rule: 'You never need a term just to cover don\'t-cares.', cite: 'L15 p53; R07 p46' },
+          why: { rule: 'No term is needed only to cover don\'t-cares.', cite: 'L15 p53; R07 p46' },
         })
       } else if (prime !== undefined) kind = 'prime'
       else {

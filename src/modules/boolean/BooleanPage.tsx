@@ -11,11 +11,11 @@ import './boolean.css'
 type Tab = 'kmap' | 'forms' | 'check' | 'algebra' | 'gates'
 
 const TABS: { value: Tab; label: string; blurb: string }[] = [
-  { value: 'kmap', label: 'K-map studio', blurb: 'Step through the K-map method: every PI, the EPIs and the cells that make them essential, then every minimal cover, for SOP and POS.' },
-  { value: 'forms', label: 'Truth table and forms', blurb: 'Turn an expression into its truth table, Σm, ΠM and canonical forms, and test two expressions for equality row by row.' },
-  { value: 'check', label: 'Answer checker', blurb: 'Type your answer to see whether it is equal, minimal, built from PIs, and written the way the exam wants it.' },
-  { value: 'algebra', label: 'Algebra steps', blurb: 'Check a simplification line by line: each line must equal the one before, and the checker names the law that gets you there.' },
-  { value: 'gates', label: 'Gates', blurb: 'Draw the minimal expression as AND-OR, NAND-NAND, OR-AND or NOR-NOR, with gate count, levels and when each output settles.' },
+  { value: 'kmap', label: 'K-map studio', blurb: 'Finds every PI and EPI, then each minimal cover, for SOP or POS.' },
+  { value: 'forms', label: 'Truth table and forms', blurb: 'Builds the truth table, Σm, ΠM and canonical forms of an expression, and tests two expressions row by row.' },
+  { value: 'check', label: 'Answer checker', blurb: 'Checks whether your answer is equal, minimal, built from PIs and in exam format.' },
+  { value: 'algebra', label: 'Algebra steps', blurb: 'Each line must equal the one before. The checker names the law used.' },
+  { value: 'gates', label: 'Gates', blurb: 'Draws a minimal cover or a typed expression as gates, with gate count, levels and delay.' },
 ]
 
 export default function BooleanPage() {
@@ -25,7 +25,7 @@ export default function BooleanPage() {
   const intro = (
     <div className="bo-intro">
       <p>
-        {current.blurb} Click any underlined value to see how it was worked out. The K-map, answer checker and gates tabs share one function.
+        {current.blurb} Click an underlined value to see the working. The K-map, checker and gates tabs share one function.
       </p>
       <Tabs label="Boolean tools" value={current.value} onChange={setTab} tabs={TABS} />
     </div>

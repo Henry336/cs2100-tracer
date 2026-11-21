@@ -191,15 +191,14 @@ export default function AlgebraTab({ intro }: { intro: ReactNode }) {
         {detail === 'notes' ? (
           <div className="bo-callouts">
             <Callout kind="trap" title="Check what X is before you use X + X' = 1" cite="T06 SE1">
-              A∙B + A'∙B' is not 1: the complement of A∙B is A' + B'. Try the preset to see the counterexample row.
+              A∙B + A'∙B' is not 1. The complement of A∙B is A' + B'.
             </Callout>
             <Callout kind="course" title="One or two laws per line" cite="L13 p13; L15 p5-6">
-              The slides name the law used on each line. A line this checker cannot explain with one or two laws is still marked equal if it is, but split it so each step
-              names its law.
+              The slides name the law on each line. A line that needs more than two laws is still marked equal, but split it so each step names its law.
             </Callout>
             <Callout kind="beyond" title="How the checker decides">
-              Equality is tested on every row of the truth table. The law names come from trying each L13 law once or twice on the line before. That search is a tool, not a
-              method the course teaches.
+              Equality is tested on every row of the truth table. The law names come from trying each L13 law once or twice on the line before. The course does not teach
+              this search.
             </Callout>
           </div>
         ) : null}

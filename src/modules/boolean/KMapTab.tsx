@@ -81,7 +81,7 @@ export default function KMapTab({ intro, input }: { intro: ReactNode; input: FnI
           </div>
           <MapControls input={input} showForm={false} />
           <div className="bo-row bo-toggles">
-            <Toggle label="Edit by clicking cells (0, 1, X)" checked={edit === true} onChange={setEdit} hint="Each click cycles the cell and rewrites the function as Σm(..) + d(..)" />
+            <Toggle label="Edit by clicking cells (0, 1, X)" checked={edit === true} onChange={setEdit} hint="Rewrites the function as Σm(..) + d(..)" />
             <Toggle label="Show cell numbers" checked={idx !== false} onChange={setIdx} />
           </div>
         </Options>
@@ -89,7 +89,7 @@ export default function KMapTab({ intro, input }: { intro: ReactNode; input: FnI
 
       {fn && (n < 2 || n > 5) ? (
         <Callout kind="course" title="K-maps here take 2 to 5 variables" cite="L15 p13-24">
-          This function has {plural(n, 'variable')}. The truth table, answer checker and algebra tabs still work. The lecture shows a 6-variable map (L15 p23-24) but no question uses one.
+          This function has {plural(n, 'variable')}. The truth table, checker and algebra tabs still work. L15 p23-24 shows a 6-variable map, but no question uses one.
         </Callout>
       ) : null}
       {traced && !traced.ok ? (
@@ -138,8 +138,8 @@ export default function KMapTab({ intro, input }: { intro: ReactNode; input: FnI
                 <details className="bo-foot-more">
                   <summary>Reading the loops</summary>
                   <p>
-                    Solid grey loops are PIs, thick dark loops are the PIs chosen for the cover, dashed loops are left out. A ringed cell has only one PI over it. A loop cut
-                    at the edge wraps around to the other side.
+                    Grey loops are PIs. Thick dark loops are in the cover. Dashed loops are left out. A ringed cell has only one PI over it. A loop cut at the edge wraps
+                    to the other side.
                   </p>
                   <p className="mono bo-working">{trace.layout.why.working}</p>
                 </details>
@@ -187,7 +187,7 @@ function Traps({ trace, input }: { trace: KMapTrace; input: FnInput }) {
       ) : null}
       {trace.target.length && !trace.essentials.length ? (
         <Callout kind="trap" title="There are no EPIs" cite="AY23/24 S1 Q17(a); AY21/22 S1 Q5">
-          Every cell is covered by at least two PIs, so every answer is a choice. Count {trace.summary.covers.value} minimal covers.
+          Every cell has at least two PIs over it. There are {trace.summary.covers.value} minimal covers.
         </Callout>
       ) : trace.leftover.length ? (
         <Callout kind="trap" title="EPIs alone do not cover the map" cite="L15 p38; AY23/24 S1 Q7(iv)">
@@ -212,8 +212,8 @@ function Traps({ trace, input }: { trace: KMapTrace; input: FnInput }) {
         </Callout>
       ) : null}
       <Callout kind="course" title="Slides and keys draw the map differently" cite="L15 p19, p33; R07 p31, p43; T06 Q3">
-        The tutorial and exam keys put the first variables on the rows; the A,B,C,D examples in L15 p32-55 put them on the columns; T06 Q3 mixes them. The cell
-        numbers follow the variable order either way, so read the labels before you copy a map.
+        Tutorial and exam keys put the first variables on the rows. The A,B,C,D examples in L15 p32-55 put them on the columns, and T06 Q3 mixes them. Cell numbers
+        follow the variable order either way, so read the labels before you copy a map.
       </Callout>
     </div>
   )
@@ -367,8 +367,7 @@ function Details({ trace, f, stepper, detail }: { trace: KMapTrace; f?: KMapFram
       <>
         <DataTable compact columns={chartCols} rows={trace.primes} rowSignal={(q) => (active.has(q.id) ? 'path' : undefined)} />
         <p className="bo-muted bo-tab-note">
-          ◉ marks a cell with exactly one PI over it; that PI is essential (L15 p36; R07 p36). Only the {trace.form === 'sop' ? 'minterm' : 'maxterm'} columns decide
-          this; the greyed X columns never make a PI essential (T06 Ans p5).
+          ◉ marks a cell with only one PI over it, so that PI is essential (L15 p36; R07 p36). The greyed X columns never make a PI essential (T06 Ans p5).
         </p>
       </>
     )

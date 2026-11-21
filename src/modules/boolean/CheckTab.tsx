@@ -170,7 +170,7 @@ export default function CheckTab({ intro, input }: { intro: ReactNode; input: Fn
           <div className="bo-board-bar">
             <p className="bo-board-title">
               <span className="mono">K-map of {fn.name}</span>
-              <span className="bo-board-step">{lint ? VERDICT[lint.verdict].text : 'Your terms go here'}</span>
+              <span className="bo-board-step">{lint ? VERDICT[lint.verdict].text : 'Type an answer to check it'}</span>
             </p>
             {lint ? (
               <p className="bo-board-actions">
@@ -189,7 +189,6 @@ export default function CheckTab({ intro, input }: { intro: ReactNode; input: Fn
             />
           </div>
           <div className="bo-board-foot">
-            {!lint ? <p className="bo-muted">Type an answer to check it against {fn.name}.</p> : null}
             {missedEpis.length > 0 && min ? (
               <p className="bo-status">
                 EPIs your answer does not use: <span className="mono">{missedEpis.map((id) => min.primes[id].term).join(', ')}</span>
@@ -205,7 +204,7 @@ export default function CheckTab({ intro, input }: { intro: ReactNode; input: Fn
             />
             <details className="bo-foot-more">
               <summary>Reading the loops</summary>
-              <p>Thick dark loops are PIs that are not essential; dashed loops are terms that are not PIs or cover only don't-cares.</p>
+              <p>Thick dark loops are PIs that are not essential. Dashed loops are terms that are not PIs or cover only don't-cares.</p>
             </details>
           </div>
         </div>
@@ -239,10 +238,10 @@ export default function CheckTab({ intro, input }: { intro: ReactNode; input: Fn
                 )}
               </ul>
             ) : (
-              <p className="bo-muted">Count from your own map first; the right numbers stay hidden until you turn them on below.</p>
+              <p className="bo-muted">Count on your own map first. The answers stay hidden until you show them.</p>
             )}
             <div className="bo-row">
-              <Toggle label="Show a minimal answer and the counts" checked={reveal === true} onChange={setReveal} hint="Hidden so you can try first" />
+              <Toggle label="Show a minimal answer and the counts" checked={reveal === true} onChange={setReveal} />
               {reveal === true ? (
                 <span className="mono">
                   {fitb === true ? min.summary.fitb : min.summary.answer}{' '}
@@ -260,7 +259,7 @@ export default function CheckTab({ intro, input }: { intro: ReactNode; input: Fn
               AB reads as a 2-bit value. Tutorials give zero marks for it, so write A∙B. Fill-in-the-blank answers use a full stop: A.B.
             </Callout>
             <Callout kind="trap" title="Every term should be a PI" cite="L15 p35, p38">
-              A minimal answer uses only PIs and every EPI. A term inside a bigger group, or a group of only don't-cares, makes the answer longer than it needs to be.
+              A minimal answer uses only PIs and every EPI. A term inside a bigger group, or one of only don't-cares, makes the answer longer.
             </Callout>
             <Callout kind="course" title="Fill-in-the-blank format" cite="AY23/24 S2 Q19(d)">
               No spaces, only letters, ' . and +, and the literals inside each term in alphabetical order. Terms may be in any order unless EPIs are asked for first.

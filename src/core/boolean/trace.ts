@@ -64,7 +64,7 @@ export function traceKMap(fn: BoolFunction, opts: TraceOptions = {}): { ok: true
     phase: 'fill',
     title: 'Fill the map',
     why: {
-      rule: `Put 1 in each minterm's cell, X in each don't-care cell and 0 everywhere else.${form === 'pos' ? ' For POS, the 0s are what gets grouped.' : ''}`,
+      rule: `Put 1 in each minterm's cell, X in each don't-care cell and 0 everywhere else.${form === 'pos' ? ' For POS, group the 0s.' : ''}`,
       working: `${fn.name} = ${c.sigma} = ${c.pi}`,
       cite: layout.why.cite,
     },
@@ -129,7 +129,7 @@ export function traceKMap(fn: BoolFunction, opts: TraceOptions = {}): { ok: true
     phase: 'leftover',
     title: min.leftover.length ? `${min.leftover.length} cell${min.leftover.length === 1 ? '' : 's'} left after the EPIs` : `The EPIs cover every ${one}`,
     why: {
-      rule: `Take all EPIs first. Any ${one} they miss needs other PIs, so EPIs alone are not always the answer.`,
+      rule: `Take all EPIs first. Any ${one} they miss needs another PI.`,
       working: min.leftover.length ? `left: ${min.leftover.map((m) => p + m).join(', ')}` : 'nothing left to cover',
       cite: 'L15 p38; AY23/24 S1 Q7(iv)',
     },

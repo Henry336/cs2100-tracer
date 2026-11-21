@@ -335,7 +335,7 @@ export function checkSteps(input: string | StepInput[], opts: { vars?: string[] 
           ? { rule: laws.map((l) => `${LAWS[l].name}: ${LAWS[l].forms}`).join('. '), cite: [...new Set(laws.map((l) => LAWS[l].cite))].join('; ') }
           : laws
             ? { rule: 'Same expression.', cite: 'L13 p10' }
-            : { rule: 'The two lines are equal (truth table), but not by one or two of the L13 laws; split it into smaller steps.', cite: 'L13 p13' }
+            : { rule: 'The lines are equal on every row, but no one or two L13 laws explain the step. Split it into smaller steps.', cite: 'L13 p13' }
         if (s.law) {
           const claimed = parseLawName(s.law)
           r.claimMatches = laws ? claimed.some((l) => laws!.includes(l)) : undefined

@@ -172,7 +172,7 @@ export default function FormsTab({ intro }: { intro: ReactNode }) {
 
       {fn && tooMany ? (
         <Callout kind="course" title="Truth table too large">
-          {vars.length} variables give {2 ** vars.length} rows; this table shows up to {MAX_TT_VARS} variables.
+          {vars.length} variables give {2 ** vars.length} rows. The table stops at {MAX_TT_VARS} variables.
         </Callout>
       ) : null}
 
@@ -211,7 +211,7 @@ export default function FormsTab({ intro }: { intro: ReactNode }) {
               items={[
                 { signal: 'hit', label: '1' },
                 { signal: 'dontcare', label: "X, don't care" },
-                ...(data?.hasRight ? [{ signal: 'miss' as const, label: 'row where the two sides differ' }] : []),
+                ...(data?.hasRight ? [{ signal: 'miss' as const, label: 'the sides differ' }] : []),
               ]}
             />
           </div>
@@ -300,7 +300,7 @@ export default function FormsTab({ intro }: { intro: ReactNode }) {
         {detail === 'notes' ? (
           <div className="bo-callouts">
             <Callout kind="trap" title="A∙B + A'∙B' is not 1" cite="T06 SE1">
-              X + X' = 1 needs the second term to be the complement of the first. The complement of A∙B is A' + B', not A'∙B'.
+              X + X' = 1 needs the second term to be the complement of the first. The complement of A∙B is A' + B'.
             </Callout>
             <Callout kind="trap" title="Duality is not the complement" cite="L13 p11, p15">
               The dual swaps ∙ with + and 0 with 1 but leaves the literals alone. The complement also flips every literal.
@@ -309,7 +309,7 @@ export default function FormsTab({ intro }: { intro: ReactNode }) {
               ⊕ is its own operator. Write it out as A'∙B + A∙B' when a question asks for SOP.
             </Callout>
             <Callout kind="course" title="AND before OR" cite="L13 p9; R07 p4">
-              CS2100 gives AND higher precedence than OR, so A + B∙C means A + (B∙C). Some other modules write it differently.
+              CS2100 gives AND higher precedence than OR, so A + B∙C means A + (B∙C).
             </Callout>
           </div>
         ) : null}

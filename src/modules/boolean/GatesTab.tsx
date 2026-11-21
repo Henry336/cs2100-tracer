@@ -172,7 +172,7 @@ export default function GatesTab({ intro, input }: { intro: ReactNode; input: Fn
             <CommandBar label="Expression" value={gx} onChange={setGx} placeholder="F(A,B,C) = ((A'∙B') + C)'" />
             {!gparse.ok ? <IssueList text={gx} issues={gparse.errors} /> : null}
             <IssueList text={gx} issues={gparse.warnings} kind="warning" />
-            {gparse.ok && !gexpr ? <p className="bo-status bo-bad">Type an expression here. A Σm or ΠM list is drawn from a minimal cover instead.</p> : null}
+            {gparse.ok && !gexpr ? <p className="bo-status bo-bad">This mode needs an expression. Draw a Σm or ΠM list as a minimal cover.</p> : null}
           </>
         ) : (
           <FnCommand input={input} />
@@ -190,7 +190,7 @@ export default function GatesTab({ intro, input }: { intro: ReactNode; input: Fn
             ) : null}
           </div>
           <div className="bo-row bo-toggles">
-            <Toggle label="Complemented inputs available" checked={cmp === true} onChange={setCmp} hint="Off by default: the course gives only the plain inputs unless a question says so (T06 p2)" />
+            <Toggle label="Complemented inputs available" checked={cmp === true} onChange={setCmp} hint="The course gives only plain inputs unless a question says so (T06 p2)" />
             <NumberField label="Gate delay" value={gateDelay} onChange={setGd} min={0} step={0.5} suffix="t" />
             <NumberField label="Inverter delay" value={invDelay} onChange={setIdl} min={0} step={0.5} suffix="t" />
             {mode === 'expr' ? <Toggle label="Delay grows with fan-in (n inputs take n times the delay)" checked={fi === true} onChange={setFi} hint="AY17/18 Q1c(ii)" /> : null}
@@ -218,7 +218,7 @@ export default function GatesTab({ intro, input }: { intro: ReactNode; input: Fn
               </p>
               <div className="bo-board-actions">
                 {mode === 'cover' ? <Segmented label="Circuit" value={kind} onChange={setKind} options={KINDS} /> : null}
-                <Toggle label="Show only what is stable at this time" checked={focus === true} onChange={setFocus} hint="Hides gates and wires whose value has not settled yet" />
+                <Toggle label="Show only what is stable at this time" checked={focus === true} onChange={setFocus} />
               </div>
             </div>
             <div className="bo-scroll">
@@ -334,13 +334,12 @@ export default function GatesTab({ intro, input }: { intro: ReactNode; input: Fn
             ) : null}
             {mode === 'expr' ? (
               <Callout kind="course" title="One gate per operator" cite="L14 p7-9; AY23/24 S2 Q12">
-                A NOT over an AND or OR is drawn as one NAND or NOR, and a sub-expression used twice is one gate with two wires out. Check the One gate line under Counts:
-                four NANDs can be a single XOR.
+                A NOT over an AND or OR is drawn as one NAND or NOR. A sub-expression used twice is one gate with two wires out. Four NANDs can be a single XOR: see One
+                gate under Counts.
               </Callout>
             ) : null}
             <Callout kind="course" title="How the delay is worked out">
-              Every gate takes the delay you set, and a signal is stable at the latest input time plus that delay (L17 p34; R08 p24). No course source fixes the inverter
-              delay, so it has its own field.
+              A signal is stable at its latest input time plus the gate delay (L17 p34; R08 p24). No course source fixes the inverter delay, so it has its own field.
             </Callout>
           </div>
         ) : null}

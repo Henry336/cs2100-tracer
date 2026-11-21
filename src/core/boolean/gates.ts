@@ -262,7 +262,7 @@ export function completeSet(set: SetGate[], opts: { constants?: boolean } = {}):
     and,
     nand,
     why: {
-      rule: `A set is complete if it can build NOT and AND (or simply NAND), which build everything.${constants ? ' The constants 0 and 1 are available.' : ' Constants are not available here.'}`,
+      rule: `A set is complete if it can build NOT and AND, or NAND alone; those build everything.${constants ? ' The constants 0 and 1 are available.' : ' Constants are not available here.'}`,
       working:
         nand !== undefined
           ? `${name}: a' = ${not}; a∙b = ${and}`
