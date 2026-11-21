@@ -124,7 +124,7 @@ export function structLayout(members: StructMemberInput[], base?: number): Struc
     size: offset,
     members: out,
     explain: {
-      rule: 'sizeof(struct) = sum of member sizes. Assumption: no padding, because the course never teaches it; a real compiler may insert gaps so members are aligned',
+      rule: 'sizeof(struct) = sum of member sizes, with no padding (the course never teaches it; a real compiler may add gaps to align members)',
       working: `${members.map((m) => m.size).join(' + ') || '0'} = ${offset} bytes`,
       cite: 'L05C p3',
     },

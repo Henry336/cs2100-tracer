@@ -406,7 +406,7 @@ export function ArrayStrip({ dims, index, order, S, base }: { dims: number[]; in
             { signal: 'data', label: 'elements stored before it (they make the offset)' },
           ]}
         />
-        <p className="cm-muted">Each box is one element, labelled with its indices; the number above is its position in memory.</p>
+        <p className="cm-muted">The number above each box is its position in memory.</p>
       </div>
     </div>
   )
@@ -534,10 +534,10 @@ function StructTool(p: {
                 Members are laid out in declaration order with no gaps, so sizeof is the sum of the member sizes. A struct type takes no memory until a variable of it is declared (L05C p5).
               </Callout>
               <Callout kind="course" title="A union is one set of bytes" cite="R02 p32">
-                All members start at offset 0, so writing one member overwrites the others. sizeof is the largest member, not the sum.
+                All members start at offset 0, so writing one member overwrites the others. sizeof is the size of the largest member.
               </Callout>
               <Callout kind="beyond" title="Alignment padding">
-                Real compilers usually start each member at a multiple of its own size and round the whole struct up to its largest member, which is why the slides' own printed addresses show gaps (L04B p5). Not examinable.
+                Real compilers usually start each member at a multiple of its own size and round the whole struct up to its largest member. That is why the slides' printed addresses show gaps (L04B p5). Not examinable.
               </Callout>
             </div>
           )

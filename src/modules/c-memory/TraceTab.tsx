@@ -198,7 +198,7 @@ export default function TraceTab({ intro }: { intro: ReactNode }) {
             {f ? (
               <div className="cm-board-actions">
                 <Toggle label="Addresses" checked={showAddr !== false} onChange={(v) => setShowAddr(v)} hint="Turn off to see only boxes and arrows" />
-                <Toggle label="Show only what this step changes" checked={focus === true} onChange={(v) => setFocus(v)} hint="Hides every box this step leaves alone; the rest stay where they were" />
+                <Toggle label="Show only what this step changes" checked={focus === true} onChange={(v) => setFocus(v)} hint="Hides the boxes this step leaves alone. The others keep their place." />
               </div>
             ) : null}
           </div>
@@ -211,7 +211,7 @@ export default function TraceTab({ intro }: { intro: ReactNode }) {
                   </Callout>
                 </div>
               ) : null}
-              {focus === true && !frameChanges(f) ? <p className="cm-pad cm-muted">This step changes nothing in memory: it only reads values, tests a condition or prints.</p> : null}
+              {focus === true && !frameChanges(f) ? <p className="cm-pad cm-muted">This step changes nothing in memory.</p> : null}
               <MemoryDiagram
                 frame={f}
                 line={srcLines[f.line - 1]}
@@ -322,7 +322,7 @@ export default function TraceTab({ intro }: { intro: ReactNode }) {
                 <ByteStrip frame={f} endian={cfg.endian ?? 'big'} selected={sel} onSelect={setSel} />
                 <div className="cm-callouts">
                   <Callout kind="course" title="Which byte order?" cite="R02 p8; L10 p17-18">
-                    Big-endian is the default because R02 labels our MIPS big-endian. L10 says MIPS byte order depends on the implementation, and the online interpreter is little-endian, so the order is always stated.
+                    R02 calls our MIPS big-endian, so that is the default. L10 says it depends on the implementation, and the online interpreter is little-endian, so a question always states the order.
                   </Callout>
                   <Callout kind="trap" title="Endianness only reorders the bytes of one value" cite="L10 p17-18">
                     A char array is stored in index order either way, and the bits inside a byte never move. Only an int, float, double or pointer has its bytes reversed.
@@ -436,7 +436,7 @@ function OutputPane(p: {
         ) : null}
       </div>
       <div>
-        <CodeEditor label="Your prediction of the output (optional)" value={p.guess} onChange={(v) => p.setGuess(v)} rows={3} />
+        <CodeEditor label="Your prediction of the output" value={p.guess} onChange={(v) => p.setGuess(v)} rows={3} />
         {check ? (
           <p className="cm-status">
             {check.match ? (
@@ -557,7 +557,7 @@ function VariablesTable({ f, sel, onSelect }: { f: TraceFrame; sel: string | nul
 function TrapList({ traps }: { traps: typeof TRAPS }) {
   return (
     <div className="cm-callouts">
-      {traps.length === 0 ? <p className="cm-muted">None of the listed traps apply to this program.</p> : null}
+      {traps.length === 0 ? <p className="cm-muted">No trap applies to this program.</p> : null}
       {traps.map((t) => (
         <Callout key={t.id} kind="trap" title={t.title} cite={t.cite}>
           {t.body}
@@ -617,7 +617,7 @@ function Grouping({ trees, line }: { trees: ExprNode[]; line: number }) {
   if (trees.length === 0) return <p className="cm-muted">Line {line} has no operators to group.</p>
   return (
     <>
-      <p className="cm-muted">How line {line} groups. The operator lowest in the precedence table is applied last, so it sits at the top. Level 1 binds tightest (L02C p9).</p>
+      <p className="cm-muted">The operator applied last sits at the top. Level 1 binds tightest (L02C p9).</p>
       <ul className="cm-tree">
         {trees.map((t, k) => (
           <TreeNode key={k} n={t} />

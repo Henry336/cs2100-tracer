@@ -147,7 +147,7 @@ export class Memory {
   }
 
   private check(addr: number, size: number, write: boolean): { r: Region; off: number } {
-    if (addr === 0) throw new RuntimeErr('segfault', 'this follows a NULL pointer (address 0). Result: segmentation fault', 'L04B p6')
+    if (addr === 0) throw new RuntimeErr('segfault', 'this follows a NULL pointer (address 0): segmentation fault', 'L04B p6')
     const r = this.locate(addr)
     const over = this.overruns.find((o) => o.addr === addr)
     if (over) {

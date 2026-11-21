@@ -70,7 +70,7 @@ export function ByteStrip({ frame, endian, selected, onSelect }: { frame: TraceF
                 'gap' in r ? (
                   <tr key={`gap-${r.from}`} className="cm-strip-gap">
                     <td className="mono">{hexAddr(r.from)}</td>
-                    <td colSpan={5}>{r.gap} bytes not used by any variable (alignment or a frame's unused room)</td>
+                    <td colSpan={5}>{r.gap} bytes unused (alignment or spare room in a frame)</td>
                   </tr>
                 ) : (
                   <tr key={r.addr}>

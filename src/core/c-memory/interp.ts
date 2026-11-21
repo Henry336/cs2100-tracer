@@ -223,7 +223,7 @@ export class Interp {
     const size = this.size(t)
     const cells = cellCount(t, this.L)
     if (cells > MAX_CELLS)
-      throw new RuntimeErr('unsupported', `${name} has ${cells} cells; the tracer draws every cell at every step, so one variable can have at most ${MAX_CELLS}`)
+      throw new RuntimeErr('unsupported', `${name} has ${cells} cells; the tracer draws at most ${MAX_CELLS} per variable`)
     const align = alignOf(t, this.L)
     if (!f || staticIn) {
       const addr = Math.ceil(this.gp / align) * align
@@ -232,7 +232,7 @@ export class Interp {
           name, kind: 'global', addr, size, type: t, line,
           addrWhy: {
             rule: staticIn
-              ? `A static local is stored with the globals (upward from ${hex(this.cfg.globalBase)}), not in the frame of ${staticIn}, so it lasts for the whole run; this layout is the tracer's assumption`
+              ? `A static local is stored with the globals (upward from ${hex(this.cfg.globalBase)}), outside the frame of ${staticIn}, so it lasts the whole run. The layout is the tracer's assumption`
               : `Globals are placed one after another upward from ${hex(this.cfg.globalBase)} (the MIPS data segment); this layout is the tracer's assumption`,
             working: addr === this.gp ? `next free address ${hex(addr)}` : `${hex(this.gp)} rounded up to a multiple of ${align} = ${hex(addr)}`,
             ...(staticIn ? { cite: 'L04D p18' } : {}),
