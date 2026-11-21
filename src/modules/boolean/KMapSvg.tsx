@@ -35,9 +35,19 @@ export interface KMapSvgProps {
   showIndex?: boolean
   onCell?: (m: number) => void
   label: string
+  /** Keys of the loops that change in this step; they draw in and carry light. */
+  active?: string[]
+  /** Changes with the step, so the light restarts. */
+  step?: number
 }
 
-export function KMapSvg({ layout, values, loops, focus = [], reasons = [], covered = [], bad = [], showIndex = true, onCell, label }: KMapSvgProps) {
+/** A rounded rectangle as one path, so the shared flow classes can draw it in. */
+const roundRect = (x0: number, y0: number, x1: number, y1: number, rr: number) => {
+  const r = Math.min(rr, (x1 - x0) / 2, (y1 - y0) / 2)
+  return `M${x0 + r} ${y0}H${x1 - r}A${r} ${r} 0 0 1 ${x1} ${y0 + r}V${y1 - r}A${r} ${r} 0 0 1 ${x1 - r} ${y1}H${x0 + r}A${r} ${r} 0 0 1 ${x0} ${y1 - r}V${y0 + r}A${r} ${r} 0 0 1 ${x0 + r} ${y0}Z`
+}
+
+export function KMapSvg({ layout, values, loops, focus = [], reasons = [], covered = [], bad = [], showIndex = true, onCell, label, active = [], step }: KMapSvgProps) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
   const rows = layout.rowCodes.length
   const cols = layout.colCodes.length
@@ -53,6 +63,17 @@ export function KMapSvg({ layout, values, loops, focus = [], reasons = [], cover
   const cset = new Set(covered)
   const bset = new Set(bad)
   const ox = (map: number) => map * (mapW + GAP) + LEFT
+  // A loop piece cut at the map edge runs one cell past it; the clip path cuts it off there.
+  const box = (p: LoopPiece, inset: number): [number, number, number, number] => {
+    const gx = ox(p.map)
+    return [
+      gx + p.c0 * C + inset - (p.open.left ? C : 0),
+      top + p.r0 * C + inset - (p.open.top ? C : 0),
+      gx + (p.c1 + 1) * C - inset + (p.open.right ? C : 0),
+      top + (p.r1 + 1) * C - inset + (p.open.bottom ? C : 0),
+    ]
+  }
+  const flowing = step === undefined ? [] : loops.map((l, k) => ({ l, k })).filter(({ l }) => active.includes(l.key))
 
   return (
     <svg
@@ -175,15 +196,7 @@ export function KMapSvg({ layout, values, loops, focus = [], reasons = [], cover
         return (
           <g key={l.key} className={`bo-loop loop-${l.style}`}>
             {l.pieces.map((p, i) => {
-              const gx = ox(p.map)
-              let x0 = gx + p.c0 * C + inset
-              let x1 = gx + (p.c1 + 1) * C - inset
-              let y0 = top + p.r0 * C + inset
-              let y1 = top + (p.r1 + 1) * C - inset
-              if (p.open.left) x0 -= C
-              if (p.open.right) x1 += C
-              if (p.open.top) y0 -= C
-              if (p.open.bottom) y1 += C
+              const [x0, y0, x1, y1] = box(p, inset)
               return (
                 <rect
                   key={i}
@@ -210,6 +223,21 @@ export function KMapSvg({ layout, values, loops, focus = [], reasons = [], cover
           </g>
         )
       })}
+      {/* The loops this step adds draw themselves in, then light runs round them (decorative). */}
+      {flowing.length ? (
+        <>
+          <g className="flow-draw" key={`d${step}`} aria-hidden="true">
+            {flowing.map(({ l, k }) => l.pieces.map((p, i) => <path key={`${l.key}-${i}`} d={roundRect(...box(p, 5 + (k % 4) * 3), 13)} pathLength={1} clipPath={`url(#${uid}-clip${p.map})`} className={l.style === 'chosen' ? 'bo-flow-ink' : undefined} />))}
+          </g>
+          <g className="flow-packets" key={`p${step}`} aria-hidden="true">
+            {flowing.map(({ l, k }, j) =>
+              l.pieces.map((p, i) => (
+                <path key={`${l.key}-${i}`} d={roundRect(...box(p, 5 + (k % 4) * 3), 13)} pathLength={1} clipPath={`url(#${uid}-clip${p.map})`} className={l.style === 'chosen' ? 'bo-flow-ink' : undefined} style={{ animationDelay: `${0.7 + (j % 5) * 0.18}s` }} />
+              )),
+            )}
+          </g>
+        </>
+      ) : null}
     </svg>
   )
 }

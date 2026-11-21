@@ -1,10 +1,10 @@
 import { useMemo, type ReactNode } from 'react'
 import { canonical, MAX_MIN_VARS, minimize, traceKMap, type KMapFrame, type KMapTrace, type Minimization } from '../../core/boolean'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, Chip, DataTable, Legend, Panel, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Callout, Chip, DataTable, Legend, Toggle, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper, type Stepper } from '../../ui/stepper'
-import { cycleCell, FnPresets, FunctionFields, MapControls, plural, W, type FnInput } from './common'
+import { BoardPlay, cycleCell, DetailTabs, FnCommand, FnPresets, FormSwitch, MapControls, Options, plural, StepStory, useDetailTab, VarsField, W, type FnInput } from './common'
 import { KMapSvg, type LoopDraw } from './KMapSvg'
 
 const STAGES: { label: string; phases: KMapFrame['phase'][] }[] = [
@@ -26,6 +26,14 @@ export function frameLoops(trace: KMapTrace, f: KMapFrame): LoopDraw[] {
   return loops
 }
 
+/** Loops that a step adds or changes: they get the travelling light. */
+export function changedLoops(prev: KMapFrame | undefined, f: KMapFrame): string[] {
+  const was = new Map(prev?.loops.map((l) => [l.prime, l.role]))
+  return f.loops.filter((l) => (l.role === 'new' || l.role === 'epi' || l.role === 'chosen') && was.get(l.prime) !== l.role).map((l) => `p${l.prime}`)
+}
+
+type DetailTab = 'primes' | 'chart' | 'left' | 'answers' | 'result' | 'notes'
+
 export default function KMapTab({ intro, input }: { intro: ReactNode; input: FnInput }) {
   const [edit, setEdit] = useUrlState<boolean>('edit', false)
   const [idx, setIdx] = useUrlState<boolean>('idx', true)
@@ -42,6 +50,18 @@ export default function KMapTab({ intro, input }: { intro: ReactNode; input: FnI
   const stepper = useStepper(frames.length)
   const f = frames[stepper.index] as KMapFrame | undefined
   const marks = useMemo(() => frames.map((x) => (x.phase === 'essential' && x.loops.some((l) => l.role === 'epi') ? 'path' : x.phase === 'answer' ? 'hit' : undefined)), [frames])
+  const stage = f ? Math.max(0, STAGES.findIndex((s) => s.phases.includes(f.phase))) : 0
+  const tabs: { value: DetailTab; label: string }[] = trace
+    ? [
+        { value: 'primes', label: `Prime implicants (${trace.primes.length})` },
+        ...(trace.primes.length ? [{ value: 'chart' as const, label: 'Cover chart' }] : []),
+        ...(trace.leftover.length ? [{ value: 'left' as const, label: 'Left after the EPIs' }] : []),
+        { value: 'answers', label: 'Minimal answers' },
+        ...(both ? [{ value: 'result' as const, label: 'SOP, POS and canonical' }] : []),
+        { value: 'notes', label: 'Traps and conventions' },
+      ]
+    : []
+  const [detail, setDetail] = useDetailTab<DetailTab>('kt', tabs)
 
   const transport = trace ? <Transport stepper={stepper} label="Step" marks={marks} describe={f?.title} /> : undefined
 
@@ -52,16 +72,20 @@ export default function KMapTab({ intro, input }: { intro: ReactNode; input: FnI
       intro={intro}
       toolbar={<FnPresets input={input} onPick={stepper.first} />}
       transport={transport}
-      inspector={trace ? <Inspector trace={trace} f={f} stepper={stepper} /> : undefined}
     >
-      <Panel title="Function">
-        <FunctionFields input={input} />
-        <MapControls input={input} />
-        <div className="bo-row bo-toggles">
-          <Toggle label="Edit by clicking cells (0, 1, X)" checked={edit === true} onChange={setEdit} hint="Each click cycles the cell and rewrites the function as Σm(..) + d(..)" />
-          <Toggle label="Show cell numbers" checked={idx !== false} onChange={setIdx} />
-        </div>
-      </Panel>
+      <div className="bo-command">
+        <FnCommand input={input} />
+        <Options summary="Variables, map layout and editing">
+          <div className="bo-row">
+            <VarsField input={input} />
+          </div>
+          <MapControls input={input} showForm={false} />
+          <div className="bo-row bo-toggles">
+            <Toggle label="Edit by clicking cells (0, 1, X)" checked={edit === true} onChange={setEdit} hint="Each click cycles the cell and rewrites the function as Σm(..) + d(..)" />
+            <Toggle label="Show cell numbers" checked={idx !== false} onChange={setIdx} />
+          </div>
+        </Options>
+      </div>
 
       {fn && (n < 2 || n > 5) ? (
         <Callout kind="course" title="K-maps here take 2 to 5 variables" cite="L15 p13-24">
@@ -76,68 +100,77 @@ export default function KMapTab({ intro, input }: { intro: ReactNode; input: FnI
 
       {trace && f && fn ? (
         <>
-          <Panel
-            flush
-            title={`K-map of ${fn.name}, grouping the ${form === 'sop' ? '1s' : '0s'}`}
-            actions={<span className="bo-muted mono">{trace.layout.why.working}</span>}
-          >
-            <Stages f={f} frames={frames} stepper={stepper} />
-            <div className="bo-frame-note">
-              <p className="bo-frame-title">{f.title}</p>
-              <p>{f.why.rule}</p>
-              {f.why.working ? <p className="mono bo-working">{f.why.working}</p> : null}
-              {f.why.cite ? <p className="bo-cite">{f.why.cite}</p> : null}
+          <div className="bo-stage">
+            <div className="bo-board canvas">
+              <div className="bo-board-bar">
+                <p className="bo-board-title">
+                  <span className="mono">K-map of {fn.name}</span>
+                  <span className="bo-board-step">{STAGES[stage].label}</span>
+                </p>
+                <div className="bo-board-actions">
+                  <FormSwitch input={input} />
+                </div>
+              </div>
+              <div className="bo-scroll">
+                <KMapSvg
+                  layout={trace.layout}
+                  values={trace.values}
+                  loops={frameLoops(trace, f)}
+                  focus={f.focus}
+                  reasons={f.reasons}
+                  covered={f.phase === 'leftover' ? f.covered : undefined}
+                  showIndex={idx !== false}
+                  onCell={edit === true ? (m) => input.setText(cycleCell(fn, m)) : undefined}
+                  label={`K-map of ${fn.name}: ${f.title}`}
+                  active={changedLoops(frames[stepper.index - 1], f)}
+                  step={stepper.index}
+                />
+              </div>
+              <BoardPlay stepper={stepper} start="Step through the K-map" next={frames[stepper.index + 1]?.title} />
+              <div className="bo-board-foot">
+                <Legend
+                  items={[
+                    { signal: 'hit', label: '1 (minterm)' },
+                    { signal: 'dontcare', label: "X, don't care" },
+                    { signal: 'path', label: 'this step' },
+                  ]}
+                />
+                <details className="bo-foot-more">
+                  <summary>Reading the loops</summary>
+                  <p>
+                    Solid grey loops are PIs, thick dark loops are the PIs chosen for the cover, dashed loops are left out. A ringed cell has only one PI over it. A loop cut
+                    at the edge wraps around to the other side.
+                  </p>
+                  <p className="mono bo-working">{trace.layout.why.working}</p>
+                </details>
+              </div>
             </div>
-            <div className="bo-scroll">
-              <KMapSvg
-                layout={trace.layout}
-                values={trace.values}
-                loops={frameLoops(trace, f)}
-                focus={f.focus}
-                reasons={f.reasons}
-                covered={f.phase === 'leftover' ? f.covered : undefined}
-                showIndex={idx !== false}
-                onCell={edit === true ? (m) => input.setText(cycleCell(fn, m)) : undefined}
-                label={`K-map of ${fn.name}: ${f.title}`}
-              />
-            </div>
-            <div className="bo-pad">
-              <Legend
-                items={[
-                  { signal: 'hit', label: '1 (minterm)' },
-                  { signal: 'dontcare', label: "X, don't care" },
-                  { signal: 'path', label: 'this step: new PI, EPI, ringed cell only one PI covers' },
-                ]}
-              />
-              <p className="bo-muted">
-                Solid grey loops are PIs, thick dark loops are the PIs chosen for the cover, dashed loops are left out. A loop cut at the edge wraps
-                around to the other side.
-              </p>
-            </div>
-          </Panel>
-          <Traps trace={trace} input={input} />
-          {both ? <Results both={both} form={form} /> : null}
+            <StepStory
+              label="Stages of the K-map method"
+              current={stage}
+              onPick={(i) => stepper.set(frames.findIndex((x) => STAGES[i].phases.includes(x.phase)))}
+              steps={STAGES.map((s, i) => ({
+                key: s.label,
+                title: s.label,
+                disabled: !frames.some((x) => s.phases.includes(x.phase)),
+                body:
+                  i === stage ? (
+                    <>
+                      <p className="bo-frame-title">{f.title}</p>
+                      <p>{f.why.rule}</p>
+                      {f.why.working ? <p className="mono bo-working">{f.why.working}</p> : null}
+                      {f.why.cite ? <p className="bo-cite">{f.why.cite}</p> : null}
+                    </>
+                  ) : undefined,
+              }))}
+            />
+          </div>
+          <DetailTabs label="Tables for this map" tabs={tabs} value={detail} onChange={setDetail}>
+            {detail === 'result' && both ? <Results both={both} form={form} /> : detail === 'notes' ? <Traps trace={trace} input={input} /> : <Details trace={trace} f={f} stepper={stepper} detail={detail} />}
+          </DetailTabs>
         </>
       ) : null}
     </Workspace>
-  )
-}
-
-function Stages({ f, frames, stepper }: { f: KMapFrame; frames: KMapFrame[]; stepper: Stepper }) {
-  return (
-    <ol className="bo-stages" aria-label="Stages of the K-map method">
-      {STAGES.map((s) => {
-        const first = frames.findIndex((x) => s.phases.includes(x.phase))
-        const on = s.phases.includes(f.phase)
-        return (
-          <li key={s.label}>
-            <button type="button" className={`bo-stage${on ? ' is-on' : ''}`} aria-current={on ? 'step' : undefined} disabled={first < 0} onClick={() => stepper.set(first)}>
-              {s.label}
-            </button>
-          </li>
-        )
-      })}
-    </ol>
   )
 }
 
@@ -212,8 +245,7 @@ function Results({ both, form }: { both: { sop: Minimization; pos: Minimization 
       }
     : null
   return (
-    <Panel title="Result">
-      <dl className="bo-facts">
+    <dl className="bo-facts">
         <dt>Minimal SOP</dt>
         <dd>
           <span className="mono">
@@ -260,12 +292,12 @@ function Results({ both, form }: { both: { sop: Minimization; pos: Minimization 
           </W>
           , {plural(s.terms, 'term')} and {plural(s.literals, 'literal')}
         </dd>
-      </dl>
-    </Panel>
+    </dl>
   )
 }
 
-function Inspector({ trace, f, stepper }: { trace: KMapTrace; f?: KMapFrame; stepper: Stepper }) {
+/** One table at a time, picked in the tab strip under the board. */
+function Details({ trace, f, stepper, detail }: { trace: KMapTrace; f?: KMapFrame; stepper: Stepper; detail: DetailTab }) {
   const p = trace.form === 'sop' ? 'm' : 'M'
   const active = new Set(f?.loops.filter((l) => l.role === 'new' || l.role === 'epi' || l.role === 'chosen').map((l) => l.prime))
   const piCols: Column<KMapTrace['primes'][number]>[] = [
@@ -324,58 +356,54 @@ function Inspector({ trace, f, stepper }: { trace: KMapTrace; f?: KMapFrame; ste
     const at = trace.frames.findIndex((x) => (x.phase === 'cover' || x.phase === 'answer') && x.cover === i)
     if (at >= 0) stepper.set(at)
   }
+  if (detail === 'primes')
+    return trace.primes.length ? (
+      <DataTable compact columns={piCols} rows={trace.primes} rowSignal={(q) => (active.has(q.id) ? 'path' : undefined)} />
+    ) : (
+      <p className="bo-muted">No {trace.form === 'sop' ? '1s' : '0s'} to group.</p>
+    )
+  if (detail === 'chart')
+    return (
+      <>
+        <DataTable compact columns={chartCols} rows={trace.primes} rowSignal={(q) => (active.has(q.id) ? 'path' : undefined)} />
+        <p className="bo-muted bo-tab-note">
+          ◉ marks a cell with exactly one PI over it; that PI is essential (L15 p36; R07 p36). Only the {trace.form === 'sop' ? 'minterm' : 'maxterm'} columns decide
+          this; the greyed X columns never make a PI essential (T06 Ans p5).
+        </p>
+      </>
+    )
+  if (detail === 'left')
+    return (
+      <>
+        <DataTable compact columns={restCols} rows={rest} />
+        <p className="bo-muted bo-tab-note">Pick the fewest of these PIs that cover every column, then the fewest literals (L15 p38).</p>
+      </>
+    )
   return (
     <>
-      <Panel flush title={`Prime implicants (${trace.primes.length})`}>
-        {trace.primes.length ? (
-          <DataTable compact columns={piCols} rows={trace.primes} rowSignal={(q) => (active.has(q.id) ? 'path' : undefined)} />
-        ) : (
-          <p className="bo-pad bo-muted">No {trace.form === 'sop' ? '1s' : '0s'} to group.</p>
-        )}
-      </Panel>
-      {trace.primes.length ? (
-        <Panel flush title="Cover chart">
-          <DataTable compact columns={chartCols} rows={trace.primes} rowSignal={(q) => (active.has(q.id) ? 'path' : undefined)} />
-          <p className="bo-pad bo-muted">
-            ◉ marks a cell with exactly one PI over it; that PI is essential (L15 p36; R07 p36). Only the {trace.form === 'sop' ? 'minterm' : 'maxterm'} columns
-            decide this; the greyed X columns never make a PI essential (T06 Ans p5).
-          </p>
-        </Panel>
-      ) : null}
-      {trace.leftover.length ? (
-        <Panel flush title="Left after the EPIs">
-          <DataTable compact columns={restCols} rows={rest} />
-          <p className="bo-pad bo-muted">
-            Pick the fewest of these PIs that cover every column, then the fewest literals (L15 p38).
-          </p>
-        </Panel>
-      ) : null}
-      <Panel
-        title={
-          <W e={trace.summary.covers.why}>
-            {trace.summary.covers.exact === false ? 'At least ' : ''}
-            {plural(trace.summary.covers.value, 'minimal answer')}
-          </W>
-        }
-      >
-        <ol className="bo-covers">
-          {trace.covers.map((c, i) => (
-            <li key={i} className={f?.cover === i ? 'is-on' : undefined}>
-              <button type="button" className="bo-linkbtn mono" onClick={() => jump(i)}>
-                {c.text}
-              </button>
-              <span className="bo-muted">
-                {' '}
-                {plural(c.terms, 'term')}, {plural(c.literals, 'literal')}
-              </span>
-              <span className="mono bo-fitb">{c.fitb}</span>
-              {c.complementText ? <span className="mono bo-muted">{trace.fn.name}' = {c.complementText}</span> : null}
-              {c.dcValues.length ? <span className="bo-muted">X become {c.dcValues.map((d) => `m${d.cell}=${d.value}`).join(', ')}</span> : null}
-            </li>
-          ))}
-        </ol>
-        {trace.summary.covers.value > trace.covers.length ? <p className="bo-muted">Only the first {trace.covers.length} are listed.</p> : null}
-      </Panel>
+      <p className="bo-tab-head">
+        <W e={trace.summary.covers.why}>
+          {trace.summary.covers.exact === false ? 'At least ' : ''}
+          {plural(trace.summary.covers.value, 'minimal answer')}
+        </W>
+      </p>
+      <ol className="bo-covers">
+        {trace.covers.map((c, i) => (
+          <li key={i} className={f?.cover === i ? 'is-on' : undefined}>
+            <button type="button" className="bo-linkbtn mono" onClick={() => jump(i)}>
+              {c.text}
+            </button>
+            <span className="bo-muted">
+              {' '}
+              {plural(c.terms, 'term')}, {plural(c.literals, 'literal')}
+            </span>
+            <span className="mono bo-fitb">{c.fitb}</span>
+            {c.complementText ? <span className="mono bo-muted">{trace.fn.name}' = {c.complementText}</span> : null}
+            {c.dcValues.length ? <span className="bo-muted">X become {c.dcValues.map((d) => `m${d.cell}=${d.value}`).join(', ')}</span> : null}
+          </li>
+        ))}
+      </ol>
+      {trace.summary.covers.value > trace.covers.length ? <p className="bo-muted">Only the first {trace.covers.length} are listed.</p> : null}
     </>
   )
 }

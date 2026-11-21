@@ -125,55 +125,7 @@
   border-bottom: 2px solid var(--sig-miss);
 }
 
-/* ---------- K-map stages and frame note ---------- */
-
-.bo-stages {
-  list-style: none;
-  margin: 0;
-  padding: var(--sp-2) var(--sp-3);
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-1);
-  border-bottom: 1px solid var(--grid);
-}
-
-.bo-stage {
-  border: 1px solid var(--rule);
-  background: var(--panel);
-  color: var(--ink-2);
-  border-radius: var(--r-pill);
-  padding: 2px 10px;
-  font-size: var(--fs-xs);
-  cursor: pointer;
-}
-
-.bo-stage:hover:not(:disabled) {
-  color: var(--ink);
-  border-color: var(--ink-3);
-}
-
-.bo-stage:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.bo-stage.is-on {
-  background: var(--tint-path);
-  border-color: var(--sig-path);
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.bo-frame-note {
-  padding: var(--sp-2) var(--sp-3);
-  border-bottom: 1px solid var(--grid);
-  border-left: 3px solid var(--sig-path);
-  font-size: var(--fs-sm);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-height: 5.2em;
-}
+/* ---------- Step narration ---------- */
 
 .bo-frame-title {
   font-weight: 600;
@@ -599,7 +551,7 @@
     max-width: 100%;
     height: auto;
   }
-  .bo-stages {
+  .bo-board-play {
     display: none;
   }
 }
@@ -643,4 +595,525 @@
 
 .bo-dccol {
   color: var(--ink-3);
+}
+
+/* ---------- Calm layout: command bar, board with Play inside, step story, one tab strip ---------- */
+
+.bo-command {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.bo-command-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
+  max-width: 760px;
+  padding: 6px 8px 6px 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-pill);
+  background: var(--panel);
+}
+
+.bo-command-label {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.bo-command-input {
+  flex: 1 1 14em;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--fs-md);
+  padding: 6px 0;
+}
+
+.bo-command-word {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: var(--sunken);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.bo-options > summary {
+  cursor: pointer;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+  width: max-content;
+  max-width: 100%;
+  padding: 2px 4px;
+}
+
+.bo-options[open] > summary {
+  color: var(--ink);
+}
+
+.bo-options-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0 var(--sp-1);
+}
+
+.bo-options-body .bo-row + .bo-row {
+  margin-top: 0;
+}
+
+.bo-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.bo-board {
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
+  overflow: hidden;
+}
+
+.bo-board-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  padding: 12px 16px 0;
+}
+
+.bo-board-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-3);
+  min-width: 0;
+  font-size: var(--fs-md);
+}
+
+.bo-board-step {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  color: var(--sig-path);
+}
+
+.bo-board-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+/* The board's own dot grid shows through: tables and maps sit on it without their own panel. */
+.bo-board .bo-scroll {
+  padding: var(--sp-3) 16px;
+}
+
+.bo-board .dtable {
+  background: var(--panel);
+}
+
+.bo-board-play {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  padding: 0 16px 14px;
+}
+
+.bo-play,
+.bo-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: var(--r-pill);
+  font: 600 var(--fs-sm) / 1 var(--font-sans);
+  cursor: pointer;
+  transition: transform 0.25s var(--ease-spring), background-color 0.15s var(--ease);
+}
+
+.bo-play {
+  position: relative;
+  border: 0;
+  background: var(--primary);
+  color: var(--primary-ink);
+}
+
+.bo-play svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.bo-play:hover {
+  transform: scale(1.03);
+}
+
+.bo-play[data-playing='true']::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  padding: 2px;
+  background: var(--glow);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  animation: glow-spin 2.4s linear infinite;
+}
+
+.bo-next {
+  max-width: 100%;
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.bo-next svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.bo-next:hover {
+  border-color: var(--ink-3);
+}
+
+.bo-board-foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 16px;
+  border-top: 1px solid var(--grid);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+  font-size: var(--fs-sm);
+}
+
+.bo-foot-more > summary {
+  cursor: pointer;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  width: max-content;
+}
+
+.bo-foot-more > p {
+  margin-top: var(--sp-1);
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  max-width: 72ch;
+}
+
+.bo-summary {
+  color: var(--ink-2);
+}
+
+/* The story: steps in order; the one being shown is bright and opened, the rest stay one line. */
+.bo-story {
+  position: sticky;
+  top: var(--sp-4);
+  min-width: 0;
+}
+
+.bo-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.bo-steps li {
+  position: relative;
+  padding-left: 22px;
+}
+
+.bo-steps li::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--rule);
+}
+
+.bo-steps li:first-child::before {
+  top: 16px;
+}
+
+.bo-steps li:last-child::before {
+  bottom: calc(100% - 16px);
+}
+
+.bo-step-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 7px 0;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.bo-step-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.bo-step-dot {
+  position: absolute;
+  left: 0;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid var(--rule);
+  background: var(--paper);
+}
+
+.bo-steps .is-past .bo-step-btn {
+  color: var(--ink-2);
+}
+
+.bo-steps .is-past .bo-step-dot {
+  background: var(--ink-3);
+  border-color: var(--ink-3);
+}
+
+.bo-steps .is-now .bo-step-btn {
+  color: var(--ink);
+  font-weight: 600;
+  font-size: var(--fs-md);
+}
+
+.bo-steps .is-now .bo-step-dot {
+  border-color: var(--sig-path);
+  background: var(--sig-path);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--sig-path) 25%, transparent);
+}
+
+.bo-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: 4px 0 14px;
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  animation: rise 0.35s var(--ease) both;
+}
+
+.bo-settle {
+  margin: 0;
+  padding-left: 1.1em;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* One tab strip under the board, one table at a time. */
+.bo-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.bo-detail-body {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
+  background: var(--panel);
+  padding: var(--sp-3);
+  overflow-x: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+/* A panel shown inside a tab (universal gates) uses the tab body as its frame. */
+.bo-detail-body > .panel {
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.bo-tab-head {
+  font-weight: 600;
+  font-size: var(--fs-sm);
+}
+
+.bo-tab-note {
+  max-width: 80ch;
+}
+
+.bo-counts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.bo-counts .bo-claims {
+  margin: 0;
+}
+
+/* Algebra: the chain of lines, an arrow and its law between each pair. */
+.bo-chain {
+  list-style: none;
+  margin: 0;
+  padding: var(--sp-3) 16px var(--sp-4);
+  display: flex;
+  flex-direction: column;
+}
+
+.bo-chain-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  max-width: 100%;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--panel);
+  color: var(--ink);
+  padding: 6px 12px;
+  font-size: var(--fs-md);
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition: opacity 0.2s var(--ease);
+}
+
+.bo-chain-n {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+
+.bo-chain .is-next .bo-chain-line,
+.bo-chain .is-next .bo-link {
+  opacity: 0.4;
+}
+
+.bo-chain .is-now .bo-chain-line {
+  border-color: var(--sig-path);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sig-path) 18%, transparent);
+}
+
+.bo-chain .bo-chain-line.is-bad {
+  border-color: var(--sig-miss);
+}
+
+.bo-chain .bo-step-body {
+  padding: var(--sp-2) 0 0 var(--sp-3);
+}
+
+.bo-link {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding-left: var(--sp-3);
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+
+.bo-link svg {
+  flex: none;
+  overflow: visible;
+}
+
+.bo-link-arrow {
+  fill: none;
+  stroke: var(--ink-3);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.bo-link-arrow.is-bad {
+  stroke: var(--sig-miss);
+}
+
+/* Light keeps each signal colour's meaning: data off the slowest path, ink for a chosen loop, miss for a step that fails. */
+.flow-draw path.bo-flow-data {
+  stroke: var(--sig-data);
+}
+
+.flow-packets path.bo-flow-data {
+  stroke: color-mix(in srgb, #fff 75%, var(--sig-data));
+  filter: drop-shadow(0 0 3px var(--sig-data));
+}
+
+.flow-draw path.bo-flow-ink {
+  stroke: var(--ink);
+}
+
+.flow-packets path.bo-flow-ink {
+  stroke: color-mix(in srgb, #fff 60%, var(--ink));
+  filter: drop-shadow(0 0 3px var(--ink-3));
+}
+
+.flow-draw path.bo-flow-miss {
+  stroke: var(--sig-miss);
+}
+
+.flow-packets path.bo-flow-miss {
+  stroke: color-mix(in srgb, #fff 75%, var(--sig-miss));
+  filter: drop-shadow(0 0 3px var(--sig-miss));
+}
+
+@media (max-width: 1180px) {
+  .bo-stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bo-story {
+    position: static;
+  }
+}
+
+@media (max-width: 520px) {
+  .bo-command-bar {
+    border-radius: var(--r-panel);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bo-step-body {
+    animation: none;
+  }
+}
+
+@media print {
+  .bo-board {
+    overflow: visible;
+  }
+  .bo-story {
+    position: static;
+  }
+  .bo-chain .is-next .bo-chain-line,
+  .bo-chain .is-next .bo-link {
+    opacity: 1;
+  }
 }

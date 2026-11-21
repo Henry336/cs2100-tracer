@@ -14,8 +14,8 @@ import {
   type TermReport,
 } from '../../core/boolean'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, Chip, DataTable, Legend, Panel, Presets, Segmented, TextField, Toggle, Workspace, type Column, type Signal } from '../../ui/kit'
-import { FunctionFields, IssueList, MapControls, W, type FnInput } from './common'
+import { Callout, Chip, DataTable, Legend, Presets, Segmented, TextField, Toggle, Workspace, type Column, type Signal } from '../../ui/kit'
+import { CommandBar, DetailTabs, FnCommand, IssueList, MapControls, Options, useDetailTab, VarsField, W, type FnInput } from './common'
 import { KMapSvg, type LoopDraw } from './KMapSvg'
 import { ANSWER_PRESETS } from './presets'
 
@@ -34,6 +34,7 @@ const STATUS: Record<LintCheck['status'], { text: string; signal: Signal }> = {
 }
 
 type CountKey = 'primes' | 'essentials' | 'covers'
+type DetailTab = 'checks' | 'terms' | 'counts' | 'notes'
 const COUNTS: { key: CountKey; label: string }[] = [
   { key: 'primes', label: 'PIs' },
   { key: 'essentials', label: 'EPIs' },
@@ -109,6 +110,13 @@ export default function CheckTab({ intro, input }: { intro: ReactNode; input: Fn
     },
   ]
   const missedEpis = min && lint?.expr ? min.essentials.filter((id) => !lint.terms.some((t) => t.prime === id)) : []
+  const tabs: { value: DetailTab; label: string }[] = [
+    ...(lint ? [{ value: 'checks' as const, label: 'Checks' }] : []),
+    ...(lint?.terms.length ? [{ value: 'terms' as const, label: 'Your terms' }] : []),
+    ...(min ? [{ value: 'counts' as const, label: 'Your counts' }] : []),
+    { value: 'notes', label: 'Traps and conventions' },
+  ]
+  const [detail, setDetail] = useDetailTab<DetailTab>('ct', tabs)
 
   return (
     <Workspace
@@ -128,122 +136,65 @@ export default function CheckTab({ intro, input }: { intro: ReactNode; input: Fn
           }}
         />
       }
-      inspector={
-        lint ? (
-          <>
-            <Panel flush title="Checks">
-              <DataTable compact columns={checkCols} rows={lint.checks} rowSignal={(c) => (c.status === 'fail' ? 'miss' : undefined)} />
-            </Panel>
-            {lint.terms.length ? (
-              <Panel flush title="Your terms">
-                <DataTable compact columns={termCols} rows={lint.terms} />
-              </Panel>
-            ) : null}
-          </>
-        ) : undefined
-      }
     >
-      <Panel title="Function">
-        <FunctionFields input={input} />
-        <MapControls input={input} showForm={false} />
-      </Panel>
-      <Panel title="Your answer">
-        <div className="bo-row">
-          <div className="bo-grow">
-            <TextField label={`${fn?.name ?? 'F'} =`} value={ans} onChange={setAns} placeholder={af === 'pos' ? "(A+B')∙(C+D)" : "A'∙B + C∙D'"} />
+      <div className="bo-command">
+        <FnCommand input={input} />
+        <CommandBar label={`Your answer, ${fn?.name ?? 'F'} =`} value={ans} onChange={setAns} placeholder={af === 'pos' ? "(A+B')∙(C+D)" : "A'∙B + C∙D'"} />
+        {lint && lint.checks.some((c) => c.at && c.status === 'fail') ? (
+          <IssueList text={ans} issues={lint.checks.filter((c) => c.at && c.status === 'fail').map((c) => ({ code: c.id, message: c.message, at: c.at! }))} />
+        ) : null}
+        <Options summary="Answer format, variables and map layout">
+          <div className="bo-row">
+            <Segmented
+              label="Expected form"
+              value={af}
+              onChange={setAf}
+              options={[
+                { value: 'sop', label: 'SOP' },
+                { value: 'pos', label: 'POS' },
+                { value: 'any', label: 'either' },
+              ]}
+            />
+            <Toggle label="Exam fill-in-the-blank rules" checked={fitb === true} onChange={setFitb} hint="Only ' . + and brackets, no spaces, literals in alphabetical order (AY23/24 S2 Q19(d))" />
+            <Toggle label="EPIs must come first" checked={epi === true} onChange={setEpi} hint="AY23/24 S2 Q19(d)" />
           </div>
-        </div>
-        <div className="bo-row">
-          <Segmented
-            label="Expected form"
-            value={af}
-            onChange={setAf}
-            options={[
-              { value: 'sop', label: 'SOP' },
-              { value: 'pos', label: 'POS' },
-              { value: 'any', label: 'either' },
-            ]}
-          />
-          <Toggle label="Exam fill-in-the-blank rules" checked={fitb === true} onChange={setFitb} hint="Only ' . + and brackets, no spaces, literals in alphabetical order (AY23/24 S2 Q19(d))" />
-          <Toggle label="EPIs must come first" checked={epi === true} onChange={setEpi} hint="AY23/24 S2 Q19(d)" />
-        </div>
-        {lint ? (
-          <>
-            <p className="bo-verdict">
-              <Chip signal={VERDICT[lint.verdict].signal}>{lint.verdict.replace('-', ' ')}</Chip> {VERDICT[lint.verdict].text}
-              {lint.expr ? <span className="bo-muted">, {lint.literals} literals</span> : null}
+          <div className="bo-row">
+            <VarsField input={input} />
+          </div>
+          <MapControls input={input} showForm={false} />
+        </Options>
+      </div>
+
+      {fn && layout ? (
+        <div className="bo-board canvas">
+          <div className="bo-board-bar">
+            <p className="bo-board-title">
+              <span className="mono">K-map of {fn.name}</span>
+              <span className="bo-board-step">{lint ? VERDICT[lint.verdict].text : 'Your terms go here'}</span>
             </p>
-            {lint.checks.some((c) => c.at && c.status === 'fail') ? (
-              <IssueList
-                text={ans}
-                issues={lint.checks.filter((c) => c.at && c.status === 'fail').map((c) => ({ code: c.id, message: c.message, at: c.at! }))}
-              />
+            {lint ? (
+              <p className="bo-board-actions">
+                <Chip signal={VERDICT[lint.verdict].signal}>{lint.verdict.replace('-', ' ')}</Chip>
+                {lint.expr ? <span className="bo-muted">{lint.literals} literals</span> : null}
+              </p>
             ) : null}
+          </div>
+          <div className="bo-scroll">
+            <KMapSvg
+              layout={layout}
+              values={valuesOf(fn)}
+              loops={drawn?.loops ?? []}
+              bad={lint?.differing}
+              label={lint?.expr ? `K-map of ${fn.name} with the terms of your answer` : `K-map of ${fn.name}`}
+            />
+          </div>
+          <div className="bo-board-foot">
+            {!lint ? <p className="bo-muted">Type an answer to check it against {fn.name}.</p> : null}
             {missedEpis.length > 0 && min ? (
               <p className="bo-status">
                 EPIs your answer does not use: <span className="mono">{missedEpis.map((id) => min.primes[id].term).join(', ')}</span>
               </p>
             ) : null}
-          </>
-        ) : (
-          <p className="bo-muted">Type an answer to check it against {fn?.name ?? 'the function'}.</p>
-        )}
-        {min ? (
-          <div className="bo-row">
-            <Toggle label="Show a minimal answer and the counts" checked={reveal === true} onChange={setReveal} hint="Hidden so you can try first" />
-            {reveal === true ? (
-              <span className="mono">
-                {fitb === true ? min.summary.fitb : min.summary.answer}{' '}
-                <span className="bo-muted">
-                  ({min.summary.terms} terms, {min.summary.literals} literals)
-                </span>
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-      </Panel>
-
-      {claims.length ? (
-        <Panel title={`Your counts, grouping the ${form === 'sop' ? '1s' : '0s'}`}>
-          <div className="bo-row">
-            {claims.map((k) => (
-              <TextField key={k.key} label={`Number of ${k.label}`} value={k.typed} onChange={(v) => setCnt({ ...cnt, [k.key]: v })} width="4em" />
-            ))}
-          </div>
-          {claims.some((k) => k.ok !== undefined) ? (
-            <ul className="bo-claims">
-              {claims.map((k) =>
-                k.ok === undefined ? null : (
-                  <li key={k.key}>
-                    {k.ok ? <Chip signal="hit">right</Chip> : <Chip signal="miss">wrong</Chip>} {k.typed} {k.label}
-                    {reveal === true ? (
-                      <span className="bo-muted">
-                        {' '}
-                        (<W e={k.count.why}>{k.count.exact === false ? `at least ${k.count.value}` : k.count.value}</W>)
-                      </span>
-                    ) : null}
-                  </li>
-                ),
-              )}
-            </ul>
-          ) : (
-            <p className="bo-muted">Count from your own map first. The right numbers show when you turn on Show a minimal answer and the counts.</p>
-          )}
-        </Panel>
-      ) : null}
-
-      {fn && layout && lint?.expr && drawn ? (
-        <Panel flush title={`Your terms on the map of ${fn.name}`}>
-          <div className="bo-scroll">
-            <KMapSvg
-              layout={layout}
-              values={valuesOf(fn)}
-              loops={drawn.loops}
-              bad={lint.differing}
-              label={`K-map of ${fn.name} with the terms of your answer`}
-            />
-          </div>
-          <div className="bo-pad">
             <Legend
               items={[
                 { signal: 'hit', label: '1' },
@@ -252,22 +203,71 @@ export default function CheckTab({ intro, input }: { intro: ReactNode; input: Fn
                 { signal: 'miss', label: 'wrong cell or wrong term' },
               ]}
             />
-            <p className="bo-muted">Thick dark loops are PIs that are not essential; dashed loops are terms that are not PIs or cover only don't-cares.</p>
+            <details className="bo-foot-more">
+              <summary>Reading the loops</summary>
+              <p>Thick dark loops are PIs that are not essential; dashed loops are terms that are not PIs or cover only don't-cares.</p>
+            </details>
           </div>
-        </Panel>
+        </div>
       ) : null}
 
-      <div className="bo-callouts">
-        <Callout kind="trap" title="Write the AND dot" cite="L13 p6; T06 p2; T06 Ans p1">
-          AB reads as a 2-bit value. Tutorials give zero marks for it, so write A∙B. Fill-in-the-blank answers use a full stop: A.B.
-        </Callout>
-        <Callout kind="trap" title="Every term should be a PI" cite="L15 p35, p38">
-          A minimal answer uses only PIs and every EPI. A term inside a bigger group, or a group of only don't-cares, makes the answer longer than it needs to be.
-        </Callout>
-        <Callout kind="course" title="Fill-in-the-blank format" cite="AY23/24 S2 Q19(d)">
-          No spaces, only letters, ' . and +, and the literals inside each term in alphabetical order. Terms may be in any order unless EPIs are asked for first.
-        </Callout>
-      </div>
+      <DetailTabs label="Checks for your answer" tabs={tabs} value={detail} onChange={setDetail}>
+        {detail === 'checks' && lint ? <DataTable compact columns={checkCols} rows={lint.checks} rowSignal={(c) => (c.status === 'fail' ? 'miss' : undefined)} /> : null}
+        {detail === 'terms' && lint ? <DataTable compact columns={termCols} rows={lint.terms} /> : null}
+        {detail === 'counts' && min ? (
+          <div className="bo-counts">
+            <p className="bo-tab-head">{`Grouping the ${form === 'sop' ? '1s' : '0s'}`}</p>
+            <div className="bo-row">
+              {claims.map((k) => (
+                <TextField key={k.key} label={`Number of ${k.label}`} value={k.typed} onChange={(v) => setCnt({ ...cnt, [k.key]: v })} width="4em" />
+              ))}
+            </div>
+            {claims.some((k) => k.ok !== undefined) ? (
+              <ul className="bo-claims">
+                {claims.map((k) =>
+                  k.ok === undefined ? null : (
+                    <li key={k.key}>
+                      {k.ok ? <Chip signal="hit">right</Chip> : <Chip signal="miss">wrong</Chip>} {k.typed} {k.label}
+                      {reveal === true ? (
+                        <span className="bo-muted">
+                          {' '}
+                          (<W e={k.count.why}>{k.count.exact === false ? `at least ${k.count.value}` : k.count.value}</W>)
+                        </span>
+                      ) : null}
+                    </li>
+                  ),
+                )}
+              </ul>
+            ) : (
+              <p className="bo-muted">Count from your own map first; the right numbers stay hidden until you turn them on below.</p>
+            )}
+            <div className="bo-row">
+              <Toggle label="Show a minimal answer and the counts" checked={reveal === true} onChange={setReveal} hint="Hidden so you can try first" />
+              {reveal === true ? (
+                <span className="mono">
+                  {fitb === true ? min.summary.fitb : min.summary.answer}{' '}
+                  <span className="bo-muted">
+                    ({min.summary.terms} terms, {min.summary.literals} literals)
+                  </span>
+                </span>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+        {detail === 'notes' ? (
+          <div className="bo-callouts">
+            <Callout kind="trap" title="Write the AND dot" cite="L13 p6; T06 p2; T06 Ans p1">
+              AB reads as a 2-bit value. Tutorials give zero marks for it, so write A∙B. Fill-in-the-blank answers use a full stop: A.B.
+            </Callout>
+            <Callout kind="trap" title="Every term should be a PI" cite="L15 p35, p38">
+              A minimal answer uses only PIs and every EPI. A term inside a bigger group, or a group of only don't-cares, makes the answer longer than it needs to be.
+            </Callout>
+            <Callout kind="course" title="Fill-in-the-blank format" cite="AY23/24 S2 Q19(d)">
+              No spaces, only letters, ' . and +, and the literals inside each term in alphabetical order. Terms may be in any order unless EPIs are asked for first.
+            </Callout>
+          </div>
+        ) : null}
+      </DetailTabs>
     </Workspace>
   )
 }

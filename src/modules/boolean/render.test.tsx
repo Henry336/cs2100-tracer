@@ -178,7 +178,10 @@ describe('review additions', () => {
     const forms = renderToString(<FormsTab intro={null} />)
     expect(forms).toContain('Set operations on F3 and G')
     expect(forms).toContain('Σm(1, 3, 4, 5)')
-    expect(renderToString(<WithInput Tab={CheckTab} />)).toContain('Your counts, grouping the 1s')
+    // The counts moved into the tab strip under the map; the tab is open when no answer is typed.
+    const check = renderToString(<WithInput Tab={CheckTab} />)
+    expect(check).toContain('Your counts')
+    expect(check).toContain('Grouping the 1s')
     const kmap = renderToString(<WithInput Tab={KMapTab} />)
     expect(kmap).toContain('Left after the EPIs')
   })
