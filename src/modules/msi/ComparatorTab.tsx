@@ -19,7 +19,8 @@ import { useUrlState } from '../../lib/url-state'
 import { Button, Callout, Chip, DataTable, Legend, Presets, Segmented, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { BitRow, Board, Details, Flow, FnField, FocusToggle, int, Options, pick, PinErrors, pins, PlayBar, plural, seg, splitVars, StepNote, Story, str, useFn, W } from './common'
+import { Board, Details, Flow, Options, PlayBar, Stage, Story } from '../../ui/board'
+import { BitRow, FnField, FocusToggle, int, pick, PinErrors, pins, plural, seg, splitVars, StepNote, str, useFn, W } from './common'
 import { CMP_PRESETS } from './presets'
 
 type Mode = 'values' | 'wire' | 'find'
@@ -237,7 +238,7 @@ export default function ComparatorTab({ intro }: { intro: ReactNode }) {
       >
         {command}
         {options}
-        <div className="ms-stage">
+        <Stage>
           <Board
             title={`${width}-bit magnitude comparator`}
             step={frame.bit === null ? 'result' : `bit ${trace.bits[frame.bit].i}`}
@@ -284,8 +285,9 @@ export default function ComparatorTab({ intro }: { intro: ReactNode }) {
               </>
             }
           />
-        </div>
+        </Stage>
         <Details
+          urlKey="mt"
           tabs={[
             {
               value: 'cascade',
@@ -363,6 +365,7 @@ export default function ComparatorTab({ intro }: { intro: ReactNode }) {
           </Callout>
         ) : null}
         <Details
+          urlKey="mt"
           tabs={[
             {
               value: 'fns',
@@ -444,6 +447,7 @@ export default function ComparatorTab({ intro }: { intro: ReactNode }) {
         </Callout>
       ) : null}
       <Details
+        urlKey="mt"
         tabs={[
           {
             value: 'pairs',

@@ -5,7 +5,8 @@ import { useUrlState } from '../../lib/url-state'
 import { Callout, Chip, DataTable, Legend, Presets, Segmented, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { BitRow, bitOf, Board, Details, Flow, FocusToggle, int, Options, pick, PinErrors, pins, PlayBar, seg, splitVars, str, W } from './common'
+import { Board, Details, Flow, Options, PlayBar } from '../../ui/board'
+import { BitRow, bitOf, FocusToggle, int, pick, PinErrors, pins, seg, splitVars, str, W } from './common'
 import { ENC_PRESETS } from './presets'
 
 type Mode = 'live' | 'wired'
@@ -212,6 +213,7 @@ export default function EncoderTab({ intro }: { intro: ReactNode }) {
           <EncBlock m={m} bits={bits} code={res.code} v={res.v} winner={priority ? res.winner : highs.length === 1 ? highs[0] : null} bad={res.misleading} flowId={d} />
         </Board>
         <Details
+          urlKey="mt"
           tabs={[
             {
               value: 'table',
@@ -321,6 +323,7 @@ export default function EncoderTab({ intro }: { intro: ReactNode }) {
         </Board>
       ) : null}
       <Details
+        urlKey="mt"
         tabs={[
           {
             value: 'fns',

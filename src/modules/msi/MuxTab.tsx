@@ -4,7 +4,8 @@ import { useUrlState } from '../../lib/url-state'
 import { Button, Callout, Chip, DataTable, Legend, Presets, Segmented, TextField, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { BitRow, Board, Details, Flow, FnField, FocusToggle, gatePath, int, pick, PinErrors, PlayBar, plural, polyD, pts, seg, splitVars, StepNote, Story, str, useFn, W } from './common'
+import { Board, Details, Flow, PlayBar, Stage, Story } from '../../ui/board'
+import { BitRow, FnField, FocusToggle, gatePath, int, pick, PinErrors, plural, polyD, pts, seg, splitVars, StepNote, str, useFn, W } from './common'
 import { MUX_PRESETS, TREE_PRESETS } from './presets'
 
 type Mode = 'impl' | 'tree'
@@ -148,6 +149,7 @@ export default function MuxTab({ intro }: { intro: ReactNode }) {
           </Board>
         ) : null}
         <Details
+          urlKey="mt"
           tabs={[
             {
               value: 'build',
@@ -226,7 +228,7 @@ export default function MuxTab({ intro }: { intro: ReactNode }) {
       {command}
       {built && !built.ok ? <PinErrors errors={built.errors} /> : null}
       {plan ? (
-        <div className="ms-stage">
+        <Stage>
           <Board
             title={`${1 << k}:1 multiplexer, selects ${plan.selects.map((s, j) => `S${k - 1 - j} = ${s}`).join(', ')}`}
             step={g ? `I${g.index} = ${g.data.text}` : 'all data inputs'}
@@ -292,7 +294,7 @@ export default function MuxTab({ intro }: { intro: ReactNode }) {
               )
             }
           />
-        </div>
+        </Stage>
       ) : null}
       {bad.length && plan ? (
         <Callout kind="trap" title={`${plural(bad.length, 'data input')} need${bad.length === 1 ? 's' : ''} an inverter or gate`} cite="T06 p2; AY23/24 S1 Q10">
@@ -300,6 +302,7 @@ export default function MuxTab({ intro }: { intro: ReactNode }) {
         </Callout>
       ) : null}
       <Details
+        urlKey="mt"
         tabs={[
           {
             value: 'orders',

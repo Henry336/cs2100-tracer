@@ -23,7 +23,8 @@ import { useUrlState } from '../../lib/url-state'
 import { Button, Callout, Chip, DataTable, Legend, NumberField, Presets, Segmented, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { BitRow, BitToggle, bitOf, Board, bubble, Details, Flow, FnField, FocusToggle, gatePath, int, Options, pick, PinErrors, pins, PlayBar, plural, polyD, pts, seg, splitVars, str, useFn, W } from './common'
+import { Board, Details, Flow, Options, PlayBar } from '../../ui/board'
+import { BitRow, BitToggle, bitOf, bubble, FnField, FocusToggle, gatePath, int, pick, PinErrors, pins, plural, polyD, pts, seg, splitVars, str, useFn, W } from './common'
 import { DEC_PRESETS } from './presets'
 
 type Mode = 'live' | 'circuit' | 'find' | 'tree'
@@ -329,6 +330,7 @@ export default function DecoderTab({ intro }: { intro: ReactNode }) {
           />
         </Board>
         <Details
+          urlKey="mt"
           tabs={[
             {
               value: 'formulas',
@@ -435,6 +437,7 @@ export default function DecoderTab({ intro }: { intro: ReactNode }) {
           </Callout>
         ) : null}
         <Details
+          urlKey="mt"
           tabs={[
             {
               value: 'readback',
@@ -580,6 +583,7 @@ export default function DecoderTab({ intro }: { intro: ReactNode }) {
           </Board>
         ) : null}
         <Details
+          urlKey="mt"
           tabs={[
             {
               value: 'reach',
@@ -638,6 +642,7 @@ export default function DecoderTab({ intro }: { intro: ReactNode }) {
         </Board>
       ) : null}
       <Details
+        urlKey="mt"
         tabs={[
           {
             value: 'count',

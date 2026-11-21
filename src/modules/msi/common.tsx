@@ -1,8 +1,7 @@
 import { useMemo, type ReactNode } from 'react'
 import { canonical, parseFunction, type BoolFunction, type Explain, type FunctionParse } from '../../core/boolean'
 import { useUrlState } from '../../lib/url-state'
-import { Chip, Tabs, TextField, Toggle, Why } from '../../ui/kit'
-import type { Stepper } from '../../ui/stepper'
+import { Chip, TextField, Toggle, Why } from '../../ui/kit'
 
 /** <Why> straight from an engine Explain. */
 export function W({ e, children }: { e?: Explain; children: ReactNode }) {
@@ -147,117 +146,11 @@ export const pts = (p: [number, number][]) => p.map((q) => q.join(',')).join(' '
 export type NetState = 'now' | 'ready' | 'wait' | 'off'
 export const netClass = (s: NetState, focus: boolean) => `ms-net is-${s}${focus && (s === 'wait' || s === 'off') ? ' is-hidden' : ''}`
 
-/* ---------- Calm layout: board with the player inside, one-line story, one tab strip ---------- */
+/* ---------- Wire paths and step notes for the shared board (src/ui/board.tsx) ---------- */
 
 /** SVG path for a straight wire or a polyline, drawn from its source (first point). */
 export const seg = (x1: number, y1: number, x2: number, y2: number) => `M${x1},${y1}L${x2},${y2}`
 export const polyD = (p: [number, number][]) => `M${p.map((q) => q.join(',')).join('L')}`
-
-/** Light on the wires that carry a value in this step: they draw in, then packets travel (shell.css). `id` restarts it. */
-export function Flow({ id, paths }: { id: string | number; paths: string[] }) {
-  if (!paths.length) return null
-  return (
-    <>
-      <g className="flow-draw" key={`d${id}`} aria-hidden="true">
-        {paths.map((d, i) => (
-          <path key={i} d={d} pathLength={1} />
-        ))}
-      </g>
-      <g className="flow-packets" key={`p${id}`} aria-hidden="true">
-        {paths.map((d, i) => (
-          <path key={i} d={d} pathLength={1} style={{ animationDelay: `${0.7 + (i % 5) * 0.18}s` }} />
-        ))}
-      </g>
-    </>
-  )
-}
-
-/** The picture: a dot-grid board with the current step named, view tools, the diagram, the player and the legend. */
-export function Board({
-  title,
-  step,
-  note,
-  tools,
-  play,
-  foot,
-  children,
-}: {
-  title: ReactNode
-  /** What the board shows now, in the display font. */
-  step?: ReactNode
-  /** One line about the current step only. */
-  note?: ReactNode
-  tools?: ReactNode
-  play?: ReactNode
-  foot?: ReactNode
-  children: ReactNode
-}) {
-  return (
-    <section className="ms-board canvas">
-      <div className="ms-board-bar">
-        <p className="ms-board-title">
-          <span>{title}</span>
-          {step !== undefined && step !== null ? <span className="ms-board-step">{step}</span> : null}
-        </p>
-        {tools ? <div className="ms-board-tools">{tools}</div> : null}
-      </div>
-      {note ? <p className="ms-board-note">{note}</p> : null}
-      <div className="ms-scroll">{children}</div>
-      {play}
-      {foot ? <div className="ms-board-foot">{foot}</div> : null}
-    </section>
-  )
-}
-
-/** The one primary action inside the board: a Play pill and a quiet Next, both driving the stepper. */
-export function PlayBar({ stepper, start, next }: { stepper: Stepper; start: string; next?: string }) {
-  if (stepper.count < 2) return null
-  const atEnd = stepper.index >= stepper.count - 1
-  const label = stepper.playing ? 'Pause' : atEnd ? 'Play it again' : stepper.index === 0 ? start : 'Play from here'
-  return (
-    <div className="ms-board-play">
-      <button type="button" className="ms-play" data-playing={stepper.playing} onClick={stepper.toggle}>
-        {stepper.playing ? (
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M4 3h3v10H4zM9 3h3v10H9z" />
-          </svg>
-        ) : (
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M4.5 2.8l9 5.2-9 5.2z" />
-          </svg>
-        )}
-        {label}
-      </button>
-      {!atEnd ? (
-        <button type="button" className="ms-next" onClick={stepper.next}>
-          {next ? `Next: ${next}` : 'Next step'}
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M3 8h10M9 4l4 4-4 4" />
-          </svg>
-        </button>
-      ) : null}
-    </div>
-  )
-}
-
-/** Steps in order: the current one bright with its explanation, the rest one line each. */
-export function Story({ titles, index, onPick, body, label }: { titles: ReactNode[]; index: number; onPick: (i: number) => void; body: ReactNode; label: string }) {
-  return (
-    <aside className="ms-story" aria-label={label}>
-      <ol className="ms-steps">
-        {titles.map((t, i) => (
-          <li key={i} className={i === index ? 'is-now' : i < index ? 'is-past' : 'is-next'}>
-            <button type="button" className="ms-step-btn" onClick={() => onPick(i)} aria-current={i === index ? 'step' : undefined}>
-              <span className="ms-step-dot" aria-hidden="true" />
-              <span>{t}</span>
-            </button>
-            {i === index ? <div className="ms-step-body">{body}</div> : null}
-          </li>
-        ))}
-      </ol>
-    </aside>
-  )
-}
 
 /** An engine explanation as a short paragraph: the rule, the working, the page. */
 export function StepNote({ e }: { e: Explain }) {
@@ -268,32 +161,6 @@ export function StepNote({ e }: { e: Explain }) {
       </p>
       {e.working ? <p className="mono ms-wrap ms-working">{e.working}</p> : null}
     </>
-  )
-}
-
-/** Secondary inputs, closed by default. Printing opens it (App). */
-export function Options({ summary = 'Options', children }: { summary?: string; children: ReactNode }) {
-  return (
-    <details className="ms-options">
-      <summary>{summary}</summary>
-      <div className="ms-options-body">{children}</div>
-    </details>
-  )
-}
-
-/** Secondary tables and notes: one tab strip under the board, one table visible at a time. Skips empty tabs. */
-export function Details({ tabs }: { tabs: { value: string; label: string; body: ReactNode }[] }) {
-  const [raw, setRaw] = useUrlState<string>('mt', '')
-  const shown = tabs.filter((t) => t.body !== null && t.body !== undefined && t.body !== false)
-  if (!shown.length) return null
-  const cur = shown.find((t) => t.value === raw) ?? shown[0]
-  return (
-    <section className="ms-details" aria-label="Tables and notes">
-      <Tabs label="Tables and notes" value={cur.value} onChange={setRaw} tabs={shown.map(({ value, label }) => ({ value, label }))} />
-      <div className="ms-detail-body" role="tabpanel">
-        {cur.body}
-      </div>
-    </section>
   )
 }
 

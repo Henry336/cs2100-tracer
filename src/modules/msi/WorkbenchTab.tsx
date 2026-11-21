@@ -17,7 +17,8 @@ import { useUrlState } from '../../lib/url-state'
 import { Button, Callout, Chip, DataTable, Legend, NumberField, Panel, Presets, Segmented, Select, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { Board, Details, Flow, FocusToggle, Options, pick, PinErrors, PlayBar, plural, seg, splitVars, str, W } from './common'
+import { Board, Details, Flow, Options, PlayBar } from '../../ui/board'
+import { FocusToggle, pick, PinErrors, plural, seg, splitVars, str, W } from './common'
 import { WB_PRESETS } from './presets'
 
 const KINDS: { value: BlockKind; label: string }[] = [
@@ -269,6 +270,8 @@ export default function WorkbenchTab({ intro }: { intro: ReactNode }) {
       ) : null}
 
       <Details
+
+        urlKey="mt"
         tabs={[
           {
             value: 'check',

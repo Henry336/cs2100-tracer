@@ -4,7 +4,8 @@ import { useUrlState } from '../../lib/url-state'
 import { Callout, DataTable, Legend, NumberField, Presets, Segmented, Toggle, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { BitRow, BitToggle, bitOf, Board, bubble, Details, Flow, gatePath, int, netClass, Options, pick, PlayBar, polyD, pts, seg, W, type NetState, type Shape } from './common'
+import { Board, Details, Flow, Options, PlayBar } from '../../ui/board'
+import { BitRow, BitToggle, bitOf, bubble, gatePath, int, netClass, pick, polyD, pts, seg, W, type NetState, type Shape } from './common'
 import { ADDER_PRESETS } from './presets'
 
 type Mode = 'ha' | 'fa' | 'rc'
@@ -174,6 +175,7 @@ export default function AdderTab({ intro }: { intro: ReactNode }) {
           <FaGates half={half} x={half ? hx : fx} y={half ? hy : fy} z={fz} t={t} focus={fo} />
         </Board>
         <Details
+          urlKey="mt"
           tabs={[
             {
               value: 'out',
@@ -282,6 +284,7 @@ export default function AdderTab({ intro }: { intro: ReactNode }) {
         <RippleSvg trace={trace} t={t} focus={fo} name={name} cinName={nb === 'lec' ? 'C1' : 'Cin'} outName={outName} />
       </Board>
       <Details
+        urlKey="mt"
         tabs={[
           { value: 'cols', label: 'Column addition', body: <ColumnSum trace={trace} t={t} name={name} /> },
           {
