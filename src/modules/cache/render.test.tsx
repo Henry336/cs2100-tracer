@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { geometry, parseAccesses, simulate, type Trace } from '../../core/cache'
 import CachePage from './CachePage'
 import CalcTab, { drillConfig } from './CalcTab'
+import CheckMode from './CheckMode'
 import CompareTab from './CompareTab'
 import SimulatorTab, { parseAnswer } from './SimulatorTab'
 import WriteTab from './WriteTab'
@@ -57,6 +58,15 @@ describe('cache page renders', () => {
         expect(renderToString(<AddressBar g={t.geometry} split={f.split} />)).toContain(f.split.offset.bits)
       }
     }
+  })
+
+  it('check mode renders a fill-in table and reveals nothing before Check', () => {
+    const noop = () => {}
+    const html = renderToString(<CheckMode trace={run('t11')} lv="r12" setLv={noop} tf="dec" setTf={noop} byAddr={false} onJump={noop} />)
+    expect(html).toContain('Check my answers')
+    expect(html).toContain('Index 15, word 1')
+    expect(html).not.toContain('M[264]')
+    expect(html).not.toContain('ca-ck-icon')
   })
 
   it('presets match their sources', () => {

@@ -1,15 +1,17 @@
 import { useMemo, useRef, type ReactNode } from 'react'
 import { fmtBytes, type Frame, type MissType, type Trace } from '../../core/cache'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, Chip, DataTable, Legend, Panel, Segmented, Tabs, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Board, Details, PlayBar, Stage, Story } from '../../ui/board'
+import { Callout, Chip, DataTable, Legend, Panel, Segmented, Toggle, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
+import { parseAnswer, typeOf, type LabelView } from './check'
+import CheckMode from './CheckMode'
 import {
   AddressBar,
-  BoardPlay,
   BoardWires,
   CacheTable,
-  CommandBar,
+  CacheBar,
   ConfigBar,
   Errors,
   Setup,
@@ -27,11 +29,9 @@ import {
   type TagFmt,
 } from './common'
 
-export type LabelView = 'r12' | 'l23'
+export { parseAnswer, typeOf, type LabelView }
 
 const TYPE_NAME: Record<MissType, string> = { cold: 'cold', conflict: 'conflict', capacity: 'capacity' }
-
-export const typeOf = (f: Frame, view: LabelView): MissType | null => (view === 'r12' ? f.missType : f.missType3C)
 
 export function TypeChip({ type }: { type: MissType | null }) {
   if (!type) return null
@@ -54,36 +54,15 @@ export function ResultChip({ f }: { f: Frame }) {
   )
 }
 
-/** Answer tokens: H or M, an M optionally followed by its type ("M(cold)", "M conflict"). */
-export function parseAnswer(text: string): { r: 'H' | 'M'; type: MissType | null }[] {
-  const out: { r: 'H' | 'M'; type: MissType | null }[] = []
-  const re = /([hm])(?:[\s(:-]*(cold|compulsory|conflict|capacity)\)?)?/gi
-  for (const m of text.matchAll(re)) {
-    const t = m[2]?.toLowerCase()
-    out.push({ r: m[1].toUpperCase() as 'H' | 'M', type: !t ? null : t === 'compulsory' ? 'cold' : (t as MissType) })
-  }
-  return out
-}
-
 const WINDOW = 40
-
-type DetailTab = 'access' | 'totals' | 'notes'
-
-const DETAIL_TABS: { value: DetailTab; label: string }[] = [
-  { value: 'access', label: 'Every access' },
-  { value: 'totals', label: 'Tallies' },
-  { value: 'notes', label: 'Rules and traps' },
-]
 
 export default function SimulatorTab({ intro, input }: { intro: ReactNode; input: Input }) {
   const sim = useSim(input)
   const [tf, setTf] = useUrlState<TagFmt>('tf', 'dec')
   const [byAddr, setByAddr] = useUrlState<boolean>('wa', false)
   const [view, setView] = useUrlState<LabelView>('lv', 'r12')
-  const [rawAnswer, setAnswer] = useUrlState<unknown>('a', '')
-  const [rawDetail, setDetail] = useUrlState<DetailTab>('st', 'access')
-  const detail: DetailTab = DETAIL_TABS.some((t) => t.value === rawDetail) ? rawDetail : 'access'
-  const answer = typeof rawAnswer === 'string' ? rawAnswer : ''
+  const [rawMode, setMode] = useUrlState<'run' | 'check'>('cm', 'run')
+  const checking = rawMode === 'check'
   const trace = sim.ok ? sim.value : null
   const frames = trace?.frames ?? []
   const stepper = useStepper(frames.length)
@@ -106,9 +85,18 @@ export default function SimulatorTab({ intro, input }: { intro: ReactNode; input
   ) : undefined
 
   return (
-    <Workspace title="Cache" lectures="L22 to L23, T11, R12" intro={intro} toolbar={<TracePresets input={input} onPick={stepper.first} />} transport={transport}>
-      <div className="ca-command-wrap">
-        <CommandBar input={input} />
+    <Workspace title="Cache" lectures="L22 to L23, T11, R12" intro={intro} toolbar={<TracePresets input={input} onPick={stepper.first} />} transport={checking ? undefined : transport}>
+      <div className="ca-inputs">
+        <CacheBar input={input} />
+        <Segmented
+          label="Mode"
+          value={checking ? 'check' : 'run'}
+          options={[
+            { value: 'run', label: 'Step through it' },
+            { value: 'check', label: 'Check my answers', title: 'Type your results and final table, then mark them' },
+          ]}
+          onChange={setMode}
+        />
         <Setup
           input={input}
           config={
@@ -127,22 +115,27 @@ export default function SimulatorTab({ intro, input }: { intro: ReactNode; input
           <Errors list={sim.errors} />
         </Panel>
       ) : null}
-      {trace ? (
+      {trace && checking ? (
+        <CheckMode
+          trace={trace}
+          lv={lv}
+          setLv={setView}
+          tf={tagFmt}
+          setTf={setTf}
+          byAddr={byAddr === true && trace.geometry.ways > 1}
+          onJump={(i) => {
+            setMode('run')
+            stepper.set(i)
+          }}
+        />
+      ) : trace ? (
         <>
-          <div className="ca-stage">
-            <div className="ca-board canvas" ref={board}>
-              <div className="ca-board-bar">
-                <p className="ca-board-title">
-                  {f ? (
-                    <>
-                      <span className="mono">{accessText(f.access)}</span>
-                      <span className={`ca-board-step ${f.hit ? 'is-hit' : 'is-miss'}`}>{f.hit ? 'Hit' : `Miss${type ? `, ${type}` : ''}`}</span>
-                    </>
-                  ) : (
-                    'The trace has no accesses'
-                  )}
-                </p>
-                <div className="ca-actions">
+          <Stage>
+            <Board
+              title={f ? <span className="mono">{accessText(f.access)}</span> : 'The trace has no accesses'}
+              step={f ? <span className={f.hit ? 'ca-step-hit' : 'ca-step-miss'}>{f.hit ? 'Hit' : `Miss${type ? `, ${type}` : ''}`}</span> : undefined}
+              tools={
+                <>
                   <Segmented
                     label="Tags in"
                     value={tagFmt}
@@ -162,27 +155,10 @@ export default function SimulatorTab({ intro, input }: { intro: ReactNode; input
                     ]}
                     onChange={setView}
                   />
-                </div>
-              </div>
-              <div className="ca-board-top">
-                <div className="ca-board-addr">
-                  <AddressBar g={trace.geometry} split={f?.split} compact />
-                </div>
-                <MemoryPill f={f} />
-              </div>
-              <div className="ca-board-table">
-                <CacheTable
-                  g={trace.geometry}
-                  sets={sets}
-                  cur={cursorOf(f)}
-                  tf={tagFmt}
-                  byAddr={byAddr === true}
-                  dirty={trace.geometry.config.writeHit === 'write-back'}
-                  caption={f ? `Cache contents after access ${f.index + 1}.` : 'Cache contents before the first access.'}
-                />
-              </div>
-              <BoardPlay stepper={stepper} start="Run this trace" />
-              <div className="ca-board-foot">
+                </>
+              }
+              play={<PlayBar stepper={stepper} start="Run this trace" next={(k) => accessText(frames[k].access)} />}
+              foot={
                 <Legend
                   items={[
                     { signal: 'path', label: 'set looked up now' },
@@ -192,26 +168,46 @@ export default function SimulatorTab({ intro, input }: { intro: ReactNode; input
                     { signal: 'dirty', label: 'dirty, write to memory' },
                   ]}
                 />
+              }
+            >
+              {/* The wires are measured against this box, so it holds every anchor and the wire layer. */}
+              <div className="ca-wire-area" ref={board}>
+                <div className="ca-top">
+                  <div className="ca-top-addr">
+                    <AddressBar g={trace.geometry} split={f?.split} compact />
+                  </div>
+                  <MemoryPill f={f} />
+                </div>
+                <CacheTable
+                  g={trace.geometry}
+                  sets={sets}
+                  cur={cursorOf(f)}
+                  tf={tagFmt}
+                  byAddr={byAddr === true}
+                  dirty={trace.geometry.config.writeHit === 'write-back'}
+                  caption={f ? `Cache contents after access ${f.index + 1}.` : 'Cache contents before the first access.'}
+                />
+                <BoardWires
+                  board={board}
+                  step={stepper.index}
+                  layout={`${tagFmt} ${byAddr === true} ${sets.length}`}
+                  read={!!f && f.traffic.some((t) => t.kind === 'block-read')}
+                  write={!!f && f.traffic.some((t) => t.kind !== 'block-read')}
+                />
               </div>
-              <BoardWires
-                board={board}
-                step={stepper.index}
-                layout={`${tagFmt} ${byAddr === true} ${sets.length}`}
-                read={!!f && f.traffic.some((t) => t.kind === 'block-read')}
-                write={!!f && f.traffic.some((t) => t.kind !== 'block-read')}
-              />
-            </div>
-            <Story trace={trace} index={stepper.index} go={stepper.set} lv={lv} tf={tagFmt} />
-          </div>
+            </Board>
+            {f ? <AccessList trace={trace} index={stepper.index} go={stepper.set} lv={lv} tf={tagFmt} /> : null}
+          </Stage>
 
-          <section className="ca-details" aria-label="Tables for this trace">
-            <Tabs label="Tables" value={detail} onChange={setDetail} tabs={DETAIL_TABS} />
-            <div className="ca-detail-body">
-              {detail === 'access' ? <Results trace={trace} index={stepper.index} go={stepper.set} lv={lv} tf={tagFmt} answer={answer} setAnswer={setAnswer} /> : null}
-              {detail === 'totals' ? <Tallies trace={trace} f={f} lv={lv} index={stepper.index} /> : null}
-              {detail === 'notes' ? <Notes trace={trace} /> : null}
-            </div>
-          </section>
+          <Details
+            urlKey="st"
+            label="Tables for this trace"
+            tabs={[
+              { value: 'access', label: 'Every access', body: <Results trace={trace} index={stepper.index} go={stepper.set} lv={lv} tf={tagFmt} /> },
+              { value: 'totals', label: 'Tallies', body: <Tallies trace={trace} f={f} lv={lv} index={stepper.index} /> },
+              { value: 'notes', label: 'Rules and traps', body: <Notes trace={trace} /> },
+            ]}
+          />
         </>
       ) : null}
     </Workspace>
@@ -260,33 +256,33 @@ function Geo({ trace }: { trace: Trace }) {
 
 /* ---------- The story: nearby accesses in order, only the current one narrated ---------- */
 
-function Story({ trace, index, go, lv, tf }: { trace: Trace; index: number; go: (i: number) => void; lv: LabelView; tf: TagFmt }) {
+function AccessList({ trace, index, go, lv, tf }: { trace: Trace; index: number; go: (i: number) => void; lv: LabelView; tf: TagFmt }) {
   const frames = trace.frames
   const from = Math.max(0, Math.min(index - 2, frames.length - 5))
   const shown = frames.slice(from, from + 5)
   return (
-    <aside className="ca-story" aria-label="What happens at each access">
-      <ol className="ca-tl">
-        {shown.map((x) => (
-          <li key={x.index} className={x.index === index ? 'is-now' : x.index < index ? 'is-past' : 'is-next'}>
-            <button type="button" className="ca-tl-btn" onClick={() => go(x.index)} aria-current={x.index === index ? 'step' : undefined}>
-              <span className="ca-tl-dot" aria-hidden="true" />
-              <span className="mono">
-                {x.index + 1}. {accessText(x.access)}
-              </span>
-              {/* Later results stay hidden so the student can predict them. */}
-              {x.index <= index ? <ResultChip f={x} /> : null}
-            </button>
-            {x.index === index ? <AccessStory trace={trace} f={x} lv={lv} tf={tf} /> : null}
-          </li>
-        ))}
-      </ol>
-      {frames.length > 5 ? (
-        <p className="ca-muted">
-          Access {index + 1} of {frames.length}
-        </p>
-      ) : null}
-    </aside>
+    <Story
+      label="What happens at each access"
+      titles={shown.map((x) => (
+        <span className="mono">
+          {x.index + 1}. {accessText(x.access)}
+        </span>
+      ))}
+      index={index - from}
+      onPick={(k) => go(from + k)}
+      // Later results stay hidden so the student can predict them.
+      aside={(k) => (from + k <= index ? <ResultChip f={shown[k]} /> : null)}
+      body={
+        <>
+          <AccessStory trace={trace} f={frames[index]} lv={lv} tf={tf} />
+          {frames.length > 5 ? (
+            <p className="ca-muted">
+              Access {index + 1} of {frames.length}
+            </p>
+          ) : null}
+        </>
+      }
+    />
   )
 }
 
@@ -313,7 +309,7 @@ function AccessStory({ trace, f, lv, tf }: { trace: Trace; f: Frame; lv: LabelVi
         ? `load block ${sp.block}, then write Word${sp.wordInBlock}`
         : `load block ${sp.block}, then return Word${sp.wordInBlock}`
   return (
-    <div className="ca-tl-body">
+    <>
       <p className="ca-verdict">
         {f.hit ? <Chip signal="hit">Hit</Chip> : <Chip signal="miss">Miss</Chip>}
         <TypeChip type={type} />
@@ -397,7 +393,7 @@ function AccessStory({ trace, f, lv, tf }: { trace: Trace; f: Frame; lv: LabelVi
           Other lines may be empty. The block lost its place to another block of the same {g.mapping === 'direct' ? 'index' : 'set'}.
         </Callout>
       ) : null}
-    </div>
+    </>
   )
 }
 
@@ -409,28 +405,15 @@ function Results({
   go,
   lv,
   tf,
-  answer,
-  setAnswer,
 }: {
   trace: Trace
   index: number
   go: (i: number) => void
   lv: LabelView
   tf: TagFmt
-  answer: string
-  setAnswer: (v: string) => void
 }) {
   const frames = trace.frames
   const g = trace.geometry
-  const typed = useMemo(() => parseAnswer(answer), [answer])
-  const checked = typed.length > 0
-  const right = (f: Frame) => {
-    const t = typed[f.index]
-    if (!t) return undefined
-    return t.r === f.result && (t.type === null || t.type === typeOf(f, lv))
-  }
-  // Results re-renders on every step; the score only changes with the answer, trace or labels.
-  const score = useMemo(() => (checked ? frames.filter((x) => right(x)).length : 0), [typed, frames, lv]) // eslint-disable-line react-hooks/exhaustive-deps
   const start = frames.length <= WINDOW ? 0 : Math.max(0, Math.min(frames.length - WINDOW, index - WINDOW / 2))
   const rows = frames.slice(start, start + WINDOW)
 
@@ -453,38 +436,9 @@ function Results({
     { key: 'r', header: 'Result', align: 'center', cell: (x) => <ResultChip f={x} /> },
     { key: 't', header: 'Miss type', cell: (x) => <TypeChip type={typeOf(x, lv)} /> },
   ]
-  if (checked) {
-    columns.push({
-      key: 'you',
-      header: 'Yours',
-      cell: (x) => {
-        const t = typed[x.index]
-        const ok = right(x)
-        if (!t) return <span className="ca-muted">-</span>
-        return (
-          <Chip signal={ok ? 'hit' : 'miss'} title={ok ? 'Right' : 'Wrong'}>
-            {t.r}
-            {t.type ? ` ${t.type}` : ''} {ok ? 'right' : 'wrong'}
-          </Chip>
-        )
-      },
-    })
-  }
 
   return (
     <div className="ca-results">
-      <div className="ca-check">
-        <TextField label="Check my answer" value={answer} onChange={setAnswer} placeholder="M H M H M M H, or M(cold) H M(conflict)" width="100%" />
-        {checked ? (
-          <p className="ca-score" aria-live="polite">
-            <Chip signal={score === frames.length && typed.length === frames.length ? 'hit' : 'miss'}>
-              {score} of {frames.length} right
-            </Chip>
-            {typed.length !== frames.length ? <span className="ca-muted"> You gave {plural(typed.length, 'result')}; the trace has {frames.length}.</span> : null}
-            <span className="ca-muted"> Miss types use the board's miss labels.</span>
-          </p>
-        ) : null}
-      </div>
       <DataTable compact columns={columns} rows={rows} rowSignal={(x) => (x.index === index ? 'path' : undefined)} />
       <p className="ca-muted">
         {frames.length > WINDOW ? `Accesses ${start + 1} to ${start + rows.length} of ${frames.length}; the table follows the current step. ` : ''}

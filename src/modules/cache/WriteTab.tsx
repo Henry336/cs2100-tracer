@@ -1,10 +1,11 @@
 import { useMemo, type ReactNode } from 'react'
 import { simulate, type Frame, type Trace, type Traffic, type WriteHitPolicy, type WriteMissPolicy } from '../../core/cache'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, Chip, DataTable, Legend, Panel, Tabs, Workspace } from '../../ui/kit'
+import { Board, Details, Flow, PlayBar } from '../../ui/board'
+import { Callout, Chip, DataTable, Legend, Panel, Workspace } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { BoardPlay, CacheTable, CommandBar, ConfigBar, Errors, Setup, TracePresets, W, accessText, cumulative, cursorOf, fmtAddr, mem, plural, stateAfter, type Input, type TagFmt } from './common'
+import { CacheBar, CacheTable, ConfigBar, Errors, Setup, TracePresets, W, accessText, cumulative, cursorOf, fmtAddr, mem, plural, stateAfter, type Input, type TagFmt } from './common'
 import { toConfig } from './presets'
 
 const VARIANTS: { hit: WriteHitPolicy; miss: WriteMissPolicy; name: string }[] = [
@@ -23,18 +24,9 @@ interface Run {
 
 const count = (kind: Traffic['kind']) => (f: Frame) => f.traffic.filter((t) => t.kind === kind).length
 
-type DetailTab = 'totals' | 'notes'
-
-const DETAIL_TABS: { value: DetailTab; label: string }[] = [
-  { value: 'totals', label: 'Whole trace' },
-  { value: 'notes', label: 'Rules and traps' },
-]
-
 export default function WriteTab({ intro, input }: { intro: ReactNode; input: Input }) {
   const [tf] = useUrlState<TagFmt>('tf', 'dec')
   const [rawPick, setPick] = useUrlState<number>('wv', 2)
-  const [rawDetail, setDetail] = useUrlState<DetailTab>('wt', 'totals')
-  const detail: DetailTab = DETAIL_TABS.some((t) => t.value === rawDetail) ? rawDetail : 'totals'
   const pick = typeof rawPick === 'number' && rawPick >= 0 && rawPick < VARIANTS.length ? Math.floor(rawPick) : 2
   const runs = useMemo(() => {
     const out: Run[] = []
@@ -62,8 +54,8 @@ export default function WriteTab({ intro, input }: { intro: ReactNode; input: In
       toolbar={<TracePresets input={input} onPick={stepper.first} />}
       transport={runs.ok ? <Transport stepper={stepper} label="Access" marks={marks} describe={first ? accessText(first.access) : 'No accesses'} /> : undefined}
     >
-      <div className="ca-command-wrap">
-        <CommandBar input={input} />
+      <div className="ca-inputs">
+        <CacheBar input={input} />
         <Setup input={input} rows={5} config={<ConfigBar cfg={input.cfg} setCfg={input.setCfg} core={false} writePolicies={false} />} />
       </div>
       {!runs.ok ? (
@@ -72,27 +64,11 @@ export default function WriteTab({ intro, input }: { intro: ReactNode; input: In
         </Panel>
       ) : (
         <>
-          <div className="ca-board canvas">
-            <div className="ca-board-bar">
-              <p className="ca-board-title">
-                {first ? (
-                  <>
-                    <span className="mono">{accessText(first.access)}</span>
-                    <span className={`ca-board-step ${first.access.kind === 'write' ? 'is-write' : ''}`}>{first.access.kind === 'write' ? 'Store' : 'Load'}</span>
-                  </>
-                ) : (
-                  'The trace has no accesses'
-                )}
-              </p>
-            </div>
-            <div className="ca-quad">
-              {runs.runs.map((run, k) => (
-                <VariantCard key={k} name={VARIANTS[k].name} run={run} i={i} on={k === pick} onPick={() => setPick(k)} buffered={buffered && VARIANTS[k].hit === 'write-through'} />
-              ))}
-            </div>
-            <PickedCache name={VARIANTS[pick].name} run={runs.runs[pick]} i={i} tf={tagFmt} />
-            <BoardPlay stepper={stepper} start="Run this trace" />
-            <div className="ca-board-foot">
+          <Board
+            title={first ? <span className="mono">{accessText(first.access)}</span> : 'The trace has no accesses'}
+            step={first ? <span className={first.access.kind === 'write' ? 'ca-step-write' : undefined}>{first.access.kind === 'write' ? 'Store' : 'Load'}</span> : undefined}
+            play={<PlayBar stepper={stepper} start="Run this trace" next={(k) => accessText(runs.runs[0].trace.frames[k].access)} />}
+            foot={
               <Legend
                 items={[
                   { signal: 'data', label: 'block read from memory' },
@@ -102,12 +78,23 @@ export default function WriteTab({ intro, input }: { intro: ReactNode; input: In
                   { signal: 'path', label: 'set looked up now' },
                 ]}
               />
+            }
+          >
+            <div className="ca-quad">
+              {runs.runs.map((run, k) => (
+                <VariantCard key={k} name={VARIANTS[k].name} run={run} i={i} on={k === pick} onPick={() => setPick(k)} buffered={buffered && VARIANTS[k].hit === 'write-through'} />
+              ))}
             </div>
-          </div>
-          <section className="ca-details" aria-label="Totals and rules">
-            <Tabs label="Tables" value={detail} onChange={setDetail} tabs={DETAIL_TABS} />
-            <div className="ca-detail-body">{detail === 'totals' ? <Totals runs={runs.runs} buffered={buffered} /> : <Rules />}</div>
-          </section>
+            <PickedCache name={VARIANTS[pick].name} run={runs.runs[pick]} i={i} tf={tagFmt} />
+          </Board>
+          <Details
+            urlKey="wt"
+            label="Totals and rules"
+            tabs={[
+              { value: 'totals', label: 'Whole trace', body: <Totals runs={runs.runs} buffered={buffered} /> },
+              { value: 'notes', label: 'Rules and traps', body: <Rules /> },
+            ]}
+          />
         </>
       )}
     </Workspace>
@@ -172,7 +159,7 @@ function PickedCache({ name, run, i, tf }: { name: string; run: Run; i: number; 
   const sets = stateAfter(t, f)
   const stale = sets.flatMap((s) => s.lines.flatMap((l) => (l.valid ? l.words.filter((w) => w.memoryStale) : [])))
   return (
-    <div className="ca-board-table">
+    <div className="ca-picked">
       <CacheTable
         g={g}
         sets={sets}
@@ -205,9 +192,6 @@ function Bus({ f, buffered, wordsPerBlock }: { f: Frame | undefined; buffered: b
   // A buffered word write stops at the buffer; the memory controller drains it later (L22 p67).
   const upEnd = buffered && up?.kind === 'word-write' ? 176 : 236
   const label = [upText && `Write: ${upText}`, downText && `Read: ${downText}`].filter(Boolean).join('. ') || 'No memory traffic on this step'
-  const wires: { id: string; d: string; cls: string }[] = []
-  if (up) wires.push({ id: 'w', d: `M86 22 H${upEnd}`, cls: 'ca-wire-w' })
-  if (down) wires.push({ id: 'r', d: 'M234 46 H84', cls: 'ca-wire-r' })
   const step = f?.index ?? -1
   return (
     <svg className="ca-bus" viewBox="0 0 320 76" role="img" aria-label={label}>
@@ -229,20 +213,8 @@ function Bus({ f, buffered, wordsPerBlock }: { f: Frame | undefined; buffered: b
           </text>
         </g>
       ) : null}
-      {wires.length ? (
-        <>
-          <g className="flow-draw" key={`d${step}`} aria-hidden="true">
-            {wires.map((w) => (
-              <path key={w.id} d={w.d} pathLength={1} className={w.cls} />
-            ))}
-          </g>
-          <g className="flow-packets" key={`p${step}`} aria-hidden="true">
-            {wires.map((w, k) => (
-              <path key={w.id} d={w.d} pathLength={1} className={w.cls} style={{ animationDelay: `${0.7 + k * 0.3}s` }} />
-            ))}
-          </g>
-        </>
-      ) : null}
+      <Flow id={step} tone="dirty" paths={up ? [`M86 22 H${upEnd}`] : []} />
+      <Flow id={step} tone="data" paths={down ? ['M234 46 H84'] : []} />
       <text className={`ca-bus-tiny${up ? ' ca-bus-w' : ''}`} x="160" y="9" textAnchor="middle">
         {up ? upText : 'no write'}
       </text>

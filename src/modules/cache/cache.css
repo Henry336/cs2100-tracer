@@ -11,10 +11,6 @@
   font-size: var(--fs-xs);
 }
 
-.ca-pad {
-  padding: var(--sp-2) var(--sp-3);
-}
-
 .ca-line {
   margin-top: var(--sp-2);
   font-size: var(--fs-sm);
@@ -36,14 +32,6 @@
 
 .panel-body > .ca-callouts:not(:first-child) {
   margin-top: var(--sp-3);
-}
-
-.ca-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-3);
-  align-items: end;
-  justify-content: flex-end;
 }
 
 /* ---------- Setup: config and trace ---------- */
@@ -386,7 +374,6 @@
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
-  margin-bottom: var(--sp-2);
 }
 
 .ca-steps {
@@ -421,13 +408,6 @@
   flex-direction: column;
   gap: 6px;
   font-size: var(--fs-sm);
-}
-
-.ca-calc {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  margin-top: var(--sp-3);
 }
 
 /* ---------- Write policies ---------- */
@@ -537,16 +517,6 @@
   stroke-dasharray: 4 3;
 }
 
-.ca-lane-on-w {
-  stroke: var(--sig-dirty);
-  stroke-dasharray: none;
-}
-
-.ca-lane-on-r {
-  stroke: var(--sig-data);
-  stroke-dasharray: none;
-}
-
 
 /* ---------- Compare organisations ---------- */
 
@@ -596,15 +566,6 @@
   overflow: hidden;
 }
 
-.ca-b {
-  height: 100%;
-  transition: width 0.3s var(--ease);
-}
-
-.ca-b + .ca-b {
-  border-left: 1px solid var(--panel);
-}
-
 .ca-b-hit {
   background: var(--sig-hit);
 }
@@ -641,37 +602,27 @@
   min-width: 0;
 }
 
-/* ---------- Calm layout: command bar, a board with Play inside, the story beside it, tables in one tab strip ---------- */
+/* ---------- On the shared calm layout (src/ui/board.tsx): only what is cache specific ---------- */
 
-.ca-command-wrap {
+.ca-inputs {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
 }
 
-.ca-command-row {
+.ca-input-row {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
   gap: var(--sp-3);
 }
 
-.ca-command {
-  display: flex;
+/* The command bar holds selects, not one text input, so it wraps. */
+.command-bar.ca-selects {
   flex-wrap: wrap;
-  align-items: center;
   gap: var(--sp-2) var(--sp-4);
   width: max-content;
   max-width: 100%;
-  padding: 6px 8px 6px 16px;
-  border: 1px solid var(--rule);
-  border-radius: 22px;
-  background: var(--panel);
-}
-
-.ca-command-label {
-  font-size: var(--fs-xs);
-  color: var(--ink-3);
 }
 
 .ca-bar-field {
@@ -699,35 +650,12 @@
   cursor: pointer;
 }
 
-.ca-command-word {
-  font-size: var(--fs-xs);
-  color: var(--ink-3);
-  padding: 4px 10px;
-  border-radius: var(--r-pill);
-  background: var(--sunken);
-  white-space: nowrap;
-}
-
-.ca-command-word.is-bad {
+.command-aside.ca-bad {
   color: var(--sig-miss);
   background: var(--tint-miss);
 }
 
-.ca-more > summary {
-  cursor: pointer;
-  color: var(--ink-3);
-  font-size: var(--fs-sm);
-  width: max-content;
-  max-width: 100%;
-  padding: 2px 4px;
-}
-
-.ca-more[open] > summary {
-  margin-bottom: var(--sp-3);
-  color: var(--ink);
-}
-
-.ca-more .ca-setup > section {
+.ca-setup > section {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
@@ -741,91 +669,48 @@
   color: var(--ink-2);
 }
 
-.ca-stage {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: var(--sp-4);
-  align-items: start;
+/* The board headline takes the colour of the outcome. */
+.board-step .ca-step-hit {
+  color: var(--sig-hit);
 }
 
-.ca-board {
+.board-step .ca-step-miss {
+  color: var(--sig-miss);
+}
+
+.board-step .ca-step-write {
+  color: var(--sig-dirty);
+}
+
+/* The wire layer is measured against this box; the side padding leaves room for the wires. */
+.ca-wire-area {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-panel);
-  overflow: hidden;
-  min-width: 0;
+  padding: 0 12px;
 }
 
-.ca-board-bar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--sp-2) var(--sp-4);
-  padding: 12px 16px 0;
-}
-
-.ca-board-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--sp-2) var(--sp-3);
-  margin: 0;
-  font-size: var(--fs-md);
-}
-
-.ca-board-step {
-  font-family: var(--font-display);
-  font-size: var(--fs-xl);
-  color: var(--sig-path);
-}
-
-.ca-board-step.is-hit {
-  color: var(--sig-hit);
-}
-
-.ca-board-step.is-miss {
-  color: var(--sig-miss);
-}
-
-.ca-board-step.is-write {
-  color: var(--sig-dirty);
-}
-
-.ca-board-sub {
-  margin: -6px 16px 0;
-}
-
-/* Gutters left and right of the address and the table leave room for the wires. */
-.ca-board-top {
+.ca-top {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--sp-3);
-  padding: 0 28px;
 }
 
-.ca-board-addr {
+.ca-top-addr {
   flex: 1 1 320px;
   min-width: 0;
 }
 
-.ca-board-table {
-  padding: 0 28px;
-  min-width: 0;
-}
-
-.ca-board .table-wrap {
+.ca-root .board .table-wrap {
   background: var(--panel);
   border: 1px solid var(--rule);
   border-radius: var(--r-panel);
 }
 
-.ca-board .ca-errors {
-  margin: 0 16px;
+.ca-picked {
+  margin-top: var(--sp-3);
 }
 
 .ca-mem {
@@ -871,240 +756,6 @@
   stroke-width: 2.6;
 }
 
-.flow-draw path.ca-wire-r {
-  stroke: var(--sig-data);
-}
-
-.flow-packets path.ca-wire-r {
-  stroke: color-mix(in srgb, #fff 75%, var(--sig-data));
-  filter: drop-shadow(0 0 3px var(--sig-data));
-}
-
-.flow-draw path.ca-wire-w {
-  stroke: var(--sig-dirty);
-}
-
-.flow-packets path.ca-wire-w {
-  stroke: color-mix(in srgb, #fff 75%, var(--sig-dirty));
-  filter: drop-shadow(0 0 3px var(--sig-dirty));
-}
-
-.ca-board-play {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  padding: 0 16px;
-}
-
-.ca-play,
-.ca-next {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 40px;
-  padding: 0 18px;
-  border-radius: var(--r-pill);
-  font: 600 var(--fs-sm) / 1 var(--font-sans);
-  cursor: pointer;
-  transition: transform 0.25s var(--ease-spring), background-color 0.15s var(--ease);
-}
-
-.ca-play {
-  position: relative;
-  border: 0;
-  background: var(--primary);
-  color: var(--primary-ink);
-}
-
-.ca-play svg {
-  width: 14px;
-  height: 14px;
-  fill: currentColor;
-}
-
-.ca-play:hover {
-  transform: scale(1.03);
-}
-
-.ca-play[data-playing="true"]::before {
-  content: "";
-  position: absolute;
-  inset: -3px;
-  border-radius: inherit;
-  padding: 2px;
-  background: var(--glow);
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box exclude,
-    linear-gradient(#000 0 0);
-  animation: glow-spin 2.4s linear infinite;
-}
-
-.ca-next {
-  border: 1px solid var(--rule);
-  background: var(--panel);
-  color: var(--ink);
-}
-
-.ca-next svg {
-  width: 14px;
-  height: 14px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.ca-next:hover {
-  border-color: var(--ink-3);
-}
-
-.ca-board-foot {
-  padding: 8px 16px;
-  border-top: 1px solid var(--grid);
-  background: color-mix(in srgb, var(--panel) 70%, transparent);
-}
-
-.ca-split {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: 4px 6px 4px 14px;
-  border: 1px solid var(--rule);
-  border-radius: var(--r-pill);
-  background: var(--panel);
-  max-width: 100%;
-}
-
-.ca-split input {
-  width: 11em;
-  min-width: 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  color: var(--ink);
-  font-size: var(--fs-sm);
-  padding: 4px 0;
-}
-
-/* The story: nearby accesses as one line each; the current one bright and narrated. */
-.ca-story {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  position: sticky;
-  top: var(--sp-4);
-  min-width: 0;
-}
-
-.ca-tl {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.ca-tl > li {
-  position: relative;
-  padding-left: 22px;
-}
-
-.ca-tl > li::before {
-  content: "";
-  position: absolute;
-  left: 5px;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--rule);
-}
-
-.ca-tl > li:first-child::before {
-  top: 16px;
-}
-
-.ca-tl > li:last-child::before {
-  bottom: calc(100% - 16px);
-}
-
-.ca-tl-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  width: 100%;
-  border: 0;
-  background: none;
-  padding: 7px 0;
-  color: var(--ink-3);
-  font: inherit;
-  font-size: var(--fs-sm);
-  text-align: left;
-  cursor: pointer;
-}
-
-.ca-tl-dot {
-  position: absolute;
-  left: 0;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  border: 1.5px solid var(--rule);
-  background: var(--paper);
-}
-
-.ca-tl .is-past .ca-tl-btn {
-  color: var(--ink-2);
-}
-
-.ca-tl .is-past .ca-tl-dot {
-  background: var(--ink-3);
-  border-color: var(--ink-3);
-}
-
-.ca-tl .is-now .ca-tl-btn {
-  color: var(--ink);
-  font-weight: 600;
-  font-size: var(--fs-md);
-}
-
-.ca-tl .is-now .ca-tl-dot {
-  border-color: var(--sig-path);
-  background: var(--sig-path);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--sig-path) 25%, transparent);
-}
-
-.ca-tl-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  padding: 2px 0 14px;
-  font-size: var(--fs-sm);
-  animation: rise 0.35s var(--ease) both;
-}
-
-.ca-tl-body .ca-verdict {
-  margin: 0;
-}
-
-.ca-details {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-}
-
-.ca-detail-body {
-  border: 1px solid var(--rule);
-  border-radius: var(--r-panel);
-  background: var(--panel);
-  padding: var(--sp-3);
-  overflow-x: auto;
-}
-
 .ca-results {
   display: flex;
   flex-direction: column;
@@ -1126,11 +777,6 @@
   flex-direction: column;
   gap: var(--sp-2);
   min-width: 0;
-}
-
-/* Write policies: four cards on the board, one cache table under them. */
-.ca-board .ca-quad {
-  padding: 0 16px;
 }
 
 .ca-card {
@@ -1172,11 +818,6 @@
 
 .ca-card.is-on .ca-card-name {
   text-decoration: none;
-}
-
-/* Compare: one strip per organisation, every access one cell, later accesses dimmed. */
-.ca-board .ca-bars {
-  padding: 0 16px;
 }
 
 .ca-bar-name {
@@ -1243,30 +884,13 @@
   box-shadow: inset 0 0 0 2px var(--sig-path);
 }
 
-@media (max-width: 1180px) {
-  .ca-stage {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .ca-story {
-    position: static;
-  }
-}
-
 @media (max-width: 520px) {
-  .ca-board-top,
-  .ca-board-table {
-    padding: 0 18px;
-  }
-  .ca-command {
+  .command-bar.ca-selects {
     border-radius: var(--r-panel);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ca-play[data-playing="true"]::before,
-  .ca-tl-body {
-    animation: none;
-  }
   .ca-bar-future,
   .ca-bar-now {
     transition: none;
@@ -1274,12 +898,128 @@
 }
 
 @media print {
-  .ca-board-play,
-  .ca-more > summary,
   .ca-wires {
     display: none;
   }
-  .ca-board {
+  .ca-root .board,
+  .ca-root .board-scroll {
     overflow: visible;
   }
+}
+
+/* ---------- Check my answers ---------- */
+
+.ca-ck {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.ca-ck section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.ca-ck-marks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ca-ck-mark {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 999px;
+}
+
+.ca-ck-mark .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+}
+
+.ca-ck-icon {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ca-ck-icon.is-ok {
+  color: var(--sig-hit);
+}
+
+.ca-ck-icon.is-bad {
+  color: var(--sig-miss);
+}
+
+.ca-ck-table td.ca-ck-cell {
+  padding: 2px 4px;
+  white-space: nowrap;
+}
+
+.ca-ck-table td.ca-ck-cell.is-ok {
+  background: var(--tint-hit);
+}
+
+.ca-ck-table td.ca-ck-cell.is-bad {
+  background: var(--tint-miss);
+}
+
+.ca-ck-table td.ca-ck-cell .ca-ck-icon {
+  margin-left: 3px;
+  vertical-align: middle;
+}
+
+.ca-ck-table tr.ca-ck-newset td {
+  border-top: 1px solid var(--rule);
+}
+
+.ca-ck-in {
+  min-width: 2.5ch;
+  max-width: 100%;
+  padding: 2px 4px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font-size: var(--fs-sm);
+}
+
+.ca-ck-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+}
+
+.ca-ck-verdict {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.ca-ck-verdict p {
+  margin: 0;
+}
+
+.ca-ck-help {
+  margin: 0;
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-sm);
 }

@@ -20,7 +20,7 @@ import {
 } from '../../core/cache'
 import { useUrlState } from '../../lib/url-state'
 import { Button, Callout, CodeEditor, NumberField, Presets, Segmented, Select, TextField, Toggle, Why } from '../../ui/kit'
-import type { Stepper } from '../../ui/stepper'
+import { Flow, Options } from '../../ui/board'
 import { DEFAULT_LOOP, collisions, loopTrace, normLoop, type LoopForm, type LoopRun } from './loop'
 import { DEFAULT_CFG, PRESET_BY_ID, TRACE_PRESETS, normCfg, toConfig, toText, type Cfg, type TracePreset } from './presets'
 
@@ -228,13 +228,13 @@ export function BarSelect({ label, name, value, options, onChange }: { label: st
 }
 
 /** The one-line cache picker above the board: size, block size and (optionally) associativity. */
-export function CommandBar({ input, ways = true }: { input: Input; ways?: boolean }) {
+export function CacheBar({ input, ways = true }: { input: Input; ways?: boolean }) {
   const { cfg, setCfg } = input
   const set = (patch: Partial<Cfg>) => setCfg(patchCfg(cfg, patch))
   const bad = Object.keys(input.lineErrors).length > 0 || input.genErrors.length > 0
   return (
-    <div className="ca-command glow-input">
-      <span className="ca-command-label">Cache</span>
+    <div className="command-bar glow-input ca-selects">
+      <span className="command-label">Cache</span>
       <BarSelect label="Size" name="Cache size" value={String(cfg.cache)} options={CACHE_SIZES} onChange={(v) => set({ cache: Number(v) })} />
       <BarSelect label="Blocks of" name="Block size" value={String(cfg.block)} options={BLOCK_SIZES} onChange={(v) => set({ block: Number(v) })} />
       {ways ? (
@@ -246,7 +246,7 @@ export function CommandBar({ input, ways = true }: { input: Input; ways?: boolea
           onChange={(v) => set({ ways: v === 'full' ? 'full' : Number(v) })}
         />
       ) : null}
-      <span className={`ca-command-word mono${bad ? ' is-bad' : ''}`}>{bad ? 'trace has errors' : plural(input.accesses.length, 'access', 'accesses')}</span>
+      <span className={`command-aside${bad ? ' ca-bad' : ''}`}>{bad ? 'trace has errors' : plural(input.accesses.length, 'access', 'accesses')}</span>
     </div>
   )
 }
@@ -255,8 +255,7 @@ export function CommandBar({ input, ways = true }: { input: Input; ways?: boolea
 export function Setup({ input, config, rows }: { input: Input; config: ReactNode; rows?: number }) {
   const bad = Object.keys(input.lineErrors).length > 0 || input.genErrors.length > 0
   return (
-    <details className="ca-more" open={bad || undefined}>
-      <summary>Edit the trace and options</summary>
+    <Options summary="Edit the trace and options" open={bad || undefined}>
       <div className="ca-setup">
         <section>
           <h3 className="ca-h">Trace</h3>
@@ -267,38 +266,7 @@ export function Setup({ input, config, rows }: { input: Input; config: ReactNode
           {config}
         </section>
       </div>
-    </details>
-  )
-}
-
-/** The primary action inside a board: a labelled Play pill and a quiet Next button, both driving the page stepper. */
-export function BoardPlay({ stepper, start, next = 'Next access' }: { stepper: Stepper; start: string; next?: string }) {
-  if (stepper.count === 0) return null
-  const atEnd = stepper.index >= stepper.count - 1
-  const label = stepper.playing ? 'Pause' : atEnd ? 'Run it again' : stepper.index === 0 ? start : 'Play from here'
-  return (
-    <div className="ca-board-play">
-      <button type="button" className="ca-play" onClick={stepper.toggle} data-playing={stepper.playing}>
-        {stepper.playing ? (
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M4 3h3v10H4zM9 3h3v10H9z" />
-          </svg>
-        ) : (
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M4.5 2.8l9 5.2-9 5.2z" />
-          </svg>
-        )}
-        {label}
-      </button>
-      {!atEnd ? (
-        <button type="button" className="ca-next" onClick={stepper.next}>
-          {next}
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M3 8h10M9 4l4 4-4 4" />
-          </svg>
-        </button>
-      ) : null}
-    </div>
+    </Options>
   )
 }
 
@@ -307,7 +275,7 @@ export function BoardPlay({ stepper, start, next = 'Next access' }: { stepper: S
 interface Wire {
   id: string
   d: string
-  cls: string
+  tone?: 'data' | 'dirty'
 }
 
 /**
@@ -348,13 +316,13 @@ export function BoardWires({
         if (src) {
           const sx = Math.min(Math.max(src.left + src.width / 2, b.left + 8), b.right - 8) - b.left
           const sy = src.bottom - b.top
-          wires.push({ id: 'look', d: `M${sx} ${sy} V${sy + 10} H${left - 10} V${ry} H${left + 4}`, cls: '' })
+          wires.push({ id: 'look', d: `M${sx} ${sy} V${sy + 10} H${left - 10} V${ry} H${left + 4}`, })
         }
         if (memo) {
           const mx = memo.left + memo.width / 2 - b.left
           const my = memo.bottom - b.top
-          if (read) wires.push({ id: 'read', d: `M${mx} ${my} V${my + 10} H${right + 10} V${ry} H${right - 4}`, cls: 'ca-wire-r' })
-          if (write) wires.push({ id: 'write', d: `M${right - 4} ${ry + 4} H${right + 16} V${my + 16} H${mx + 6} V${my}`, cls: 'ca-wire-w' })
+          if (read) wires.push({ id: 'read', d: `M${mx} ${my} V${my + 10} H${right + 10} V${ry} H${right - 4}`, tone: 'data' })
+          if (write) wires.push({ id: 'write', d: `M${right - 4} ${ry + 4} H${right + 16} V${my + 16} H${mx + 6} V${my}`, tone: 'dirty' })
         }
       }
       setBox({ w: b.width, h: b.height, wires })
@@ -368,16 +336,10 @@ export function BoardWires({
   if (!box || !box.wires.length) return null
   return (
     <svg className="ca-wires" width={box.w} height={box.h} viewBox={`0 0 ${box.w} ${box.h}`} aria-hidden="true">
-      <g className="flow-draw" key={`d${step}`}>
-        {box.wires.map((w) => (
-          <path key={w.id} d={w.d} pathLength={1} className={w.cls || undefined} />
-        ))}
-      </g>
-      <g className="flow-packets" key={`p${step}`}>
-        {box.wires.map((w, i) => (
-          <path key={w.id} d={w.d} pathLength={1} className={w.cls || undefined} style={{ animationDelay: `${0.7 + i * 0.25}s` }} />
-        ))}
-      </g>
+      {/* One Flow per tone: the lookup in the path colour, the block read as data, the write as write traffic. */}
+      {([undefined, 'data', 'dirty'] as const).map((tone) => (
+        <Flow key={tone ?? 'path'} id={step} tone={tone} paths={box.wires.filter((w) => w.tone === tone).map((w) => w.d)} />
+      ))}
     </svg>
   )
 }

@@ -1,31 +1,22 @@
 import { memo, useMemo, type ReactNode } from 'react'
 import { fmtBytes, isPow2, simulate, type Frame, type Trace } from '../../core/cache'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, Chip, DataTable, Panel, Segmented, Tabs, Workspace, type Column } from '../../ui/kit'
+import { Board, Details, PlayBar } from '../../ui/board'
+import { Callout, Chip, DataTable, Panel, Segmented, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
 import { ResultChip, typeOf, type LabelView } from './SimulatorTab'
-import { BoardPlay, CommandBar, ConfigBar, Errors, Setup, TracePresets, W, accessText, plural, type Input } from './common'
+import { CacheBar, ConfigBar, Errors, Setup, TracePresets, W, accessText, plural, type Input } from './common'
 import { toConfig } from './presets'
 
 const orgName = (w: number | 'full') => (w === 1 ? 'Direct mapped' : w === 'full' ? 'Fully associative' : `${w}-way`)
 
 const WINDOW = 30
 
-type DetailTab = 'table' | 'obs' | 'notes'
-
-const DETAIL_TABS: { value: DetailTab; label: string }[] = [
-  { value: 'table', label: 'Access by access' },
-  { value: 'obs', label: 'L23 p28 observations' },
-  { value: 'notes', label: 'Rules and traps' },
-]
-
 type RunList = { ways: number | 'full'; trace: Trace }[]
 
 export default function CompareTab({ intro, input }: { intro: ReactNode; input: Input }) {
   const [view, setView] = useUrlState<LabelView>('lv', 'r12')
-  const [rawDetail, setDetail] = useUrlState<DetailTab>('xt', 'table')
-  const detail: DetailTab = DETAIL_TABS.some((t) => t.value === rawDetail) ? rawDetail : 'table'
   const lv: LabelView = view === 'l23' ? 'l23' : 'r12'
   const { cache, block } = input.cfg
   const blocks = isPow2(cache) && isPow2(block) && cache >= block ? cache / block : 1
@@ -63,8 +54,8 @@ export default function CompareTab({ intro, input }: { intro: ReactNode; input: 
       toolbar={<TracePresets input={input} onPick={stepper.first} />}
       transport={runs.ok ? <Transport stepper={stepper} label="Access" describe={first ? accessText(first.access) : 'No accesses'} /> : undefined}
     >
-      <div className="ca-command-wrap">
-        <CommandBar input={input} ways={false} />
+      <div className="ca-inputs">
+        <CacheBar input={input} ways={false} />
         <Setup input={input} rows={5} config={<ConfigBar cfg={input.cfg} setCfg={input.setCfg} core={false} ways={false} />} />
       </div>
       {!runs.ok ? (
@@ -73,20 +64,10 @@ export default function CompareTab({ intro, input }: { intro: ReactNode; input: 
         </Panel>
       ) : (
         <>
-          <div className="ca-board canvas">
-            <div className="ca-board-bar">
-              <p className="ca-board-title">
-                {first ? (
-                  <>
-                    <span className="mono">{accessText(first.access)}</span>
-                    <span className="ca-board-step">
-                      Access {first.index + 1} of {n}
-                    </span>
-                  </>
-                ) : (
-                  'The trace has no accesses'
-                )}
-              </p>
+          <Board
+            title={first ? <span className="mono">{accessText(first.access)}</span> : 'The trace has no accesses'}
+            step={first ? `Access ${first.index + 1} of ${n}` : undefined}
+            tools={
               <Segmented
                 label="Miss labels"
                 value={lv}
@@ -96,15 +77,10 @@ export default function CompareTab({ intro, input }: { intro: ReactNode; input: 
                 ]}
                 onChange={setView}
               />
-            </div>
-            <p className="ca-board-sub ca-muted">Same cache and block size in every row (L23 p28).</p>
-            <div className="ca-bars">
-              {runs.runs.map((r) => (
-                <Strip key={String(r.ways)} name={orgName(r.ways)} trace={r.trace} lv={lv} index={i} />
-              ))}
-            </div>
-            <BoardPlay stepper={stepper} start="Run the trace on every cache" />
-            <div className="ca-board-foot">
+            }
+            note="Same cache and block size in every row (L23 p28)."
+            play={<PlayBar stepper={stepper} start="Run the trace on every cache" next={(k) => accessText(runs.runs[0].trace.frames[k].access)} />}
+            foot={
               <ul className="ca-key" aria-label="Strip key">
                 <li>
                   <span className="ca-sw ca-b-hit" aria-hidden="true" /> hit
@@ -122,16 +98,23 @@ export default function CompareTab({ intro, input }: { intro: ReactNode; input: 
                   <span className="ca-sw ca-b-now" aria-hidden="true" /> this access
                 </li>
               </ul>
+            }
+          >
+            <div className="ca-bars">
+              {runs.runs.map((r) => (
+                <Strip key={String(r.ways)} name={orgName(r.ways)} trace={r.trace} lv={lv} index={i} />
+              ))}
             </div>
-          </div>
-          <section className="ca-details" aria-label="Tables for this comparison">
-            <Tabs label="Tables" value={detail} onChange={setDetail} tabs={DETAIL_TABS} />
-            <div className="ca-detail-body">
-              {detail === 'table' ? <Table runs={runs.runs} index={i} go={stepper.set} lv={lv} /> : null}
-              {detail === 'obs' ? <Observations runs={runs.runs} /> : null}
-              {detail === 'notes' ? <Rules runs={runs.runs} half={half === null ? null : { bytes: cache / 2, misses: half }} /> : null}
-            </div>
-          </section>
+          </Board>
+          <Details
+            urlKey="xt"
+            label="Tables for this comparison"
+            tabs={[
+              { value: 'table', label: 'Access by access', body: <Table runs={runs.runs} index={i} go={stepper.set} lv={lv} /> },
+              { value: 'obs', label: 'L23 p28 observations', body: <Observations runs={runs.runs} /> },
+              { value: 'notes', label: 'Rules and traps', body: <Rules runs={runs.runs} half={half === null ? null : { bytes: cache / 2, misses: half }} /> },
+            ]}
+          />
         </>
       )}
     </Workspace>
