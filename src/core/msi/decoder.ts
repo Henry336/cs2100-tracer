@@ -288,7 +288,7 @@ export function findDecoderWirings(target: BoolFunction, spec: DecoderSpec, opts
       : {
           rule:
             spec.enable === 'one' && spec.outputs === 'high'
-              ? 'A 1-enable decoder output is E∙m_i: the enable only adds an uncomplemented literal, and the selects give at most k literals, so this product cannot be made without an inverter.'
+              ? 'A 1-enable output is E∙m_i. The enable adds only an uncomplemented literal and the selects give at most k literals, so this product needs an inverter.'
               : 'No wiring of the pins to variables and constants gives F on any output.',
           working: `${tried} wirings x ${1 << spec.k} outputs checked`,
           cite: 'L18 p15; AY23/24 S1 Q9',

@@ -296,8 +296,7 @@ export default function MuxTab({ intro }: { intro: ReactNode }) {
       ) : null}
       {bad.length && plan ? (
         <Callout kind="trap" title={`${plural(bad.length, 'data input')} need${bad.length === 1 ? 's' : ''} an inverter or gate`} cite="T06 p2; AY23/24 S1 Q10">
-          {bad.map((i) => `I${i} = ${plan.data[i].text}`).join(', ')}. Complemented literals are not available, so try another choice of selects (Best assignment), or count
-          the inverter.
+          {bad.map((i) => `I${i} = ${plan.data[i].text}`).join(', ')}. Try another select order (Best assignment), or count the inverter.
         </Callout>
       ) : null}
       <Details
@@ -316,7 +315,7 @@ export default function MuxTab({ intro }: { intro: ReactNode }) {
                   </div>
                 </>
               ) : plan && fn && fn.vars.length > MAX_SEARCH_VARS ? (
-                <p className="ms-status">The search over every select order takes up to {MAX_SEARCH_VARS} variables.</p>
+                <p className="ms-status">The select-order search takes up to {MAX_SEARCH_VARS} variables.</p>
               ) : null,
           },
           {
@@ -328,10 +327,10 @@ export default function MuxTab({ intro }: { intro: ReactNode }) {
                   An n-variable function fits a 2^(n-1):1 mux: put n - 1 variables on the selects, S on top first, and each data input becomes 0, 1, v or v'.
                 </Callout>
                 <Callout kind="trap" title="A constant beats a literal" cite="T08 Ans p1">
-                  When a don't-care lets a data input be 0 or Z', pick 0: a constant needs no wire from a variable and no inverter.
+                  When a don't-care lets a data input be 0 or Z', pick 0. A constant needs no wire from a variable and no inverter.
                 </Callout>
                 <Callout kind="trap" title="A select variable stays off the data inputs" cite="AY21/22 S1 Q13c">
-                  Once a variable drives a select line, the data inputs must not use it: the selects already fix its value in each group.
+                  The selects already fix its value in each group.
                 </Callout>
                 <Callout kind="trap" title="Write the data input for its group only" cite="T08 Q4; T08 Ans p4">
                   In a group where AB is fixed, write the restricted expression C'∙D + C∙D', not A'BC'D + A'BCD'. XOR is not an SOP, so expand C⊕D when an SOP is asked.

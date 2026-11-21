@@ -41,7 +41,7 @@ export function encode(d: Bit[]): EncodeResult {
         }
       : highs.length
         ? { rule: 'Exactly one input is high, so the output is its index in binary.', working: `D${highs[0]} gives ${bin(value, n)}`, cite: 'L18 p27' }
-        : { rule: 'No input is high: a plain encoder outputs 0 (indistinguishable from D0).', working: bin(0, n), cite: 'L18 p26' },
+        : { rule: 'No input is high: a plain encoder outputs 0, the same as D0.', working: bin(0, n), cite: 'L18 p26' },
   }
 }
 
@@ -140,7 +140,7 @@ export function priorityEquations(inputs: number, opts: { valid?: boolean } = {}
       output,
       text,
       why: {
-        rule: `${output.startsWith('bit') ? output : `${output} (bit ${j})`} is 1 when the winning input has bit ${j} set: D_w wins when every higher input is 0, and higher inputs that also set bit ${j} can be ignored. The all-zero row is a don't-care.`,
+        rule: `${output.startsWith('bit') ? output : `${output} (bit ${j})`} is 1 when the winning input has bit ${j} set. D_w wins when every higher input is 0, and higher inputs that also set bit ${j} can be ignored. The all-zero row is a don't-care.`,
         working: `${output} = ${text}`,
         cite: 'L18 p32-33 (derived)',
       },

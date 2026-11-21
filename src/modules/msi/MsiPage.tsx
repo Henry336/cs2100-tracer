@@ -11,15 +11,15 @@ import './msi.css'
 type Tab = 'adder' | 'cmp' | 'dec' | 'enc' | 'mux' | 'wb'
 
 const TABS: { value: Tab; label: string; blurb: string }[] = [
-  { value: 'adder', label: 'Adders', blurb: 'Half adder, full adder and the ripple-carry adder. Step one gate delay at a time and watch the carry ripple to the top bit.' },
-  { value: 'cmp', label: 'Comparator', blurb: 'Compare two numbers bit by bit from the MSB, wire the pins to variables, or find which single comparator gives a function.' },
-  { value: 'dec', label: 'Decoder lab', blurb: 'Pick the size, enable and output polarity, toggle the inputs, then build or read back a function from a decoder and one gate.' },
-  { value: 'enc', label: 'Encoders', blurb: 'Plain and priority encoders: which input wins, what the code is, and what each output bit becomes when the inputs are wired to variables.' },
-  { value: 'mux', label: 'MUX', blurb: 'Put a function on a multiplexer: split the truth table by the selects, work out each data input, and find a select order that needs no inverter.' },
+  { value: 'adder', label: 'Adders', blurb: 'Step one gate delay at a time and watch the carry ripple to the top bit.' },
+  { value: 'cmp', label: 'Comparator', blurb: 'Compare two numbers from the MSB down, or find the one comparator wiring that gives a function.' },
+  { value: 'dec', label: 'Decoder lab', blurb: 'Build a function from a decoder and one gate, or read one back.' },
+  { value: 'enc', label: 'Encoders', blurb: 'See which input wins and its code. Wire the inputs to variables to get each output bit as a function.' },
+  { value: 'mux', label: 'MUX', blurb: 'Split the truth table by the selects to get each data input. Find a select order that needs no inverter.' },
   {
     value: 'wb',
     label: 'Block workbench',
-    blurb: 'Chain adders, comparators, decoders, muxes, encoders and gates, step through every input row, and check a named output against a target.',
+    blurb: 'Chain blocks and gates, step through every input row, and check one output against a target.',
   },
 ]
 
@@ -33,7 +33,7 @@ export default function MsiPage() {
   const hasFocus = FOCUS_TABS.includes(current.value)
   const intro = (
     <div className="ms-intro">
-      <p>{current.blurb} Click any underlined value to see how it was worked out.</p>
+      <p>{current.blurb} Click an underlined value for its working.</p>
       <Tabs label="Combinational and MSI tools" value={current.value} onChange={setTab} tabs={TABS} />
     </div>
   )

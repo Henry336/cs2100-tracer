@@ -127,7 +127,7 @@ export default function AdderTab({ intro }: { intro: ReactNode }) {
       </Options>
     ) : null
 
-  const settled = <Toggle label="Show only what has settled" checked={fo} onChange={setFocus} hint="Hides every wire and gate whose value is not stable yet at this step" />
+  const settled = <Toggle label="Show only what has settled" checked={fo} onChange={setFocus} hint="Hides wires and gates that are not stable yet" />
   const play = <PlayBar stepper={stepper} start="Step through the gate delays" next={`t = ${T(t + 1)}`} />
 
   const legend = (
@@ -208,11 +208,10 @@ export default function AdderTab({ intro }: { intro: ReactNode }) {
               body: (
                 <div className="ms-callouts">
                   <Callout kind="course" title="Every gate costs one delay t" cite="L17 p34-35">
-                    A gate output is stable at the latest input time plus t, and XOR counts as one gate. The full adder is drawn as two half adders and an OR gate, so S is
-                    stable at 2t and C at 3t.
+                    A gate output is stable at the latest input time plus t. XOR counts as one gate. With two half adders and an OR gate, S is stable at 2t and C at 3t.
                   </Callout>
                   <Callout kind="trap" title="The delay depends on the drawing" cite="L17 p35">
-                    The 2t and 3t only hold for the two half adders plus OR drawing. A full adder built as the SOP C = XY + XZ + YZ has different gate delays.
+                    The 2t and 3t only hold for this drawing. A full adder built as the SOP C = XY + XZ + YZ has different delays.
                   </Callout>
                 </div>
               ),
@@ -322,13 +321,13 @@ export default function AdderTab({ intro }: { intro: ReactNode }) {
             body: (
               <div className="ms-callouts">
                 <Callout kind="course" title="Two numberings" cite="L17 p20; T07">
-                  The lecture numbers the bits from 1 (X4..X1, carry-in C1, carry-out C5). The tutorials number them from 0 (X3..X0). Switch under Width and bit names.
+                  The lecture numbers the bits from 1 (X4..X1, carry-in C1, carry-out C5). The tutorials number them from 0 (X3..X0). Switch in Width and bit names.
                 </Callout>
                 <Callout kind="course" title="The carry ripples" cite="L17 p36-38">
                   Each stage waits for the carry from the stage below, 2t more per stage. For n bits, Sn is stable at ((n-1)∙2+2)t and Cn+1 at ((n-1)∙2+3)t.
                 </Callout>
                 <Callout kind="trap" title="Not from a truth table" cite="L17 p19">
-                  A 4-bit adder has 9 inputs, so a truth table needs 512 rows. Build it from blocks: full adders, or 4-bit adders chained through their carries (L17 p24).
+                  A 4-bit adder has 9 inputs, so its truth table has 512 rows. Chain full adders instead, or 4-bit adders through their carries (L17 p24).
                 </Callout>
               </div>
             ),

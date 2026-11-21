@@ -152,7 +152,7 @@ export default function DecoderTab({ intro }: { intro: ReactNode }) {
         options={[
           { value: 'live', label: 'toggle inputs', title: 'One evaluation: selects and enable (L18 p13-16)' },
           { value: 'circuit', label: 'decoder and gate', title: 'Wire the pins, tick outputs into a gate, read F (L18 p23-24)' },
-          { value: 'find', label: 'find a wiring', title: 'Which product can one decoder make with no gates? (AY23/24 S1 Q9)' },
+          { value: 'find', label: 'find a wiring', title: 'Products one decoder makes with no gates (AY23/24 S1 Q9)' },
           { value: 'tree', label: 'larger decoders', title: 'Build an n x 2^n decoder from smaller ones (L18 p17-19)' },
         ]}
       />
@@ -252,13 +252,13 @@ export default function DecoderTab({ intro }: { intro: ReactNode }) {
       </Callout>
       {spec.outputs === 'low' ? (
         <Callout kind="trap" title="Active-low outputs are maxterms" cite="L18 p20-24; R09 p19">
-          Each output is m_i' = M_i, and all outputs are 1 when the decoder is disabled. So OR gives the wrong answer: use NAND on the 1-minterms or AND on the 0-minterms
-          (the 74138 is active-low).
+          Each output is m_i' = M_i, and every output is 1 when the decoder is disabled. Use NAND on the 1-minterms or AND on the 0-minterms, not OR. The 74138 is
+          active-low.
         </Callout>
       ) : null}
       {spec.enable === 'one' && spec.outputs === 'high' && mode === 'find' ? (
         <Callout kind="trap" title="The enable only adds a plain literal" cite="L18 p15; AY23/24 S1 Q9">
-          A 1-enable output is E∙m_i. With no inverter, E can only bring in an uncomplemented variable, so A'∙B'∙C' cannot be made while A'∙B∙C' can (E = B).
+          A 1-enable output is E∙m_i. With no inverter, E brings in only an uncomplemented variable. So A'∙B∙C' works (E = B) and A'∙B'∙C' does not.
         </Callout>
       ) : null}
       {spec.enable === 'zero' ? (
@@ -352,7 +352,7 @@ export default function DecoderTab({ intro }: { intro: ReactNode }) {
               body: (
                 <>
                   <DataTable compact columns={cols} rows={rows} rowSignal={(row) => (isCur(row) ? 'path' : undefined)} />
-                  {spec.enable !== 'none' ? <p className="ms-muted">The first row is the disabled decoder: the selects do not matter (X) and every output is inactive.</p> : null}
+                  {spec.enable !== 'none' ? <p className="ms-muted">The first row is the disabled decoder: the selects are X and every output is inactive.</p> : null}
                 </>
               ),
             },
@@ -431,7 +431,7 @@ export default function DecoderTab({ intro }: { intro: ReactNode }) {
         ) : null}
         {wired?.gated.length ? (
           <Callout kind="trap" title={`${plural(wired.gated.length, 'pin')} hide${wired.gated.length === 1 ? 's' : ''} a gate`} cite="T07 p2; R09 p53">
-            {wired.gated.join(', ')} {wired.gated.length === 1 ? 'is' : 'are'} driven by a complemented variable or an expression, which costs an inverter or a gate.
+            {wired.gated.join(', ')} {wired.gated.length === 1 ? 'is' : 'are'} driven by a complemented variable or an expression.
           </Callout>
         ) : null}
         <Details
@@ -475,7 +475,7 @@ export default function DecoderTab({ intro }: { intro: ReactNode }) {
             },
             {
               value: 'used',
-              label: 'Each output you used',
+              label: 'Outputs used',
               body: wired ? (
                 <DataTable
                   compact
@@ -494,7 +494,7 @@ export default function DecoderTab({ intro }: { intro: ReactNode }) {
               body: builds.length ? (
                 <>
                   <p className="ms-caption">
-                    Four ways to build {target ? target.name : 'this F'} on one {bfn?.vars.length}x{1 << (bfn?.vars.length ?? 0)} decoder
+                    {target ? target.name : 'F'} on one {bfn?.vars.length}x{1 << (bfn?.vars.length ?? 0)} decoder
                   </p>
                   <DataTable
                     compact
@@ -664,10 +664,10 @@ export default function DecoderTab({ intro }: { intro: ReactNode }) {
             body: (
               <div className="ms-callouts">
                 <Callout kind="course" title="MSBs choose the decoder, LSBs choose the line" cite="L18 p17">
-                  The high bits drive the enables, so only one small decoder is on. The low bits go to every decoder and pick the line inside the one that is on.
+                  The high bits drive the enables, so only one small decoder is on. The low bits go to every decoder and pick the line inside it.
                 </Callout>
-                <Callout kind="beyond" title="The count formula is from student notes">
-                  (2^n - 1)/(2^k - 1) decoders when k divides n comes from a student cheat sheet, not the slides. It agrees with R09 p18 (five 2x4 for a 4x16).
+                <Callout kind="beyond" title="The count formula is from student notes, not the slides">
+                  (2^n - 1)/(2^k - 1) decoders when k divides n. It agrees with R09 p18 (five 2x4 for a 4x16).
                 </Callout>
               </div>
             ),

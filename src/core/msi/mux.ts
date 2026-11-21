@@ -143,9 +143,9 @@ function dataFor(values: CellValue[], residual: string[], label: string): DataIn
   if (fits(() => 1)) return mk('const', '1', "F is 1 on every row of the group (a don't-care is set to 1: a constant is simpler than a literal).")
   for (const [j, v] of residual.entries()) if (fits(bitOf(j))) return mk('literal', v, `F follows ${v} in this group, so the input is ${v}.`)
   for (const [j, v] of residual.entries())
-    if (fits((r) => (1 - bitOf(j)(r)) as Bit)) return mk('complement', `${v}'`, `F is the opposite of ${v} in this group, so the input is ${v}' (needs an inverter: complemented literals are not available).`)
+    if (fits((r) => (1 - bitOf(j)(r)) as Bit)) return mk('complement', `${v}'`, `F is the opposite of ${v} in this group, so the input is ${v}'. That needs an inverter.`)
   const sub = minimize(fnFromRows('F', residual, values), 'sop')
-  return mk('expression', sub.summary.answer, 'F restricted to this group is not a constant or a single literal; the input is its simplified SOP (T08 Q4: the selects already fix the other variables).')
+  return mk('expression', sub.summary.answer, 'F in this group is not a constant or a single literal, so the input is its simplified SOP. The selects already fix the other variables (T08 Q4).')
 }
 
 /**
@@ -233,7 +233,7 @@ export function muxSearch(fn: BoolFunction, k = fn.vars.length - 1): MuxSearch {
           cite: 'AY23/24 S1 Q10; AY23/24 S2 Q21a',
         }
       : {
-          rule: 'Every choice of select variables leaves some data input needing a complemented literal or a gate, so it is impossible without one.',
+          rule: 'Every select order leaves some data input needing a complemented literal or a gate.',
           working: `${plans.length} select orders checked`,
           cite: 'AY23/24 S1 Q10',
         },

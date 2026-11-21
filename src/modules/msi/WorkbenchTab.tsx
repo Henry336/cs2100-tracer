@@ -172,7 +172,7 @@ export default function WorkbenchTab({ intro }: { intro: ReactNode }) {
     </>
   ) : (
     <>
-      <Chip signal="hit">matches</Chip> {check} agrees with the target on every row that is not a don't-care
+      <Chip signal="hit">matches</Chip> {check} agrees with the target on every row except don't-cares
     </>
   )
 
@@ -204,7 +204,7 @@ export default function WorkbenchTab({ intro }: { intro: ReactNode }) {
       {result && !result.ok ? <PinErrors errors={result.errors} /> : null}
       <Options summary={`Edit the ${plural(blocks.length, 'block')}`}>
         <p className="ms-status">
-          Blocks run top to bottom. A pin takes a variable, 0 (GND), 1 (Vcc) or a signal named by an earlier block. Name an output to use it later.
+          Blocks run top to bottom. A pin takes a variable, 0 (GND), 1 (Vcc) or a signal named by an earlier block.
         </p>
         {blocks.map((b, i) => (
           <BlockEditor
@@ -264,7 +264,7 @@ export default function WorkbenchTab({ intro }: { intro: ReactNode }) {
 
       {net?.implicit.length ? (
         <Callout kind="trap" title={`${plural(net.implicit.length, 'pin')} hide${net.implicit.length === 1 ? 's' : ''} a gate`} cite="T07 p2; R09 p51">
-          {net.implicit.join('; ')}. A complemented literal or an expression on a pin costs an inverter or a gate. Questions that say "no gates" do not allow it.
+          {net.implicit.join('; ')}. Questions that say "no gates" do not allow this.
         </Callout>
       ) : null}
 
@@ -281,7 +281,7 @@ export default function WorkbenchTab({ intro }: { intro: ReactNode }) {
                   </div>
                   {names.length ? <Select label="Signal" value={check} onChange={setCheck} options={names.map((nm) => ({ value: nm, label: nm }))} /> : null}
                 </div>
-                <p className="ms-status">{checkStatus ?? 'No target: the table just lists every signal.'}</p>
+                <p className="ms-status">{checkStatus ?? 'No target set.'}</p>
               </>
             ) : null,
           },
@@ -338,7 +338,7 @@ export default function WorkbenchTab({ intro }: { intro: ReactNode }) {
                 <dt>Gates</dt>
                 <dd>{Object.entries(net.gates).map(([k, n]) => `${n} ${k === 'NOT' ? (n === 1 ? 'inverter' : 'inverters') : k}`).join(', ') || 'none'}</dd>
                 <dt>Hidden in pins</dt>
-                <dd>{net.implicit.length ? <span className="mono ms-wrap">{net.implicit.join('; ')}</span> : 'none: every pin is a variable, a constant or a signal'}</dd>
+                <dd>{net.implicit.length ? <span className="mono ms-wrap">{net.implicit.join('; ')}</span> : 'none'}</dd>
               </dl>
             ) : null,
           },
@@ -351,12 +351,12 @@ export default function WorkbenchTab({ intro }: { intro: ReactNode }) {
                   Unless a question says otherwise, pins take A, B, C, ... and the constants 0 (GND) and 1 (Vcc). A' needs an inverter. Use only the devices the question
                   lists, and as few as possible.
                 </Callout>
-                <Callout kind="course" title="Blocks are just functions" cite="L17 p22-23; T07 Q2">
+                <Callout kind="course" title="Blocks are functions" cite="L17 p22-23; T07 Q2">
                   Rewiring is free arithmetic: a constant on an adder input adds it (+0011 turns BCD into Excess-3), and shifting the wires one place divides by 2.
                 </Callout>
                 <Callout kind="note" title="X from an encoder">
-                  A plain encoder with no input or several inputs high gives X (L18 p29), and so does a priority encoder with no input high. An X stays X unless a later gate
-                  makes the value certain, for example an AND with a 0.
+                  A plain encoder with no input or several inputs high gives X (L18 p29). So does a priority encoder with no input high. X stays X until a later gate
+                  fixes the value, for example an AND with a 0.
                 </Callout>
               </div>
             ),

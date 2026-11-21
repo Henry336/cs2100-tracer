@@ -296,7 +296,7 @@ export function findComparatorWirings(target: BoolFunction, opts: CmpSearchOptio
       solutions: [],
       sources,
       why: {
-        rule: n > MAX_CMP_VARS ? `The finder searches functions of at most ${MAX_CMP_VARS} variables; check a wiring of your own instead.` : 'The comparator width must be 1 to 8 bits.',
+        rule: n > MAX_CMP_VARS ? `The finder takes at most ${MAX_CMP_VARS} variables. Wire one by hand instead.` : 'The comparator width must be 1 to 8 bits.',
         cite: 'T07 Q5',
       },
     }
@@ -380,17 +380,17 @@ export function findComparatorWirings(target: BoolFunction, opts: CmpSearchOptio
     sources,
     why: count
       ? {
-          rule: 'Every pin is wired to an uncomplemented variable or a constant, with no gates. A wiring works when one output equals F on every row that is not a don\'t-care.',
+          rule: 'Pins take uncomplemented variables or constants, with no gates. A wiring works when one output equals F on every row except don\'t-cares.',
           working: `${complete ? '' : 'at least '}${count} of ${S ** (2 * width) * 3} (wiring, output) pairs work${solutions.length ? `; simplest: ${solutions[0].text}` : ''}`,
           cite: 'T07 Q5; AY24/25 Q7; AY25/26 Q8',
         }
       : complete
         ? {
-            rule: 'No wiring of the pins to variables and constants makes any output equal F, so one comparator with no gates cannot implement it.',
+            rule: 'No wiring of the pins to variables and constants makes any output equal F.',
             working: `all ${S ** (2 * width)} wirings and 3 outputs checked`,
             cite: 'AY25/26 Q8',
           }
-        : { rule: 'The search stopped before it finished, so this does not prove that F is impossible.', working: `${CMP_NODE_BUDGET} search nodes`, cite: 'T07 Q5' },
+        : { rule: 'The search stopped early, so F may still be possible.', working: `${CMP_NODE_BUDGET} search nodes`, cite: 'T07 Q5' },
   }
 }
 

@@ -305,7 +305,7 @@ export function FocusToggle() {
       label="Show only what this step uses"
       checked={fo === true}
       onChange={setFo}
-      hint="Hides the outputs, inputs and blocks the current row or step does not use. Off draws them faint."
+      hint="Hides what the current row or step does not use. Off draws it faint."
     />
   )
 }

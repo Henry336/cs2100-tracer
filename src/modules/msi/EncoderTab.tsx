@@ -124,7 +124,7 @@ export default function EncoderTab({ intro }: { intro: ReactNode }) {
           />
         ) : !priority ? (
           <Toggle
-            label="Rows with no input or several inputs high give the OR value"
+            label="OR value on rows with no input or several inputs high"
             checked={orRows === true}
             onChange={setOrRows}
             hint="Off: those rows are don't-cares, as in the AY23/24 S2 Q21e key (L18 p29)"
@@ -137,16 +137,16 @@ export default function EncoderTab({ intro }: { intro: ReactNode }) {
   const rules = (
     <div className="ms-callouts">
       <Callout kind="course" title="Output bit = OR of the inputs that set it" cite="L18 p27, p31">
-        Bit j of the code is the OR of every D_i whose index i has bit j set, e.g. z = D1+D3+D5+D7 for an 8-to-3 encoder.
+        Bit j is the OR of every D_i whose index i has bit j set. For an 8-to-3 encoder, z = D1+D3+D5+D7.
       </Callout>
       {!priority ? (
         <Callout kind="trap" title="Only one input may be high" cite="L18 p26, p30">
-          With D1 and D2 both high a plain encoder outputs 01 OR 10 = 11, which looks like D3. A priority encoder settles this.
+          With D1 and D2 both high, a plain encoder outputs 01 OR 10 = 11, which looks like D3. A priority encoder fixes this.
         </Callout>
       ) : (
         <Callout kind="course" title="X in the compact table" cite="L18 p32-33; T08 Q5">
-          X under an input means any value: a higher input already decided. With no input high the code is XX..X; L18 marks that row with V = 0, while T08 Q5 and AY24/25
-          have no V.
+          X under an input means any value, since a higher input already decided. With no input high the code is XX..X. L18 marks that row with V = 0; T08 Q5 and
+          AY24/25 have no V.
         </Callout>
       )}
     </div>
@@ -225,7 +225,7 @@ export default function EncoderTab({ intro }: { intro: ReactNode }) {
                       <DataTable compact columns={plainCols} rows={Array.from({ length: m }, (_, i) => i)} rowSignal={(r) => (highs.length === 1 && r === highs[0] ? 'path' : undefined)} />
                     )}
                   </div>
-                  {!priority ? <p className="ms-muted">Every other input pattern breaks the one-high assumption, so those rows are don't-cares (L18 p29).</p> : null}
+                  {!priority ? <p className="ms-muted">Every other input pattern is a don't-care (L18 p29).</p> : null}
                 </>
               ),
             },
@@ -256,7 +256,7 @@ export default function EncoderTab({ intro }: { intro: ReactNode }) {
                           </p>
                         ))}
                   </div>
-                  {priority ? <p className="ms-muted">Worked out here from the compact table and checked against the K-map minimum. L18 p33 leaves it as an exercise.</p> : null}
+                  {priority ? <p className="ms-muted">Derived from the compact table and checked against the K-map minimum. L18 p33 leaves it as an exercise.</p> : null}
                 </>
               ),
             },

@@ -119,7 +119,7 @@ export default function ComparatorTab({ intro }: { intro: ReactNode }) {
         options={[
           { value: 'values', label: 'compare two numbers', title: 'Bit cascade from the MSB (L17 p30-31)' },
           { value: 'wire', label: 'wire to variables', title: 'Pins wired to variables or constants (T07 Q5)' },
-          { value: 'find', label: 'find a wiring for F', title: 'Which single comparator, with no gates, gives F? (AY24/25 Q7, AY25/26 Q8)' },
+          { value: 'find', label: 'find a wiring for F', title: 'One comparator, no gates (AY24/25 Q7, AY25/26 Q8)' },
         ]}
       />
       {mode === 'values' ? (
@@ -177,21 +177,20 @@ export default function ComparatorTab({ intro }: { intro: ReactNode }) {
   const rules = (
     <div className="ms-callouts">
       <Callout kind="course" title="No cascade inputs" cite="L17 p33">
-        The course comparator has only A and B and the three outputs. Cascading means putting gates on the outputs of several comparators, for example (ABCD &gt; 0010) AND
-        (ABCD &lt; 1101) for 3 ≤ ABCD ≤ 12.
+        The course comparator has only A, B and the three outputs. To cascade, put gates on the outputs of several comparators: (ABCD &gt; 0010) AND (ABCD &lt; 1101)
+        gives 3 ≤ ABCD ≤ 12.
       </Callout>
       <Callout kind="course" title="Unsigned, and leading zeros drop" cite="L17 p30; AY25/26 Q8">
         Both sides are read as unsigned numbers. Pins tied to 0 at the top do not change the value, so X = 00AD, Y = 00BC reads as AD &lt; BC.
       </Callout>
       {mode !== 'values' ? (
         <Callout kind="trap" title="No complemented literals" cite="T07 p2">
-          Pins take the plain variables and the constants 0 and 1. A' on a pin needs an inverter, which a gate-free question does not allow.
+          Pins take plain variables and the constants 0 and 1. A' on a pin needs an inverter.
         </Callout>
       ) : null}
       {mode === 'find' ? (
         <Callout kind="note" title="What one comparator can make">
-          A threshold (ABCD &gt; 1011), or an equality or ordering of rearranged bits (ABCD = DCBA, B000 = C000, ABCD &lt; DDDD). A function that is neither cannot be made
-          with one comparator.
+          A threshold (ABCD &gt; 1011), or an equality or ordering of rearranged bits (ABCD = DCBA, B000 = C000, ABCD &lt; DDDD).
         </Callout>
       ) : null}
     </div>
@@ -360,8 +359,7 @@ export default function ComparatorTab({ intro }: { intro: ReactNode }) {
         ) : null}
         {wired?.gated.length ? (
           <Callout kind="trap" title={`${plural(wired.gated.length, 'pin')} need${wired.gated.length === 1 ? 's' : ''} a gate`} cite="T07 p2">
-            {wired.gated.join(', ')} {wired.gated.length === 1 ? 'is' : 'are'} driven by a complemented variable or an expression, so this is not a single comparator with no
-            gates.
+            {wired.gated.join(', ')} {wired.gated.length === 1 ? 'is' : 'are'} driven by a complemented variable or an expression.
           </Callout>
         ) : null}
         <Details
@@ -441,7 +439,7 @@ export default function ComparatorTab({ intro }: { intro: ReactNode }) {
         </Board>
       ) : null}
       {pairs === true && fn && fn.vars.length > MAX_PAIR_VARS ? (
-        <Callout kind="course" title="Two comparators: up to 4 variables">
+        <Callout kind="course" title="Too many variables">
           The two-comparator search takes at most {MAX_PAIR_VARS} variables.
         </Callout>
       ) : null}

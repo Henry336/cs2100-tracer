@@ -166,7 +166,7 @@ export const MUX_PRESETS: MuxPreset[] = [
   { name: 'F1 = Σm(3,4,5,7), selects AB', source: 'AY23/24 S1 Q10', f: 'F1(A,B,C) = Σm(3,4,5,7)', selects: 'A,B' },
   { name: 'F2 = Σm(0): impossible without an inverter', source: 'AY23/24 S1 Q10', f: 'F2(A,B,C) = Σm(0)', selects: 'A,B' },
   { name: 'F3 = Σm(0,2,6), selects AC', source: 'AY23/24 S1 Q10', f: 'F3(A,B,C) = Σm(0,2,6)', selects: 'A,C' },
-  { name: 'F1 = Σm(0,2,3,5,6,7): which selects?', source: 'AY23/24 S2 Q21a', f: 'F1(A,B,C) = Σm(0,2,3,5,6,7)', selects: 'A,B' },
+  { name: 'F1 = Σm(0,2,3,5,6,7): pick the selects', source: 'AY23/24 S2 Q21a', f: 'F1(A,B,C) = Σm(0,2,3,5,6,7)', selects: 'A,B' },
   { name: 'G = ΠM(1,2,6,8,9,11,13) on an 8:1, selects ACD', source: 'R09 p55', f: 'G(A,B,C,D) = ΠM(1,2,6,8,9,11,13)', selects: 'A,C,D' },
   { name: '74151A: 4 variables on an 8:1', source: 'L18 p56, derived', f: 'f(x1,x2,x3,x4) = Σm(0,1,2,3,4,9,13,14,15)', selects: 'x1,x2,x3' },
   { name: "G per AB: 0, C'D + CD', D, 1", source: 'T08 Q4; AY24/25 Q17b', f: "G(A,B,C,D) = A'∙B∙(C⊕D) + A∙B'∙D + A∙B", selects: 'A,B' },
