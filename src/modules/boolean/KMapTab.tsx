@@ -4,7 +4,8 @@ import { useUrlState } from '../../lib/url-state'
 import { Callout, Chip, DataTable, Legend, Toggle, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper, type Stepper } from '../../ui/stepper'
-import { BoardPlay, cycleCell, DetailTabs, FnCommand, FnPresets, FormSwitch, MapControls, Options, plural, StepStory, useDetailTab, VarsField, W, type FnInput } from './common'
+import { Board, Details, Options, PlayBar, Stage, Story } from '../../ui/board'
+import { cycleCell, FnCommand, FnPresets, FormSwitch, MapControls, plural, VarsField, W, type FnInput } from './common'
 import { KMapSvg, type LoopDraw } from './KMapSvg'
 
 const STAGES: { label: string; phases: KMapFrame['phase'][] }[] = [
@@ -32,7 +33,7 @@ export function changedLoops(prev: KMapFrame | undefined, f: KMapFrame): string[
   return f.loops.filter((l) => (l.role === 'new' || l.role === 'epi' || l.role === 'chosen') && was.get(l.prime) !== l.role).map((l) => `p${l.prime}`)
 }
 
-type DetailTab = 'primes' | 'chart' | 'left' | 'answers' | 'result' | 'notes'
+type MapTab = 'primes' | 'chart' | 'left' | 'answers'
 
 export default function KMapTab({ intro, input }: { intro: ReactNode; input: FnInput }) {
   const [edit, setEdit] = useUrlState<boolean>('edit', false)
@@ -51,17 +52,16 @@ export default function KMapTab({ intro, input }: { intro: ReactNode; input: FnI
   const f = frames[stepper.index] as KMapFrame | undefined
   const marks = useMemo(() => frames.map((x) => (x.phase === 'essential' && x.loops.some((l) => l.role === 'epi') ? 'path' : x.phase === 'answer' ? 'hit' : undefined)), [frames])
   const stage = f ? Math.max(0, STAGES.findIndex((s) => s.phases.includes(f.phase))) : 0
-  const tabs: { value: DetailTab; label: string }[] = trace
+  const tabs = trace
     ? [
-        { value: 'primes', label: `Prime implicants (${trace.primes.length})` },
-        ...(trace.primes.length ? [{ value: 'chart' as const, label: 'Cover chart' }] : []),
-        ...(trace.leftover.length ? [{ value: 'left' as const, label: 'Left after the EPIs' }] : []),
-        { value: 'answers', label: 'Minimal answers' },
-        ...(both ? [{ value: 'result' as const, label: 'SOP, POS and canonical' }] : []),
-        { value: 'notes', label: 'Traps and conventions' },
+        { value: 'primes', label: `Prime implicants (${trace.primes.length})`, body: <MapTable trace={trace} f={f} stepper={stepper} detail="primes" /> },
+        { value: 'chart', label: 'Cover chart', body: trace.primes.length ? <MapTable trace={trace} f={f} stepper={stepper} detail="chart" /> : null },
+        { value: 'left', label: 'Left after the EPIs', body: trace.leftover.length ? <MapTable trace={trace} f={f} stepper={stepper} detail="left" /> : null },
+        { value: 'answers', label: 'Minimal answers', body: <MapTable trace={trace} f={f} stepper={stepper} detail="answers" /> },
+        { value: 'result', label: 'SOP, POS and canonical', body: both ? <Results both={both} form={form} /> : null },
+        { value: 'notes', label: 'Traps and conventions', body: <Traps trace={trace} input={input} /> },
       ]
     : []
-  const [detail, setDetail] = useDetailTab<DetailTab>('kt', tabs)
 
   const transport = trace ? <Transport stepper={stepper} label="Step" marks={marks} describe={f?.title} /> : undefined
 
@@ -100,74 +100,66 @@ export default function KMapTab({ intro, input }: { intro: ReactNode; input: FnI
 
       {trace && f && fn ? (
         <>
-          <div className="bo-stage">
-            <div className="bo-board canvas">
-              <div className="bo-board-bar">
-                <p className="bo-board-title">
-                  <span className="mono">K-map of {fn.name}</span>
-                  <span className="bo-board-step">{STAGES[stage].label}</span>
-                </p>
-                <div className="bo-board-actions">
-                  <FormSwitch input={input} />
-                </div>
-              </div>
-              <div className="bo-scroll">
-                <KMapSvg
-                  layout={trace.layout}
-                  values={trace.values}
-                  loops={frameLoops(trace, f)}
-                  focus={f.focus}
-                  reasons={f.reasons}
-                  covered={f.phase === 'leftover' ? f.covered : undefined}
-                  showIndex={idx !== false}
-                  onCell={edit === true ? (m) => input.setText(cycleCell(fn, m)) : undefined}
-                  label={`K-map of ${fn.name}: ${f.title}`}
-                  active={changedLoops(frames[stepper.index - 1], f)}
-                  step={stepper.index}
-                />
-              </div>
-              <BoardPlay stepper={stepper} start="Step through the K-map" next={frames[stepper.index + 1]?.title} />
-              <div className="bo-board-foot">
-                <Legend
-                  items={[
-                    { signal: 'hit', label: '1 (minterm)' },
-                    { signal: 'dontcare', label: "X, don't care" },
-                    { signal: 'path', label: 'this step' },
-                  ]}
-                />
-                <details className="bo-foot-more">
-                  <summary>Reading the loops</summary>
-                  <p>
-                    Grey loops are PIs. Thick dark loops are in the cover. Dashed loops are left out. A ringed cell has only one PI over it. A loop cut at the edge wraps
-                    to the other side.
-                  </p>
-                  <p className="mono bo-working">{trace.layout.why.working}</p>
-                </details>
-              </div>
-            </div>
-            <StepStory
+          <Stage>
+            <Board
+              title={<span className="mono">K-map of {fn.name}</span>}
+              step={STAGES[stage].label}
+              tools={<FormSwitch input={input} />}
+              play={<PlayBar stepper={stepper} start="Step through the K-map" next={frames[stepper.index + 1]?.title} />}
+              foot={
+                <>
+                  <Legend
+                    items={[
+                      { signal: 'hit', label: '1 (minterm)' },
+                      { signal: 'dontcare', label: "X, don't care" },
+                      { signal: 'path', label: 'this step' },
+                    ]}
+                  />
+                  <details className="bo-foot-more">
+                    <summary>Reading the loops</summary>
+                    <p>
+                      Grey loops are PIs. Thick dark loops are in the cover. Dashed loops are left out. A ringed cell has only one PI over it. A loop cut at the edge wraps
+                      to the other side.
+                    </p>
+                    <p className="mono bo-working">{trace.layout.why.working}</p>
+                  </details>
+                </>
+              }
+            >
+              <KMapSvg
+                layout={trace.layout}
+                values={trace.values}
+                loops={frameLoops(trace, f)}
+                focus={f.focus}
+                reasons={f.reasons}
+                covered={f.phase === 'leftover' ? f.covered : undefined}
+                showIndex={idx !== false}
+                onCell={edit === true ? (m) => input.setText(cycleCell(fn, m)) : undefined}
+                label={`K-map of ${fn.name}: ${f.title}`}
+                active={changedLoops(frames[stepper.index - 1], f)}
+                step={stepper.index}
+              />
+            </Board>
+            {/* A stage this function never reaches (no leftover PIs, say) stays dim and does nothing when picked. */}
+            <Story
               label="Stages of the K-map method"
-              current={stage}
-              onPick={(i) => stepper.set(frames.findIndex((x) => STAGES[i].phases.includes(x.phase)))}
-              steps={STAGES.map((s, i) => ({
-                key: s.label,
-                title: s.label,
-                disabled: !frames.some((x) => s.phases.includes(x.phase)),
-                body:
-                  i === stage ? (
-                    <>
-                      <p className="bo-frame-title">{f.title}</p>
-                      <p>{f.why.rule}</p>
-                      {f.why.working ? <p className="mono bo-working">{f.why.working}</p> : null}
-                      {f.why.cite ? <p className="bo-cite">{f.why.cite}</p> : null}
-                    </>
-                  ) : undefined,
-              }))}
+              index={stage}
+              onPick={(i) => {
+                const at = frames.findIndex((x) => STAGES[i].phases.includes(x.phase))
+                if (at >= 0) stepper.set(at)
+              }}
+              titles={STAGES.map((s) => (frames.some((x) => s.phases.includes(x.phase)) ? s.label : <span className="bo-step-off">{s.label}</span>))}
+              body={
+                <>
+                  <p className="bo-frame-title">{f.title}</p>
+                  <p>{f.why.rule}</p>
+                  {f.why.working ? <p className="mono bo-working">{f.why.working}</p> : null}
+                  {f.why.cite ? <p className="bo-cite">{f.why.cite}</p> : null}
+                </>
+              }
             />
-          </div>
-          <DetailTabs label="Tables for this map" tabs={tabs} value={detail} onChange={setDetail}>
-            {detail === 'result' && both ? <Results both={both} form={form} /> : detail === 'notes' ? <Traps trace={trace} input={input} /> : <Details trace={trace} f={f} stepper={stepper} detail={detail} />}
-          </DetailTabs>
+          </Stage>
+          <Details urlKey="kt" label="Tables for this map" tabs={tabs} />
         </>
       ) : null}
     </Workspace>
@@ -297,7 +289,7 @@ function Results({ both, form }: { both: { sop: Minimization; pos: Minimization 
 }
 
 /** One table at a time, picked in the tab strip under the board. */
-function Details({ trace, f, stepper, detail }: { trace: KMapTrace; f?: KMapFrame; stepper: Stepper; detail: DetailTab }) {
+function MapTable({ trace, f, stepper, detail }: { trace: KMapTrace; f?: KMapFrame; stepper: Stepper; detail: MapTab }) {
   const p = trace.form === 'sop' ? 'm' : 'M'
   const active = new Set(f?.loops.filter((l) => l.role === 'new' || l.role === 'epi' || l.role === 'chosen').map((l) => l.prime))
   const piCols: Column<KMapTrace['primes'][number]>[] = [

@@ -20,11 +20,11 @@ import {
 } from '../../core/boolean'
 import { useUrlState } from '../../lib/url-state'
 import { Callout, Chip, DataTable, Legend, Presets, Toggle, Workspace, type Column } from '../../ui/kit'
-import { CommandBar, DetailTabs, IssueList, Options, useDetailTab, W } from './common'
+import { Board, CommandBar, Details, Options } from '../../ui/board'
+import { IssueList, W } from './common'
 import { FORMS_PRESETS } from './presets'
 
 const MAX_TT_VARS = 8
-type DetailTab = 'canonical' | 'form' | 'sets' | 'notes'
 type Row = { index: number; values: number[]; f: number | 'X'; g?: number | 'X' }
 const HEAD = /^\s*[A-Za-z][A-Za-z0-9]*\s*(?:\([^()]*\))?\s*=/
 
@@ -126,16 +126,6 @@ export default function FormsTab({ intro }: { intro: ReactNode }) {
       })
   }
 
-  const tabs: { value: DetailTab; label: string }[] = fn
-    ? [
-        { value: 'canonical', label: 'Canonical forms' },
-        ...(forms ? [{ value: 'form' as const, label: 'Form of the expression' }] : []),
-        ...(data?.sets.length ? [{ value: 'sets' as const, label: `Set operations on ${fn.name} and ${gName}` }] : []),
-        { value: 'notes', label: 'Traps and conventions' },
-      ]
-    : []
-  const [detail, setDetail] = useDetailTab<DetailTab>('ft', tabs)
-
   return (
     <Workspace
       title="Boolean algebra and K-maps"
@@ -152,10 +142,10 @@ export default function FormsTab({ intro }: { intro: ReactNode }) {
       }
     >
       <div className="bo-command">
-        <CommandBar label="Function" value={ex} onChange={setEx} placeholder="F(x,y,z) = x∙y + x'∙z" />
+        <CommandBar id="bo-ex" label="Function" value={ex} onChange={setEx} placeholder="F(x,y,z) = x∙y + x'∙z" />
         {!left.ok ? <IssueList text={ex} issues={left.errors} /> : null}
         <IssueList text={ex} issues={left.warnings} kind="warning" />
-        <CommandBar label={`Compare with ${gName}`} value={eq} onChange={setEq} placeholder="optional: x∙y' + x'∙z or Σm(..)" />
+        <CommandBar id="bo-eq" label={`Compare with ${gName}`} value={eq} onChange={setEq} placeholder="optional: x∙y' + x'∙z or Σm(..)" />
         {right && !right.ok ? <IssueList text={eqBody} issues={right.errors} /> : null}
         {right ? <IssueList text={eqBody} issues={right.warnings} kind="warning" /> : null}
         {rightList && !rightList.ok ? <IssueList text={eqBody} issues={rightList.errors} /> : null}
@@ -177,14 +167,12 @@ export default function FormsTab({ intro }: { intro: ReactNode }) {
       ) : null}
 
       {fn && !tooMany ? (
-        <div className="bo-board canvas">
-          <div className="bo-board-bar">
-            <p className="bo-board-title">
-              <span>{`Truth table, ${1 << vars.length} rows`}</span>
-              {equiv ? <span className="bo-board-step">{equiv.equivalent ? `${fn.name} = ${gName}` : `${fn.name} ≠ ${gName}`}</span> : null}
-            </p>
-            {equiv ? (
-              <p className="bo-board-actions">
+        <Board
+          title={`Truth table, ${1 << vars.length} rows`}
+          step={equiv ? (equiv.equivalent ? `${fn.name} = ${gName}` : `${fn.name} ≠ ${gName}`) : undefined}
+          tools={
+            equiv ? (
+              <p>
                 {equiv.equivalent ? <Chip signal="hit">equal</Chip> : <Chip signal="miss">not equal</Chip>}{' '}
                 <W e={equiv.why}>
                   {equiv.equivalent
@@ -201,12 +189,9 @@ export default function FormsTab({ intro }: { intro: ReactNode }) {
                   </span>
                 ) : null}
               </p>
-            ) : null}
-          </div>
-          <div className="bo-scroll">
-            <DataTable compact columns={cols} rows={rows} rowSignal={(r) => (bad.has(r.index) ? 'miss' : undefined)} />
-          </div>
-          <div className="bo-board-foot">
+            ) : null
+          }
+          foot={
             <Legend
               items={[
                 { signal: 'hit', label: '1' },
@@ -214,106 +199,112 @@ export default function FormsTab({ intro }: { intro: ReactNode }) {
                 ...(data?.hasRight ? [{ signal: 'miss' as const, label: 'the sides differ' }] : []),
               ]}
             />
-          </div>
-        </div>
+          }
+        >
+          <DataTable compact columns={cols} rows={rows} rowSignal={(r) => (bad.has(r.index) ? 'miss' : undefined)} />
+        </Board>
       ) : null}
 
-      <DetailTabs label="Forms of this function" tabs={tabs} value={detail} onChange={setDetail}>
-        {detail === 'canonical' && c && fn ? (
-          <dl className="bo-facts">
-            <dt>Σm</dt>
-            <dd className="mono">
-              <W e={c.why.sigma}>{c.sigma}</W>
-            </dd>
-            <dt>ΠM</dt>
-            <dd className="mono">
-              <W e={c.why.pi}>{c.pi}</W>
-            </dd>
-            <dt>Sum of minterms</dt>
-            <dd className="mono bo-wrap">{c.sumOfMinterms}</dd>
-            <dt>Product of maxterms</dt>
-            <dd className="mono bo-wrap">{c.productOfMaxterms}</dd>
-            <dt>Fill in the blank</dt>
-            <dd className="mono">
-              Σm: {c.fitbMinterms || 'none'}
-              <br />
-              ΠM: {c.fitbMaxterms || 'none'}
-            </dd>
-          </dl>
-        ) : null}
-        {detail === 'form' && forms && fn ? (
-          <dl className="bo-facts">
-            <dt>SOP</dt>
-            <dd>
-              <Verdict yes={forms.cls.sop.yes} e={forms.cls.sop.why} />
-            </dd>
-            <dt>POS</dt>
-            <dd>
-              <Verdict yes={forms.cls.pos.yes} e={forms.cls.pos.why} />
-            </dd>
-            <dt>Canonical SOP</dt>
-            <dd>
-              <Verdict yes={forms.cls.canonicalSop.yes} e={forms.cls.canonicalSop.why} />
-            </dd>
-            <dt>Canonical POS</dt>
-            <dd>
-              <Verdict yes={forms.cls.canonicalPos.yes} e={forms.cls.canonicalPos.why} />
-            </dd>
-            <dt>Literals</dt>
-            <dd>
-              <W e={forms.cls.literals.why}>{forms.cls.literals.value}</W>
-            </dd>
-            <dt>Complement</dt>
-            <dd className="mono bo-wrap">
-              <W e={{ rule: 'DeMorgan: swap ∙ and +, swap 0 and 1, and complement every literal.', cite: 'L13 p15' }}>
-                {fn.name}' = {forms.neg}
-              </W>
-            </dd>
-            <dt>Dual</dt>
-            <dd className="mono bo-wrap">
-              <W e={{ rule: 'Swap ∙ and +, swap 0 and 1, keep the literals as they are.', cite: 'L13 p11' }}>{forms.dual}</W>
-            </dd>
-          </dl>
-        ) : null}
-        {detail === 'sets' && data && fn ? (
-          <dl className="bo-facts">
-            {data.sets.map((o) =>
-              o.res ? (
-                <Fragment key={o.op}>
-                  <dt className="mono">
-                    {fn.name}
-                    {o.sym}
-                    {gName}
-                  </dt>
-                  <dd className="mono bo-wrap">
-                    <W e={o.res.why}>{listOf(o.res.fn)}</W>
-                  </dd>
-                </Fragment>
-              ) : null,
-            )}
-            <dt className="mono">{fn.name}'</dt>
-            <dd className="mono bo-wrap">
-              <W e={{ rule: `${fn.name}' is 1 exactly where ${fn.name} is 0, so its minterms are the maxterm indices of ${fn.name}.`, cite: 'L13 p25' }}>{data.comp}</W>
-            </dd>
-          </dl>
-        ) : null}
-        {detail === 'notes' ? (
-          <div className="bo-callouts">
-            <Callout kind="trap" title="A∙B + A'∙B' is not 1" cite="T06 SE1">
-              X + X' = 1 needs the second term to be the complement of the first. The complement of A∙B is A' + B'.
-            </Callout>
-            <Callout kind="trap" title="Duality is not the complement" cite="L13 p11, p15">
-              The dual swaps ∙ with + and 0 with 1 but leaves the literals alone. The complement also flips every literal.
-            </Callout>
-            <Callout kind="trap" title="A ⊕ B is not an SOP expression" cite="L15 p8; R07 p30">
-              ⊕ is its own operator. Write it out as A'∙B + A∙B' when a question asks for SOP.
-            </Callout>
-            <Callout kind="course" title="AND before OR" cite="L13 p9; R07 p4">
-              CS2100 gives AND higher precedence than OR, so A + B∙C means A + (B∙C).
-            </Callout>
-          </div>
-        ) : null}
-      </DetailTabs>
+      <Details
+        urlKey="ft"
+        label="Forms of this function"
+        tabs={[
+          { value: 'canonical', label: 'Canonical forms', body: c && fn ? (
+            <dl className="bo-facts">
+              <dt>Σm</dt>
+              <dd className="mono">
+                <W e={c.why.sigma}>{c.sigma}</W>
+              </dd>
+              <dt>ΠM</dt>
+              <dd className="mono">
+                <W e={c.why.pi}>{c.pi}</W>
+              </dd>
+              <dt>Sum of minterms</dt>
+              <dd className="mono bo-wrap">{c.sumOfMinterms}</dd>
+              <dt>Product of maxterms</dt>
+              <dd className="mono bo-wrap">{c.productOfMaxterms}</dd>
+              <dt>Fill in the blank</dt>
+              <dd className="mono">
+                Σm: {c.fitbMinterms || 'none'}
+                <br />
+                ΠM: {c.fitbMaxterms || 'none'}
+              </dd>
+            </dl>
+          ) : null },
+          { value: 'form', label: 'Form of the expression', body: forms && fn ? (
+            <dl className="bo-facts">
+              <dt>SOP</dt>
+              <dd>
+                <Verdict yes={forms.cls.sop.yes} e={forms.cls.sop.why} />
+              </dd>
+              <dt>POS</dt>
+              <dd>
+                <Verdict yes={forms.cls.pos.yes} e={forms.cls.pos.why} />
+              </dd>
+              <dt>Canonical SOP</dt>
+              <dd>
+                <Verdict yes={forms.cls.canonicalSop.yes} e={forms.cls.canonicalSop.why} />
+              </dd>
+              <dt>Canonical POS</dt>
+              <dd>
+                <Verdict yes={forms.cls.canonicalPos.yes} e={forms.cls.canonicalPos.why} />
+              </dd>
+              <dt>Literals</dt>
+              <dd>
+                <W e={forms.cls.literals.why}>{forms.cls.literals.value}</W>
+              </dd>
+              <dt>Complement</dt>
+              <dd className="mono bo-wrap">
+                <W e={{ rule: 'DeMorgan: swap ∙ and +, swap 0 and 1, and complement every literal.', cite: 'L13 p15' }}>
+                  {fn.name}' = {forms.neg}
+                </W>
+              </dd>
+              <dt>Dual</dt>
+              <dd className="mono bo-wrap">
+                <W e={{ rule: 'Swap ∙ and +, swap 0 and 1, keep the literals as they are.', cite: 'L13 p11' }}>{forms.dual}</W>
+              </dd>
+            </dl>
+          ) : null },
+          { value: 'sets', label: `Set operations on ${fn?.name} and ${gName}`, body: data?.sets.length && fn ? (
+            <dl className="bo-facts">
+              {data.sets.map((o) =>
+                o.res ? (
+                  <Fragment key={o.op}>
+                    <dt className="mono">
+                      {fn.name}
+                      {o.sym}
+                      {gName}
+                    </dt>
+                    <dd className="mono bo-wrap">
+                      <W e={o.res.why}>{listOf(o.res.fn)}</W>
+                    </dd>
+                  </Fragment>
+                ) : null,
+              )}
+              <dt className="mono">{fn.name}'</dt>
+              <dd className="mono bo-wrap">
+                <W e={{ rule: `${fn.name}' is 1 exactly where ${fn.name} is 0, so its minterms are the maxterm indices of ${fn.name}.`, cite: 'L13 p25' }}>{data.comp}</W>
+              </dd>
+            </dl>
+          ) : null },
+          { value: 'notes', label: 'Traps and conventions', body: fn ? (
+            <div className="bo-callouts">
+              <Callout kind="trap" title="A∙B + A'∙B' is not 1" cite="T06 SE1">
+                X + X' = 1 needs the second term to be the complement of the first. The complement of A∙B is A' + B'.
+              </Callout>
+              <Callout kind="trap" title="Duality is not the complement" cite="L13 p11, p15">
+                The dual swaps ∙ with + and 0 with 1 but leaves the literals alone. The complement also flips every literal.
+              </Callout>
+              <Callout kind="trap" title="A ⊕ B is not an SOP expression" cite="L15 p8; R07 p30">
+                ⊕ is its own operator. Write it out as A'∙B + A∙B' when a question asks for SOP.
+              </Callout>
+              <Callout kind="course" title="AND before OR" cite="L13 p9; R07 p4">
+                CS2100 gives AND higher precedence than OR, so A + B∙C means A + (B∙C).
+              </Callout>
+            </div>
+          ) : null },
+        ]}
+      />
     </Workspace>
   )
 }

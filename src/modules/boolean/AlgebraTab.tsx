@@ -4,10 +4,9 @@ import { useUrlState } from '../../lib/url-state'
 import { Callout, Chip, CodeEditor, DataTable, Presets, Workspace, type Column } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
-import { BoardPlay, DetailTabs, IssueList, useDetailTab, W } from './common'
+import { Board, Details, Flow, PlayBar } from '../../ui/board'
+import { IssueList, W } from './common'
 import { STEPS_PRESETS } from './presets'
-
-type DetailTab = 'table' | 'laws' | 'notes'
 
 const lawNames = (ls: Law[]) => ls.map((l) => LAWS[l].name).join(' + ')
 
@@ -90,12 +89,6 @@ export default function AlgebraTab({ intro }: { intro: ReactNode }) {
   // Every edit shows the whole chain checked; Play then walks it from the first line.
   useEffect(() => stepper.last(), [text]) // eslint-disable-line react-hooks/exhaustive-deps
   const k = Math.min(stepper.index, Math.max(steps.length - 1, 0))
-  const tabs: { value: DetailTab; label: string }[] = [
-    { value: 'table', label: 'Step by step' },
-    { value: 'laws', label: 'Laws and theorems' },
-    { value: 'notes', label: 'Traps and conventions' },
-  ]
-  const [detail, setDetail] = useDetailTab<DetailTab>('lt', tabs)
   const [okCol, lawCol, claimCol] = [cols[3], cols[4], cols[5]]
 
   return (
@@ -111,26 +104,26 @@ export default function AlgebraTab({ intro }: { intro: ReactNode }) {
         {steps.flatMap((s) => s.warnings).length ? <IssueList text="" issues={steps.flatMap((s) => s.warnings)} kind="warning" /> : null}
       </div>
 
-      <div className="bo-board canvas">
-        <div className="bo-board-bar">
-          <p className="bo-board-title">
-            <span>Your steps</span>
-            {steps[k] ? <span className="bo-board-step">Line {steps[k].line}</span> : null}
+      <Board
+        title="Your steps"
+        step={steps[k] ? `Line ${steps[k].line}` : undefined}
+        tools={
+          <p>
+              {steps.length < 2 ? (
+                <span className="bo-muted">Write at least two lines.</span>
+              ) : res.valid ? (
+                <>
+                  <Chip signal="hit">every step holds</Chip> <W e={res.why}>{res.why.working}</W>
+                </>
+              ) : (
+                <>
+                  <Chip signal="miss">a step does not hold</Chip> <span className="bo-muted">see the marked lines</span>
+                </>
+              )}
           </p>
-          <p className="bo-board-actions">
-            {steps.length < 2 ? (
-              <span className="bo-muted">Write at least two lines.</span>
-            ) : res.valid ? (
-              <>
-                <Chip signal="hit">every step holds</Chip> <W e={res.why}>{res.why.working}</W>
-              </>
-            ) : (
-              <>
-                <Chip signal="miss">a step does not hold</Chip> <span className="bo-muted">see the marked lines</span>
-              </>
-            )}
-          </p>
-        </div>
+        }
+        play={<PlayBar stepper={stepper} start="Check each step" next={steps[k + 1] ? `line ${steps[k + 1].line}` : undefined} />}
+      >
         <ol className="bo-chain" aria-label="Your steps, each checked against the line before">
           {steps.map((s, i) => {
             const bad = s.errors.length > 0 || s.equivalent === false
@@ -140,16 +133,7 @@ export default function AlgebraTab({ intro }: { intro: ReactNode }) {
                   <div className="bo-link">
                     <svg viewBox="0 0 16 34" width="16" height="34" aria-hidden="true">
                       <path d="M8 2V30M4 26l4 4 4-4" className={`bo-link-arrow${bad ? ' is-bad' : ''}`} />
-                      {i === k ? (
-                        <>
-                          <g className="flow-draw" key={`d${k}`}>
-                            <path d="M8 2V30" pathLength={1} className={bad ? 'bo-flow-miss' : undefined} />
-                          </g>
-                          <g className="flow-packets" key={`p${k}`}>
-                            <path d="M8 2V30" pathLength={1} className={bad ? 'bo-flow-miss' : undefined} />
-                          </g>
-                        </>
-                      ) : null}
+                      {i === k ? <Flow id={k} paths={['M8 2V30']} tone={bad ? 'miss' : undefined} /> : null}
                     </svg>
                     <span className="bo-link-law">{lawCol.cell(s, i) || <span className="bo-muted">{s.errors.length ? 'cannot read' : ''}</span>}</span>
                   </div>
@@ -159,7 +143,7 @@ export default function AlgebraTab({ intro }: { intro: ReactNode }) {
                   {s.expr ?? s.text}
                 </button>
                 {i === k ? (
-                  <div className="bo-step-body">
+                  <div className="story-body">
                     <p>
                       {okCol.cell(s, i)}
                       {s.literals !== undefined ? <span className="bo-muted"> {s.literals} literals</span> : null}
@@ -172,37 +156,40 @@ export default function AlgebraTab({ intro }: { intro: ReactNode }) {
             )
           })}
         </ol>
-        <BoardPlay stepper={stepper} start="Check each step" next={steps[k + 1] ? `line ${steps[k + 1].line}` : undefined} />
-      </div>
+      </Board>
 
-      <DetailTabs label="Tables for your steps" tabs={tabs} value={detail} onChange={setDetail}>
-        {detail === 'table' ? <DataTable compact columns={cols} rows={steps} rowSignal={(s) => (s.errors.length || s.equivalent === false ? 'miss' : undefined)} /> : null}
-        {detail === 'laws' ? (
-          <DataTable
-            compact
-            columns={[
-              { key: 'n', header: 'Law', cell: (r: [Law, (typeof LAWS)[Law]]) => r[1].name },
-              { key: 'f', header: 'Forms', cell: (r: [Law, (typeof LAWS)[Law]]) => <span className="bo-wrap">{r[1].forms}</span>, mono: true },
-              { key: 'c', header: 'Slide', cell: (r: [Law, (typeof LAWS)[Law]]) => r[1].cite },
-            ]}
-            rows={lawRows}
-          />
-        ) : null}
-        {detail === 'notes' ? (
-          <div className="bo-callouts">
-            <Callout kind="trap" title="Check what X is before you use X + X' = 1" cite="T06 SE1">
-              A∙B + A'∙B' is not 1. The complement of A∙B is A' + B'.
-            </Callout>
-            <Callout kind="course" title="One or two laws per line" cite="L13 p13; L15 p5-6">
-              The slides name the law on each line. A line that needs more than two laws is still marked equal, but split it so each step names its law.
-            </Callout>
-            <Callout kind="beyond" title="How the checker decides">
-              Equality is tested on every row of the truth table. The law names come from trying each L13 law once or twice on the line before. The course does not teach
-              this search.
-            </Callout>
-          </div>
-        ) : null}
-      </DetailTabs>
+      <Details
+        urlKey="lt"
+        label="Tables for your steps"
+        tabs={[
+          { value: 'table', label: 'Step by step', body: <DataTable compact columns={cols} rows={steps} rowSignal={(s) => (s.errors.length || s.equivalent === false ? 'miss' : undefined)} /> },
+          { value: 'laws', label: 'Laws and theorems', body: (
+            <DataTable
+              compact
+              columns={[
+                { key: 'n', header: 'Law', cell: (r: [Law, (typeof LAWS)[Law]]) => r[1].name },
+                { key: 'f', header: 'Forms', cell: (r: [Law, (typeof LAWS)[Law]]) => <span className="bo-wrap">{r[1].forms}</span>, mono: true },
+                { key: 'c', header: 'Slide', cell: (r: [Law, (typeof LAWS)[Law]]) => r[1].cite },
+              ]}
+              rows={lawRows}
+            />
+          ) },
+          { value: 'notes', label: 'Traps and conventions', body: (
+            <div className="bo-callouts">
+              <Callout kind="trap" title="Check what X is before you use X + X' = 1" cite="T06 SE1">
+                A∙B + A'∙B' is not 1. The complement of A∙B is A' + B'.
+              </Callout>
+              <Callout kind="course" title="One or two laws per line" cite="L13 p13; L15 p5-6">
+                The slides name the law on each line. A line that needs more than two laws is still marked equal, but split it so each step names its law.
+              </Callout>
+              <Callout kind="beyond" title="How the checker decides">
+                Equality is tested on every row of the truth table. The law names come from trying each L13 law once or twice on the line before. The course does not teach
+                this search.
+              </Callout>
+            </div>
+          ) },
+        ]}
+      />
     </Workspace>
   )
 }

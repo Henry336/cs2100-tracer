@@ -1,4 +1,4 @@
-import { useId, useMemo, type ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import {
   canonical,
   functionFromValues,
@@ -15,8 +15,8 @@ import {
   type KMapLayout,
 } from '../../core/boolean'
 import { useUrlState } from '../../lib/url-state'
-import { Chip, Presets, Segmented, Tabs, TextField, Why } from '../../ui/kit'
-import type { Stepper } from '../../ui/stepper'
+import { CommandBar } from '../../ui/board'
+import { Chip, Presets, Segmented, TextField, Why } from '../../ui/kit'
 import { FN_PRESETS, type Orient } from './presets'
 
 export const DEFAULT_F = 'F(A,B,C,D) = Σm(2,3,4,5,7,8,10,13,15)'
@@ -134,54 +134,18 @@ export function FnPresets({ input, onPick }: { input: FnInput; onPick?: () => vo
   )
 }
 
-/** A one-line input styled as the page's command bar (the datapath tracer's look). */
-export function CommandBar({
-  label,
-  value,
-  onChange,
-  placeholder,
-  word,
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-  placeholder?: string
-  /** A short read-back shown at the end of the bar. */
-  word?: ReactNode
-}) {
-  const id = useId()
-  return (
-    <div className="bo-command-bar glow-input">
-      <label className="bo-command-label" htmlFor={id}>
-        {label}
-      </label>
-      <input id={id} className="bo-command-input mono" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} spellCheck={false} autoComplete="off" />
-      {word ? <span className="bo-command-word">{word}</span> : null}
-    </div>
-  )
-}
-
-/** Secondary inputs, closed by default (printing opens it). */
-export function Options({ summary, children }: { summary: string; children: ReactNode }) {
-  return (
-    <details className="bo-options">
-      <summary>{summary}</summary>
-      <div className="bo-options-body">{children}</div>
-    </details>
-  )
-}
-
 /** The shared function as a command bar, with how it was read and any errors under it. */
 export function FnCommand({ input, label = 'Function' }: { input: FnInput; label?: string }) {
   const { parse, text } = input
   return (
     <>
       <CommandBar
+        id="bo-fn"
         label={label}
         value={text}
         onChange={input.setText}
         placeholder="F(A,B,C,D) = Σm(1,3,5) + d(0)"
-        word={
+        aside={
           parse.ok ? (
             <W e={parse.why}>
               {parse.source === 'expression' ? 'expression' : parse.source === 'minterms' ? 'Σm list' : 'ΠM list'} over {parse.fn.vars.join(', ')}
@@ -200,74 +164,6 @@ export function FnCommand({ input, label = 'Function' }: { input: FnInput; label
 /** Rename the variables; the first is the MSB. */
 export function VarsField({ input }: { input: FnInput }) {
   return <TextField label="Variables, first is the MSB" value={headerVars(input.text, input.fn?.vars ?? [])} onChange={(v) => input.setText(withVars(input.text, v))} width="9em" />
-}
-
-/** Play pill and a quiet Next button inside a board, driving the same stepper as the bottom player. */
-export function BoardPlay({ stepper, start, next }: { stepper: Stepper; start: string; next?: string }) {
-  if (stepper.count < 2) return null
-  const atEnd = stepper.index >= stepper.count - 1
-  const label = stepper.playing ? 'Pause' : stepper.index === 0 || atEnd ? start : 'Play from here'
-  return (
-    <div className="bo-board-play">
-      {/* toggle() restarts from the first step when it is at the end. */}
-      <button type="button" className="bo-play" onClick={stepper.toggle} data-playing={stepper.playing}>
-        {stepper.playing ? (
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M4 3h3v10H4zM9 3h3v10H9z" />
-          </svg>
-        ) : (
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M4.5 2.8l9 5.2-9 5.2z" />
-          </svg>
-        )}
-        {label}
-      </button>
-      {!atEnd ? (
-        <button type="button" className="bo-next" onClick={stepper.next}>
-          {next ? `Next: ${next}` : 'Next step'}
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M3 8h10M9 4l4 4-4 4" />
-          </svg>
-        </button>
-      ) : null}
-    </div>
-  )
-}
-
-/** One tab strip for a view's secondary tables; the chosen tab is kept in the URL under `key`. */
-export function useDetailTab<T extends string>(key: string, tabs: { value: T; label: string }[]) {
-  const [raw, set] = useUrlState<string>(key, tabs[0]?.value ?? '')
-  const value = (tabs.some((t) => t.value === raw) ? raw : tabs[0]?.value) as T
-  return [value, set as (v: T) => void] as const
-}
-
-export function DetailTabs<T extends string>({ label, tabs, value, onChange, children }: { label: string; tabs: { value: T; label: string }[]; value: T; onChange: (v: T) => void; children: ReactNode }) {
-  if (!tabs.length) return null
-  return (
-    <section className="bo-details" aria-label={label}>
-      <Tabs label={label} value={value} onChange={onChange} tabs={tabs} />
-      <div className="bo-detail-body">{children}</div>
-    </section>
-  )
-}
-
-/** Steps in order: the current one is bright and opened, the rest are one-line titles. */
-export function StepStory({ label, steps, current, onPick }: { label: string; steps: { key: string; title: ReactNode; body?: ReactNode; disabled?: boolean }[]; current: number; onPick: (i: number) => void }) {
-  return (
-    <aside className="bo-story" aria-label={label}>
-      <ol className="bo-steps">
-        {steps.map((s, i) => (
-          <li key={s.key} className={i === current ? 'is-now' : i < current ? 'is-past' : 'is-next'}>
-            <button type="button" className="bo-step-btn" onClick={() => onPick(i)} disabled={s.disabled} aria-current={i === current ? 'step' : undefined}>
-              <span className="bo-step-dot" aria-hidden="true" />
-              <span>{s.title}</span>
-            </button>
-            {i === current && s.body ? <div className="bo-step-body">{s.body}</div> : null}
-          </li>
-        ))}
-      </ol>
-    </aside>
-  )
 }
 
 /** Group the 1s (SOP) or the 0s (POS). */

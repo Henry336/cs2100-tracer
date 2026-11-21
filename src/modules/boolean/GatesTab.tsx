@@ -18,7 +18,8 @@ import { Callout, DataTable, Legend, NumberField, Presets, Segmented, Select, To
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
 import { bubbleAt, gatePath, layoutCircuit, simulate, type CircuitLayout, type DrawCircuit, type DrawGate } from './circuit-layout'
-import { BoardPlay, CommandBar, DetailTabs, FnCommand, FnPresets, IssueList, Options, plural, StepStory, useDetailTab, VarsField, W, type FnInput } from './common'
+import { Board, CommandBar, Details, Flow, Options, PlayBar, Stage, Story } from '../../ui/board'
+import { FnCommand, FnPresets, IssueList, plural, VarsField, W, type FnInput } from './common'
 import { GATE_PRESETS } from './presets'
 import { UniversalPanel } from './UniversalPanel'
 
@@ -30,7 +31,6 @@ const KINDS: { value: CircuitKind; label: string; title: string }[] = [
 ]
 
 type Mode = 'cover' | 'expr'
-type DetailTab = 'counts' | 'gates' | 'timeline' | 'universal' | 'notes'
 type ShownGate = DrawGate & { why: Explain; realisedAs?: 'NAND' | 'NOR' }
 
 /** A circuit to draw and count: the two-level circuit of a minimal cover, or the gate network of a typed expression. */
@@ -128,14 +128,8 @@ export default function GatesTab({ intro, input }: { intro: ReactNode; input: Fn
     { key: 'a', header: 'Stable at', cell: (g) => <W e={g.why}>{fmtT(g.arrival)}</W>, align: 'right' },
   ]
   const onPath = new Set(circuit?.delay.path ?? [])
+  const settling = circuit?.gates.filter((g) => g.arrival === now) ?? []
   const title = mode === 'expr' ? `${name} = ${circuit?.expression ?? ''}` : `${KINDS.find((k) => k.value === kind)!.label}: ${name} = ${cover?.text ?? ''}`
-  const tabs: { value: DetailTab; label: string }[] = [
-    ...(circuit ? [{ value: 'counts' as const, label: 'Counts' }] : []),
-    ...(circuit?.gates.length ? [{ value: 'gates' as const, label: 'Gates' }, { value: 'timeline' as const, label: 'Delay timeline' }] : []),
-    { value: 'universal', label: 'Universal gates' },
-    { value: 'notes', label: 'Traps and conventions' },
-  ]
-  const [detail, setDetail] = useDetailTab<DetailTab>('gt', tabs)
 
   const toolbar =
     mode === 'expr' ? (
@@ -169,7 +163,7 @@ export default function GatesTab({ intro, input }: { intro: ReactNode; input: Fn
         />
         {mode === 'expr' ? (
           <>
-            <CommandBar label="Expression" value={gx} onChange={setGx} placeholder="F(A,B,C) = ((A'∙B') + C)'" />
+            <CommandBar id="bo-gx" label="Expression" value={gx} onChange={setGx} placeholder="F(A,B,C) = ((A'∙B') + C)'" />
             {!gparse.ok ? <IssueList text={gx} issues={gparse.errors} /> : null}
             <IssueList text={gx} issues={gparse.warnings} kind="warning" />
             {gparse.ok && !gexpr ? <p className="bo-status bo-bad">This mode needs an expression. Draw a Σm or ΠM list as a minimal cover.</p> : null}
@@ -209,141 +203,138 @@ export default function GatesTab({ intro, input }: { intro: ReactNode; input: Fn
       ) : null}
 
       {circuit && lay ? (
-        <div className="bo-stage">
-          <div className="bo-board canvas">
-            <div className="bo-board-bar">
-              <p className="bo-board-title">
-                <span className="mono bo-wrap">{title}</span>
-                <span className="bo-board-step">t = {fmtT(now)}</span>
-              </p>
-              <div className="bo-board-actions">
+        <Stage>
+          <Board
+            title={<span className="mono bo-wrap">{title}</span>}
+            step={`t = ${fmtT(now)}`}
+            tools={
+              <>
                 {mode === 'cover' ? <Segmented label="Circuit" value={kind} onChange={setKind} options={KINDS} /> : null}
                 <Toggle label="Show only what is stable at this time" checked={focus === true} onChange={setFocus} />
-              </div>
-            </div>
-            <div className="bo-scroll">
-              <CircuitSvg c={circuit} lay={lay} now={now} focus={focus === true} path={onPath} values={values} step={stepper.index} />
-            </div>
-            <BoardPlay stepper={stepper} start="Watch the signals settle" next={times[stepper.index + 1] !== undefined ? `t = ${fmtT(times[stepper.index + 1])}` : undefined} />
-            <div className="bo-board-foot">
-              <p className="bo-summary">
-                <W e={circuit.counts.why}>{plural(circuit.counts.gates, 'gate')}</W>, <W e={circuit.levels.why}>{plural(circuit.levels.value, 'level')}</W>, delay{' '}
-                <W e={circuit.delay.why}>{fmtT(circuit.delay.value)}</W>
-                {simRow !== null ? (
-                  <span className="mono bo-muted">
-                    {'  '}
-                    {vars.map((v, i) => `${v}=${(simRow >> (n - 1 - i)) & 1}`).join(' ')}, {name} = {values?.get(circuit.output) ?? circuit.constant ?? ''}
-                  </span>
-                ) : null}
-              </p>
-              <Legend
-                items={[
-                  { signal: 'path', label: 'slowest path, sets the delay' },
-                  { signal: 'data', label: 'stable at this time' },
-                  { signal: 'stall', label: 'not settled yet (dashed)' },
-                  ...(values ? [{ signal: 'hit' as const, label: 'signal is 1 on this row' }] : []),
-                ]}
-              />
-            </div>
-          </div>
+              </>
+            }
+            play={<PlayBar stepper={stepper} start="Watch the signals settle" next={times[stepper.index + 1] !== undefined ? `t = ${fmtT(times[stepper.index + 1])}` : undefined} />}
+            foot={
+              <>
+                <p className="bo-summary">
+                  <W e={circuit.counts.why}>{plural(circuit.counts.gates, 'gate')}</W>, <W e={circuit.levels.why}>{plural(circuit.levels.value, 'level')}</W>, delay{' '}
+                  <W e={circuit.delay.why}>{fmtT(circuit.delay.value)}</W>
+                  {simRow !== null ? (
+                    <span className="mono bo-muted">
+                      {'  '}
+                      {vars.map((v, i) => `${v}=${(simRow >> (n - 1 - i)) & 1}`).join(' ')}, {name} = {values?.get(circuit.output) ?? circuit.constant ?? ''}
+                    </span>
+                  ) : null}
+                </p>
+                <Legend
+                  items={[
+                    { signal: 'path', label: 'slowest path, sets the delay' },
+                    { signal: 'data', label: 'stable at this time' },
+                    { signal: 'stall', label: 'not settled yet (dashed)' },
+                    ...(values ? [{ signal: 'hit' as const, label: 'signal is 1 on this row' }] : []),
+                  ]}
+                />
+              </>
+            }
+          >
+            <CircuitSvg c={circuit} lay={lay} now={now} focus={focus === true} path={onPath} values={values} step={stepper.index} />
+          </Board>
           {circuit.gates.length ? (
-            <StepStory
+            <Story
               label="When each signal settles"
-              current={stepper.index}
+              index={stepper.index}
               onPick={stepper.set}
-              steps={times.map((t) => {
-                const settling = circuit.gates.filter((g) => g.arrival === t)
-                return {
-                  key: String(t),
-                  title: `t = ${fmtT(t)}`,
-                  body: (
-                    <>
-                      {t === 0 ? <p>The inputs arrive{settling.length ? ', and' : '.'}</p> : null}
-                      {settling.length ? (
-                        <ul className="bo-settle">
-                          {settling.map((g) => (
-                            <li key={g.id}>
-                              <span className="mono">{g.id}</span> {g.type === 'NOT' ? 'inverter' : g.type} is stable: <W e={g.why}><span className="mono">{g.output}</span></W>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                      {t === circuit.delay.value ? (
-                        <p>
-                          {name} is stable, so the delay is <W e={circuit.delay.why}>{fmtT(t)}</W>.
-                        </p>
-                      ) : null}
-                    </>
-                  ),
-                }
-              })}
+              titles={times.map((t) => `t = ${fmtT(t)}`)}
+              body={
+                <>
+                  {now === 0 ? <p>The inputs arrive{settling.length ? ', and' : '.'}</p> : null}
+                  {settling.length ? (
+                    <ul className="bo-settle">
+                      {settling.map((g) => (
+                        <li key={g.id}>
+                          <span className="mono">{g.id}</span> {g.type === 'NOT' ? 'inverter' : g.type} is stable: <W e={g.why}><span className="mono">{g.output}</span></W>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {now === circuit.delay.value ? (
+                    <p>
+                      {name} is stable, so the delay is <W e={circuit.delay.why}>{fmtT(now)}</W>.
+                    </p>
+                  ) : null}
+                </>
+              }
             />
           ) : null}
-        </div>
+        </Stage>
       ) : null}
 
-      <DetailTabs label="Tables for this circuit" tabs={tabs} value={detail} onChange={setDetail}>
-        {detail === 'counts' && circuit ? (
-          <dl className="bo-facts">
-            <dt>Gates</dt>
-            <dd>
-              <W e={circuit.counts.why}>{plural(circuit.counts.gates, 'gate')}</W>
-              {circuit.counts.inverters ? <span className="bo-muted">, {plural(circuit.counts.inverters, 'inverter')} among them</span> : null}
-            </dd>
-            <dt>Levels</dt>
-            <dd>
-              <W e={circuit.levels.why}>{circuit.levels.value}</W>
-            </dd>
-            <dt>Delay</dt>
-            <dd>
-              <W e={circuit.delay.why}>{fmtT(circuit.delay.value)}</W>
-            </dd>
-            <dt>Expression</dt>
-            <dd className="mono bo-wrap">
-              {name} = {circuit.expression}
-            </dd>
-            {single ? (
-              <>
-                <dt>One gate</dt>
-                <dd className="mono bo-wrap">
-                  <W e={single.why}>{single.matches.length ? single.matches.map((m) => (m.gate === 'CONST' || m.gate === 'WIRE' ? m.text : `${m.gate}: ${m.text}`)).join('; ') : 'no single gate does it'}</W>
-                </dd>
-              </>
-            ) : null}
-          </dl>
-        ) : null}
-        {detail === 'gates' && circuit ? <DataTable compact columns={gateCols} rows={circuit.gates} rowSignal={(g) => (g.arrival === now ? 'path' : undefined)} /> : null}
-        {detail === 'timeline' && circuit ? (
-          <div className="bo-scroll">
-            <Timeline c={circuit} now={now} path={onPath} />
-          </div>
-        ) : null}
-        {detail === 'universal' ? <UniversalPanel /> : null}
-        {detail === 'notes' ? (
-          <div className="bo-callouts">
-            <Callout kind="course" title="Complemented inputs are not free" cite="T06 p2; T07 p2; R08 p34">
-              Unless a question says so, only A, B, C and so on are given, so each A' needs an inverter. Constants 0 and 1 are always available.
-            </Callout>
-            <Callout kind="trap" title="Inverters are gates, but not a level" cite="R07 p14">
-              Count inverters when a question asks for the number of gates. An inverter on an input does not add a level, so AND-OR stays 2-level.
-            </Callout>
-            {mode === 'cover' && (kind === 'nand-nand' || kind === 'nor-nor') ? (
-              <Callout kind="trap" title="A lone literal enters complemented" cite="L14 p14, p16">
-                In A∙B + C'∙D + E built from NANDs, E goes into the output NAND as E'. The same holds for a single literal in a NOR-NOR POS circuit.
+      <Details
+        urlKey="gt"
+        label="Tables for this circuit"
+        tabs={[
+          { value: 'counts', label: 'Counts', body: circuit ? (
+            <dl className="bo-facts">
+              <dt>Gates</dt>
+              <dd>
+                <W e={circuit.counts.why}>{plural(circuit.counts.gates, 'gate')}</W>
+                {circuit.counts.inverters ? <span className="bo-muted">, {plural(circuit.counts.inverters, 'inverter')} among them</span> : null}
+              </dd>
+              <dt>Levels</dt>
+              <dd>
+                <W e={circuit.levels.why}>{circuit.levels.value}</W>
+              </dd>
+              <dt>Delay</dt>
+              <dd>
+                <W e={circuit.delay.why}>{fmtT(circuit.delay.value)}</W>
+              </dd>
+              <dt>Expression</dt>
+              <dd className="mono bo-wrap">
+                {name} = {circuit.expression}
+              </dd>
+              {single ? (
+                <>
+                  <dt>One gate</dt>
+                  <dd className="mono bo-wrap">
+                    <W e={single.why}>{single.matches.length ? single.matches.map((m) => (m.gate === 'CONST' || m.gate === 'WIRE' ? m.text : `${m.gate}: ${m.text}`)).join('; ') : 'no single gate does it'}</W>
+                  </dd>
+                </>
+              ) : null}
+            </dl>
+          ) : null },
+          { value: 'gates', label: 'Gates', body: circuit?.gates.length ? <DataTable compact columns={gateCols} rows={circuit.gates} rowSignal={(g) => (g.arrival === now ? 'path' : undefined)} /> : null },
+          { value: 'timeline', label: 'Delay timeline', body: circuit?.gates.length ? (
+            <div className="bo-scroll">
+              <Timeline c={circuit} now={now} path={onPath} />
+            </div>
+          ) : null },
+          { value: 'universal', label: 'Universal gates', body: <UniversalPanel /> },
+          { value: 'notes', label: 'Traps and conventions', body: (
+            <div className="bo-callouts">
+              <Callout kind="course" title="Complemented inputs are not free" cite="T06 p2; T07 p2; R08 p34">
+                Unless a question says so, only A, B, C and so on are given, so each A' needs an inverter. Constants 0 and 1 are always available.
               </Callout>
-            ) : null}
-            {mode === 'expr' ? (
-              <Callout kind="course" title="One gate per operator" cite="L14 p7-9; AY23/24 S2 Q12">
-                A NOT over an AND or OR is drawn as one NAND or NOR. A sub-expression used twice is one gate with two wires out. Four NANDs can be a single XOR: see One
-                gate under Counts.
+              <Callout kind="trap" title="Inverters are gates, but not a level" cite="R07 p14">
+                Count inverters when a question asks for the number of gates. An inverter on an input does not add a level, so AND-OR stays 2-level.
               </Callout>
-            ) : null}
-            <Callout kind="course" title="How the delay is worked out">
-              A signal is stable at its latest input time plus the gate delay (L17 p34; R08 p24). No course source fixes the inverter delay, so it has its own field.
-            </Callout>
-          </div>
-        ) : null}
-      </DetailTabs>
+              {mode === 'cover' && (kind === 'nand-nand' || kind === 'nor-nor') ? (
+                <Callout kind="trap" title="A lone literal enters complemented" cite="L14 p14, p16">
+                  In A∙B + C'∙D + E built from NANDs, E goes into the output NAND as E'. The same holds for a single literal in a NOR-NOR POS circuit.
+                </Callout>
+              ) : null}
+              {mode === 'expr' ? (
+                <Callout kind="course" title="One gate per operator" cite="L14 p7-9; AY23/24 S2 Q12">
+                  A NOT over an AND or OR is drawn as one NAND or NOR. A sub-expression used twice is one gate with two wires out. Four NANDs can be a single XOR: see One
+                  gate under Counts.
+                </Callout>
+              ) : null}
+              <Callout kind="course" title="How the delay is worked out">
+                A signal is stable at its latest input time plus the gate delay (L17 p34; R08 p24). No course source fixes the inverter delay, so it has its own field.
+              </Callout>
+            </div>
+          ) },
+        ]}
+      />
     </Workspace>
   )
 }
@@ -444,20 +435,8 @@ export function CircuitSvg({
       <text x={lay.output.x + 4} y={lay.output.y + 4} className="bo-c-label">
         {lay.output.label}
       </text>
-      {flowing.length ? (
-        <>
-          <g className="flow-draw" key={`d${step}`} aria-hidden="true">
-            {flowing.map((w, i) => (
-              <path key={i} d={w.d} pathLength={1} className={w.crit ? undefined : 'bo-flow-data'} />
-            ))}
-          </g>
-          <g className="flow-packets" key={`p${step}`} aria-hidden="true">
-            {flowing.map((w, i) => (
-              <path key={i} d={w.d} pathLength={1} className={w.crit ? undefined : 'bo-flow-data'} style={{ animationDelay: `${0.7 + (i % 5) * 0.18}s` }} />
-            ))}
-          </g>
-        </>
-      ) : null}
+      <Flow id={step ?? 0} paths={flowing.filter((w) => w.crit).map((w) => w.d)} />
+      <Flow id={step ?? 0} paths={flowing.filter((w) => !w.crit).map((w) => w.d)} tone="data" />
     </svg>
   )
 }
