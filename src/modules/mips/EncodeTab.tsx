@@ -18,12 +18,14 @@ import {
   type Instr,
 } from '../../core/mips'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, Chip, CodeEditor, DataTable, Legend, Panel, Presets, Segmented, TextField, Workspace, type Column } from '../../ui/kit'
+import { Callout, Chip, CodeEditor, DataTable, Legend, Presets, Segmented, Tabs, TextField, Workspace, type Column } from '../../ui/kit'
 import { Facts, Steps, W, parseAddress } from './common'
 import { BranchRuler, FieldGrid, JumpSplice } from './diagrams'
 import { ENCODE_PRESETS } from './presets'
 
 const START = ENCODE_PRESETS[0].value
+
+type EncDetail = 'work' | 'check' | 'nums' | 'list' | 'traps'
 
 /** Encode tab inputs live in the URL; the Run tab also writes them to open an instruction here. */
 export function useEncodeState() {
@@ -57,6 +59,7 @@ const errorMap = (errors: AsmError[]) => Object.fromEntries(errors.filter((e) =>
 export default function EncodeTab({ intro }: { intro: ReactNode }) {
   const s = useEncodeState()
   const [answer, setAnswer] = useUrlState('eans', '')
+  const [detail, setDetail] = useUrlState<EncDetail>('edt', 'work')
   const base = parseAddress(s.base)
   const { instrs, errors } = useMemo(() => {
     const b = base ?? 0
@@ -126,155 +129,82 @@ export default function EncodeTab({ intro }: { intro: ReactNode }) {
       ]
     : []
 
-  return (
-    <Workspace
-      title="MIPS"
-      lectures="L08, R04, T03 to T04"
-      intro={intro}
-      toolbar={<Presets presets={ENCODE_PRESETS} onPick={pick} />}
-      inspector={
+  const traps = ins ? (
+    <div className="mp-callouts">
+      {kind === 'arith' ? (
+        <Callout kind="trap" title="Destination first in assembly, third in the bits" cite="L08 p12">
+          You write rd, rs, rt, but the fields are ordered rs, rt, rd. Putting rd in the rs slot is the most common encoding error.
+        </Callout>
+      ) : null}
+      {kind === 'shift' ? (
+        <Callout kind="trap" title="Shifts read rt, not rs" cite="L08 p13, p15">
+          The source register goes in rt and rs is 0. The amount goes in shamt, 0 to 31.
+        </Callout>
+      ) : null}
+      {kind === 'branch' ? (
         <>
-          <Panel title="Working">{ex ? <Steps steps={ex.steps} label="Encoding steps" /> : <p className="mp-muted">Pick an instruction.</p>}</Panel>
-          <Panel title="Traps for this instruction">
-            <div className="mp-callouts">
-              {kind === 'arith' ? (
-                <Callout kind="trap" title="Destination first in assembly, third in the bits" cite="L08 p12">
-                  You write rd, rs, rt, but the fields are ordered rs, rt, rd. Putting rd in the rs slot is the most common encoding error.
-                </Callout>
-              ) : null}
-              {kind === 'shift' ? (
-                <Callout kind="trap" title="Shifts read rt, not rs" cite="L08 p13, p15">
-                  The source register goes in rt and rs is 0. The amount goes in shamt, 0 to 31.
-                </Callout>
-              ) : null}
-              {kind === 'branch' ? (
-                <>
-                  <Callout kind="trap" title="The first register is rs" cite="L08 p34">
-                    In beq and bne the register written first goes in rs, the second in rt.
-                  </Callout>
-                  <Callout kind="trap" title="Count from PC+4, in words" cite="L08 p27-28">
-                    The immediate is (target - (PC+4)) / 4. Counting from the branch itself is one off; forgetting the / 4 makes it 4 times too big.
-                  </Callout>
-                </>
-              ) : null}
-              {kind === 'logicImm' ? (
-                <Callout kind="trap" title="andi, ori and xori zero-extend" cite="L06 p46, L08 p19">
-                  Their immediate fills the top 16 bits with 0, so ori with 0xFFFF gives 0x0000FFFF, not -1.
-                </Callout>
-              ) : null}
-              {kind === 'lui' ? (
-                <Callout kind="trap" title="Fill the lower half with ori, not addi" cite="L06 p44, p46">
-                  addi sign-extends, so a lower half with bit 15 set would change the upper half that lui loaded.
-                </Callout>
-              ) : null}
-              {kind === 'load' || kind === 'store' ? (
-                <Callout kind="trap" title="The offset counts bytes" cite="L07 p10, L08 p22">
-                  A[3] is 12 bytes from A[0]. A load or store offset is in bytes, while a branch immediate is in words.
-                </Callout>
-              ) : null}
-              {kind === 'jump' ? (
-                <Callout kind="trap" title="Only bits 27 to 2 are stored" cite="L08 p37-40">
-                  The top 4 bits come from PC+4 when the jump runs, not from PC, and they never replace the opcode. A j in the last word of a 256 MB block lands in the next block.
-                </Callout>
-              ) : null}
-              {negImm ? (
-                <Callout kind="trap" title={`${hex(raw16, 4)} is negative`} cite="L08 p21">
-                  Bit 15 is 1, so in 16-bit 2s complement {hex(raw16, 4)} is {ins!.imm}, not {raw16}. It is sign-extended before use.
-                </Callout>
-              ) : null}
-              {kind === 'jump' && s.mode === 'asm' ? (
-                <Callout kind="course" title="What a number after j means" cite="L08 p8, R04 p44">
-                  The lecture reads j 2500 as the target field, so it goes to 10000. QtSpim reads the number as a byte address. Choose below the code.
-                </Callout>
-              ) : null}
-              {op && !op.lecture ? (
-                <Callout kind="beyond" title={`Beyond the lectures: ${op.mnemonic}`} cite={op.cite}>
-                  {op.mnemonic} is on the green card or in the labs, but the lectures do not teach it (T02 p1). Values come from the {op.source}.
-                </Callout>
-              ) : null}
-              {!ins ? <p className="mp-muted">No instruction selected.</p> : null}
-            </div>
-          </Panel>
+          <Callout kind="trap" title="The first register is rs" cite="L08 p34">
+            In beq and bne the register written first goes in rs, the second in rt.
+          </Callout>
+          <Callout kind="trap" title="Count from PC+4, in words" cite="L08 p27-28">
+            The immediate is (target - (PC+4)) / 4. Counting from the branch itself is one off; forgetting the / 4 makes it 4 times too big.
+          </Callout>
         </>
-      }
-    >
-      <Legend
-        items={[
-          { signal: 'control', label: 'opcode and funct, read by the control unit' },
-          { signal: 'data', label: 'constants: immediate, shamt, target' },
-          { signal: 'path', label: 'PC and where it goes next' },
-          ...(check?.given !== undefined && !check.ok ? [{ signal: 'miss' as const, label: 'field that differs in your answer' }] : []),
-        ]}
-      />
-      <Panel
-        title="Instruction"
-        actions={<Segmented label="Input" value={s.mode} onChange={s.setMode} options={[{ value: 'asm', label: 'Encode assembly' }, { value: 'hex', label: 'Decode hex words' }]} />}
-      >
-        <div className="mp-row">
-          <TextField label="First instruction at" value={s.base} onChange={s.setBase} width="8.5em" />
-          {s.mode === 'asm' ? (
-            <Segmented
-              label="Number after j means"
-              value={s.jumpOp}
-              onChange={s.setJumpOp}
-              options={[{ value: 'field', label: 'Target field', title: 'L08 p8' }, { value: 'address', label: 'Byte address', title: 'QtSpim' }]}
-            />
-          ) : null}
-        </div>
-        {optionErrors.length ? <p className="mp-err">{optionErrors.join('; ')}</p> : null}
-        {s.mode === 'asm' ? (
-          <CodeEditor label="Assembly, labels allowed (one instruction per line)" value={s.asmText} onChange={s.setAsm} rows={5} errors={errorMap(errors)} />
-        ) : (
-          <CodeEditor label="32-bit words, e.g. 0x012A4020 (one or more per line)" value={s.hexText} onChange={s.setHex} rows={5} errors={errorMap(errors)} />
-        )}
-      </Panel>
-
-      {instrs.length > 1 ? (
-        <Panel title="Instructions" flush>
-          <DataTable columns={cols} rows={instrs} rowSignal={(_, k) => (k === sel ? 'path' : undefined)} compact />
-        </Panel>
       ) : null}
-
-      {ins && ex ? (
-        <Panel title={`Fields of ${ins.text}`} actions={<span className="mp-muted">Dashed fields are fixed at 0</span>}>
-          <FieldGrid ex={ex} />
-          <Facts items={facts} />
-        </Panel>
-      ) : (
-        <Panel title="Fields">
-          <p className="mp-muted">Type an instruction or a word above.</p>
-        </Panel>
-      )}
-
-      {ins && ex && s.mode === 'asm' ? (
-        <Panel title="Check your answer">
-          <TextField label={`Your hex for ${ins.text}`} value={answer} onChange={setAnswer} placeholder="e.g. 012A4020" width="10em" />
-          {check?.error ? <p className="mp-err">{check.error}</p> : null}
-          {check?.given !== undefined ? (
-            <>
-              <p className="mp-status mp-check">
-                {check.ok ? <Chip signal="hit">right</Chip> : <Chip signal="miss">wrong</Chip>}
-                {check.ok ? `${hex(check.given)} matches.` : `${hex(check.given)} differs in ${check.fields.filter((f) => !f.ok).map((f) => f.name).join(', ')}.`}
-              </p>
-              <DataTable compact columns={diffCols} rows={check.fields} rowSignal={(f) => (f.ok ? undefined : 'miss')} />
-              {check.mistake ? (
-                <Callout kind="trap" title={`This matches a known mistake: ${check.mistake.label}`} cite={check.mistake.why.cite}>
-                  {check.mistake.why.rule}.
-                </Callout>
-              ) : null}
-            </>
-          ) : null}
-          {mistakes.length ? (
-            <>
-              <p className="control-label mp-gap">Common wrong answers for this instruction</p>
-              <Facts items={mistakes.map((m): [ReactNode, ReactNode] => [m.label, <W e={m.why}>{hex(m.word)}</W>])} />
-            </>
-          ) : null}
-        </Panel>
+      {b && b.aligned && b.imm !== 0 ? (
+        <Callout kind="trap" title="Two wrong answers to avoid" cite="L08 p27-28">
+          Counting from the branch instead of PC+4 gives {b.mistakes.fromPc}. Forgetting to divide by 4 gives {b.mistakes.bytes}. The right immediate is {b.imm}.
+        </Callout>
       ) : null}
+      {kind === 'logicImm' ? (
+        <Callout kind="trap" title="andi, ori and xori zero-extend" cite="L06 p46, L08 p19">
+          Their immediate fills the top 16 bits with 0, so ori with 0xFFFF gives 0x0000FFFF, not -1.
+        </Callout>
+      ) : null}
+      {kind === 'lui' ? (
+        <Callout kind="trap" title="Fill the lower half with ori, not addi" cite="L06 p44, p46">
+          addi sign-extends, so a lower half with bit 15 set would change the upper half that lui loaded.
+        </Callout>
+      ) : null}
+      {kind === 'load' || kind === 'store' ? (
+        <Callout kind="trap" title="The offset counts bytes" cite="L07 p10, L08 p22">
+          A[3] is 12 bytes from A[0]. A load or store offset is in bytes, while a branch immediate is in words.
+        </Callout>
+      ) : null}
+      {kind === 'jump' ? (
+        <Callout kind="trap" title="Only bits 27 to 2 are stored" cite="L08 p37-40">
+          The top 4 bits come from PC+4 when the jump runs, not from PC, and they never replace the opcode. A j in the last word of a 256 MB block lands in the next block.
+        </Callout>
+      ) : null}
+      {jx?.blockEdge ? (
+        <Callout kind="trap" title="This j sits at the end of a block" cite="L08 p39-40">
+          PC+4 is already in the next 256 MB block, so the jump lands there, not in the block of the j itself.
+        </Callout>
+      ) : null}
+      {negImm ? (
+        <Callout kind="trap" title={`${hex(raw16, 4)} is negative`} cite="L08 p21">
+          Bit 15 is 1, so in 16-bit 2s complement {hex(raw16, 4)} is {ins.imm}, not {raw16}. It is sign-extended before use.
+        </Callout>
+      ) : null}
+      {kind === 'jump' && s.mode === 'asm' ? (
+        <Callout kind="course" title="What a number after j means" cite="L08 p8, R04 p44">
+          The lecture reads j 2500 as the target field, so it goes to 10000. QtSpim reads the number as a byte address. Choose under Start address and options.
+        </Callout>
+      ) : null}
+      {op && !op.lecture ? (
+        <Callout kind="beyond" title={`Beyond the lectures: ${op.mnemonic}`} cite={op.cite}>
+          {op.mnemonic} is on the green card or in the labs, but the lectures do not teach it (T02 p1). Values come from the {op.source}.
+        </Callout>
+      ) : null}
+    </div>
+  ) : null
 
-      {ins?.format === 'I' ? (
-        <Panel title="Immediate, 16 bits to 32">
+  const numbers = ins ? (
+    <div className="mp-numbers">
+      <Facts items={facts} />
+      {ins.format === 'I' ? (
+        <div>
+          <p className="control-label mp-gap">Immediate, 16 bits to 32</p>
           <Facts
             items={[
               ['16-bit field', `${hex(raw16, 4)} = ${bin(raw16, 16)}`],
@@ -303,12 +233,11 @@ export default function EncodeTab({ intro }: { intro: ReactNode }) {
                 : []),
             ]}
           />
-        </Panel>
+        </div>
       ) : null}
-
-      {b && ins ? (
-        <Panel title="Branch offset">
-          <BranchRuler b={b} />
+      {b ? (
+        <div>
+          <p className="control-label mp-gap">Branch offset</p>
           <Facts
             items={[
               ['PC (this branch)', hex(b.pc)],
@@ -320,17 +249,11 @@ export default function EncodeTab({ intro }: { intro: ReactNode }) {
               ['Reachable', <W e={{ rule: 'A 16-bit immediate reaches -32768 to 32767 words from PC+4', cite: 'L08 p21, p42' }}>{hex(b.reach.min)} to {hex(b.reach.max)}</W>],
             ]}
           />
-          {b.aligned && b.imm !== 0 ? (
-            <Callout kind="trap" title="Two wrong answers to avoid" cite="L08 p27-28">
-              Counting from the branch instead of PC+4 gives {b.mistakes.fromPc}. Forgetting to divide by 4 gives {b.mistakes.bytes}. The right immediate is {b.imm}.
-            </Callout>
-          ) : null}
-        </Panel>
+        </div>
       ) : null}
-
-      {jx && ins ? (
-        <Panel title="Jump target">
-          <JumpSplice jx={jx} instr={ins} />
+      {jx ? (
+        <div>
+          <p className="control-label mp-gap">Jump target</p>
           <Facts
             items={[
               ['PC+4', <W e={jx.steps[0]}>{hex(jx.pcPlus4)}</W>],
@@ -339,12 +262,135 @@ export default function EncodeTab({ intro }: { intro: ReactNode }) {
               ['256 MB block', <W e={jx.steps[1]}>{hex(jx.block.start)} to {hex(jx.block.end)}</W>],
             ]}
           />
-          {jx.blockEdge ? (
-            <Callout kind="trap" title="This j sits at the end of a block" cite="L08 p39-40">
-              PC+4 is already in the next 256 MB block, so the jump lands there, not in the block of the j itself.
+        </div>
+      ) : null}
+    </div>
+  ) : null
+
+  const checkPanel = ins ? (
+    <div>
+      <TextField label={`Your hex for ${ins.text}`} value={answer} onChange={setAnswer} placeholder="e.g. 012A4020" width="10em" />
+      {check?.error ? <p className="mp-err">{check.error}</p> : null}
+      {check?.given !== undefined ? (
+        <>
+          <p className="mp-status mp-check">
+            {check.ok ? <Chip signal="hit">right</Chip> : <Chip signal="miss">wrong</Chip>}
+            {check.ok ? `${hex(check.given)} matches.` : `${hex(check.given)} differs in ${check.fields.filter((f) => !f.ok).map((f) => f.name).join(', ')}.`}
+          </p>
+          <DataTable compact columns={diffCols} rows={check.fields} rowSignal={(f) => (f.ok ? undefined : 'miss')} />
+          {check.mistake ? (
+            <Callout kind="trap" title={`This matches a known mistake: ${check.mistake.label}`} cite={check.mistake.why.cite}>
+              {check.mistake.why.rule}.
             </Callout>
           ) : null}
-        </Panel>
+        </>
+      ) : null}
+      {mistakes.length ? (
+        <>
+          <p className="control-label mp-gap">Common wrong answers for this instruction</p>
+          <Facts items={mistakes.map((m): [ReactNode, ReactNode] => [m.label, <W e={m.why}>{hex(m.word)}</W>])} />
+        </>
+      ) : null}
+    </div>
+  ) : null
+
+  const tabs: { value: EncDetail; label: string }[] = [
+    { value: 'work', label: 'Working' },
+    ...(s.mode === 'asm' ? [{ value: 'check' as const, label: 'Check your answer' }] : []),
+    { value: 'nums', label: 'All numbers' },
+    ...(instrs.length > 1 ? [{ value: 'list' as const, label: 'Instructions' }] : []),
+    { value: 'traps', label: 'Watch out' },
+  ]
+  const tab = tabs.some((t) => t.value === detail) ? detail : tabs[0].value
+  const lineCount = (s.mode === 'asm' ? s.asmText : s.hexText).split('\n').length
+
+  return (
+    <Workspace title="MIPS" lectures="L08, R04, T03 to T04" intro={intro} toolbar={<Presets presets={ENCODE_PRESETS} onPick={pick} />}>
+      <div className="mp-command">
+        <div className="mp-command-row">
+          <Segmented label="Input" value={s.mode} onChange={s.setMode} options={[{ value: 'asm', label: 'Encode assembly' }, { value: 'hex', label: 'Decode hex words' }]} />
+          <details className="mp-options">
+            <summary>Start address and options</summary>
+            <div className="mp-row">
+              <TextField label="First instruction at" value={s.base} onChange={s.setBase} width="8.5em" />
+              {s.mode === 'asm' ? (
+                <Segmented
+                  label="Number after j means"
+                  value={s.jumpOp}
+                  onChange={s.setJumpOp}
+                  options={[{ value: 'field', label: 'Target field', title: 'L08 p8' }, { value: 'address', label: 'Byte address', title: 'QtSpim' }]}
+                />
+              ) : null}
+            </div>
+          </details>
+        </div>
+        {optionErrors.length ? <p className="mp-err">{optionErrors.join('; ')}</p> : null}
+        <div className="mp-editor">
+          {s.mode === 'asm' ? (
+            <CodeEditor label="Assembly, labels allowed (one instruction per line)" value={s.asmText} onChange={s.setAsm} rows={Math.min(5, Math.max(2, lineCount))} errors={errorMap(errors)} />
+          ) : (
+            <CodeEditor label="32-bit words, e.g. 0x012A4020 (one or more per line)" value={s.hexText} onChange={s.setHex} rows={Math.min(5, Math.max(2, lineCount))} errors={errorMap(errors)} />
+          )}
+        </div>
+      </div>
+
+      <div className="mp-board canvas">
+        <div className="mp-board-bar">
+          <p className="mp-board-title">
+            {ins && ex ? (
+              <>
+                <span className="mono">{ins.text}</span>
+                <span className="mp-board-step mono">
+                  <W e={ex.steps[3]}>{ex.hex}</W>
+                </span>
+              </>
+            ) : (
+              'Type an instruction or a word'
+            )}
+          </p>
+          {instrs.length > 1 ? (
+            <div className="mp-picks" role="group" aria-label="Instruction to show">
+              {instrs.map((x, k) => (
+                <button key={k} type="button" className="mp-pick mono" aria-pressed={k === sel} onClick={() => s.setSel(k)}>
+                  {x.text}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        {ins && ex ? (
+          <div className="mp-board-body">
+            <FieldGrid ex={ex} />
+            {b ? <BranchRuler b={b} /> : null}
+            {jx ? <JumpSplice jx={jx} instr={ins} /> : null}
+          </div>
+        ) : (
+          <p className="mp-pad mp-muted">Nothing to show yet.</p>
+        )}
+        <div className="mp-board-foot">
+          <Legend
+            items={[
+              { signal: 'control', label: 'opcode and funct, read by the control unit' },
+              { signal: 'data', label: 'constants: immediate, shamt, target' },
+              { signal: 'path', label: 'PC and where it goes next' },
+              ...(check?.given !== undefined && !check.ok ? [{ signal: 'miss' as const, label: 'field that differs in your answer' }] : []),
+            ]}
+          />
+          <span className="mp-muted">Dashed fields are fixed at 0.</span>
+        </div>
+      </div>
+
+      {ins && ex ? (
+        <section className="mp-details" aria-label="Working and checks for this instruction">
+          <Tabs label="Details" value={tab} onChange={setDetail} tabs={tabs} />
+          <div className="mp-detail-body">
+            {tab === 'work' ? <Steps steps={ex.steps} label="Encoding steps" /> : null}
+            {tab === 'check' ? checkPanel : null}
+            {tab === 'nums' ? numbers : null}
+            {tab === 'list' ? <DataTable columns={cols} rows={instrs} rowSignal={(_, k) => (k === sel ? 'path' : undefined)} compact /> : null}
+            {tab === 'traps' ? traps : null}
+          </div>
+        </section>
       ) : null}
     </Workspace>
   )

@@ -1,8 +1,8 @@
 import { useMemo, type ReactNode } from 'react'
 import { expandingOpcode, type ExpandingOpcodeInput, type ExpandingOpcodeResult } from '../../core/mips'
 import { useUrlState } from '../../lib/url-state'
-import { Button, Callout, Legend, Panel, Presets, Segmented, TextField, Workspace } from '../../ui/kit'
-import { Steps, W } from './common'
+import { Button, Callout, Legend, Presets, Segmented, Tabs, TextField, Workspace } from '../../ui/kit'
+import { Flow, Steps, W } from './common'
 import { OPCODE_PRESETS, blankClass, type OpClassText, type OpcodeText } from './presets'
 
 const toNum = (s: string) => (s.trim() === '' ? undefined : Number(s.trim()))
@@ -84,6 +84,15 @@ function OpcodeSpace({ r }: { r: ExpandingOpcodeResult }) {
   const y = (k: number) => 28 + k * (BAR_H + GAP)
   const budgetY = y(levels.length) + 12
   const height = budgetY + BAR_H + 24
+  // Light runs from the prefixes each width leaves over into the next, wider bar (R04 p45).
+  const fans: string[] = []
+  levels.forEach((L, k) => {
+    if (!levels[k + 1] || L.passedDown <= 0) return
+    const segs = [...L.taken.map((t) => t.count), L.passedDown]
+    const ws = widths(segs)
+    const mid = 8 + BAR_W - ws[ws.length - 1] / 2
+    fans.push(`M${mid} ${y(k) + BAR_H} C${mid} ${y(k) + BAR_H + GAP / 2} ${8 + BAR_W / 2} ${y(k + 1) - GAP / 2} ${8 + BAR_W / 2} ${y(k + 1)}`)
+  })
   return (
     <div className="mp-scroll">
       <svg className="mp-svg" width={BAR_W + 16} height={height} viewBox={`0 0 ${BAR_W + 16} ${height}`} role="img" aria-label="Opcode space split by opcode width">
@@ -117,6 +126,7 @@ function OpcodeSpace({ r }: { r: ExpandingOpcodeResult }) {
             </g>
           )
         })}
+        <Flow k={fans.join()} paths={fans} />
         <Bar
           y={budgetY}
           title={`Check: share of all 2^${wmax} = ${fmt(2 ** wmax)} patterns`}
@@ -130,130 +140,163 @@ function OpcodeSpace({ r }: { r: ExpandingOpcodeResult }) {
   )
 }
 
+type Detail = 'result' | 'tree' | 'work' | 'traps'
+
+const TABS: { value: Detail; label: string }[] = [
+  { value: 'result', label: 'Result' },
+  { value: 'tree', label: 'Prefix tree' },
+  { value: 'work', label: 'Working' },
+  { value: 'traps', label: 'Watch out' },
+]
+
 export default function OpcodeTab({ intro }: { intro: ReactNode }) {
   const [rawT, setT] = useUrlState<OpcodeText>('xo', OPCODE_PRESETS[1].value)
+  const [detail, setDetail] = useUrlState<Detail>('odt', 'result')
   const t = Array.isArray(rawT.classes) ? rawT : OPCODE_PRESETS[1].value // guard against a malformed shared link
   const r = useMemo(() => expandingOpcode(toInput(t)), [t])
   const setClass = (i: number, key: keyof OpClassText, v: string) =>
     setT((p) => ({ ...p, classes: p.classes.map((c, k) => (k === i ? { ...c, [key]: v } : c)) }))
   const nextName = String.fromCharCode(65 + (t.classes.length % 26))
+  const goal = t.objective === 'max' ? 'Maximum' : 'Minimum'
 
   return (
-    <Workspace
-      title="MIPS"
-      lectures="L10 p27-30, R04 p45"
-      intro={intro}
-      toolbar={<Presets presets={OPCODE_PRESETS} onPick={(v) => setT(v)} />}
-      inspector={
-        <>
-          <Panel title="Working">{r.error ? <p className="mp-err">{r.error}</p> : <Steps steps={r.steps} label="Expanding opcode working" />}</Panel>
-          <div className="mp-callouts">
-            <Callout kind="course" title="Maximum and minimum" cite="R04 p45">
-              For the maximum, give every shorter-opcode type its minimum (usually 1) and let the longest-opcode type take what is left. For the minimum, give the shorter types every code except the prefixes the next width needs.
-            </Callout>
-            <Callout kind="trap" title="The conditions are part of the question" cite="L10 p30, AY20-21 Q3">
-              At least one of each type sets the minimum counts. Fully utilised means no pattern may be left unused.
-            </Callout>
-            <Callout kind="trap" title="Register fields round up" cite="AY23/24 S2 Q7">
-              12 registers need ceil(log2 12) = 4 bits. A 512-byte memory needs log2 512 = 9 address bits.
-            </Callout>
-          </div>
-        </>
-      }
-    >
-      <Legend
-        items={[
-          { signal: 'control', label: 'opcodes given to a type' },
-          { signal: 'dontcare', label: 'patterns left unused' },
-        ]}
-      />
-      <Panel title="Question">
+    <Workspace title="MIPS" lectures="L10 p27-30, R04 p45" intro={intro} toolbar={<Presets presets={OPCODE_PRESETS} onPick={(v) => setT(v)} />}>
+      <div className="mp-command">
         <div className="mp-row">
           <TextField label="Instruction bits" value={t.length} onChange={(v) => setT((p) => ({ ...p, length: v }))} width="5em" />
           <TextField label="Registers" value={t.registers} onChange={(v) => setT((p) => ({ ...p, registers: v }))} width="5em" />
           <TextField label="Memory bytes" value={t.memoryBytes} onChange={(v) => setT((p) => ({ ...p, memoryBytes: v }))} width="7em" />
           <Segmented label="Find the" value={t.objective} onChange={(v) => setT((p) => ({ ...p, objective: v }))} options={[{ value: 'max', label: 'Maximum' }, { value: 'min', label: 'Minimum' }]} />
         </div>
-        <div className="mp-classes">
-          {t.classes.map((c, i) => (
-            <fieldset key={i} className="mp-class">
-              <legend>Type {i + 1}</legend>
-              {FIELDS.map(([key, label]) => (
-                <TextField key={key} label={label} value={c[key]} onChange={(v) => setClass(i, key, v)} width={key === 'name' ? '4em' : '4.5em'} />
-              ))}
-              <Button onClick={() => setT((p) => ({ ...p, classes: p.classes.filter((_, k) => k !== i) }))} disabled={t.classes.length < 2} title="Remove this type">
-                Remove
-              </Button>
-            </fieldset>
-          ))}
-        </div>
-        <Button onClick={() => setT((p) => ({ ...p, classes: [...p.classes, blankClass(nextName)] }))} disabled={t.classes.length >= 8}>
-          Add a type
-        </Button>
-      </Panel>
+        <details className="mp-options">
+          <summary>
+            Instruction types: {t.classes.map((c, i) => c.name.trim() || `type ${i + 1}`).join(', ')}
+          </summary>
+          <div className="mp-classes">
+            {t.classes.map((c, i) => (
+              <fieldset key={i} className="mp-class">
+                <legend>Type {i + 1}</legend>
+                {FIELDS.map(([key, label]) => (
+                  <TextField key={key} label={label} value={c[key]} onChange={(v) => setClass(i, key, v)} width={key === 'name' ? '4em' : '4.5em'} />
+                ))}
+                <Button onClick={() => setT((p) => ({ ...p, classes: p.classes.filter((_, k) => k !== i) }))} disabled={t.classes.length < 2} title="Remove this type">
+                  Remove
+                </Button>
+              </fieldset>
+            ))}
+          </div>
+          <Button onClick={() => setT((p) => ({ ...p, classes: [...p.classes, blankClass(nextName)] }))} disabled={t.classes.length >= 8}>
+            Add a type
+          </Button>
+        </details>
+      </div>
 
-      {r.error ? (
-        <Panel title="Result">
-          <p className="mp-err">{r.error}</p>
-        </Panel>
-      ) : (
-        <>
-          <Panel title="Opcode space">
-            <OpcodeSpace r={r} />
-          </Panel>
-          <Panel title="Result">
-            <table className="dtable mp-fit">
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th className="mp-r">Operand bits</th>
-                  <th className="mp-r">Opcode bits</th>
-                  <th className="mp-r">Instructions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {r.classes.map((c, k) => (
-                  <tr key={k}>
-                    <td>{c.name}</td>
-                    <td className="mono mp-r">{c.operandBits}</td>
-                    <td className="mono mp-r"><W e={c.why}>{c.opcodeBits}</W></td>
-                    <td className="mono mp-r"><W e={c.countWhy}>{fmt(c.count)}</W></td>
+      <div className="mp-board canvas">
+        <div className="mp-board-bar">
+          <p className="mp-board-title">
+            {r.error ? (
+              'No answer yet'
+            ) : (
+              <>
+                <span>{goal} total</span>
+                <span className="mp-board-step mono">
+                  <W e={r.steps[r.steps.length - 1]}>{fmt(r.total)}</W>
+                </span>
+              </>
+            )}
+          </p>
+        </div>
+        <div className="mp-board-body">{r.error ? <p className="mp-err">{r.error}</p> : <OpcodeSpace r={r} />}</div>
+        <div className="mp-board-foot">
+          <Legend
+            items={[
+              { signal: 'control', label: 'opcodes given to a type' },
+              { signal: 'dontcare', label: 'patterns left unused' },
+            ]}
+          />
+        </div>
+      </div>
+
+      <section className="mp-details" aria-label="Tables and working">
+        <Tabs label="Details" value={detail} onChange={setDetail} tabs={TABS} />
+        <div className="mp-detail-body">
+          {detail === 'result' ? (
+            r.error ? (
+              <p className="mp-err">{r.error}</p>
+            ) : (
+              <table className="dtable mp-fit">
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th className="mp-r">Operand bits</th>
+                    <th className="mp-r">Opcode bits</th>
+                    <th className="mp-r">Instructions</th>
                   </tr>
-                ))}
-                <tr className="mp-total">
-                  <td>{t.objective === 'max' ? 'Maximum' : 'Minimum'} total</td>
-                  <td />
-                  <td />
-                  <td className="mono mp-r">
-                    <W e={r.steps[r.steps.length - 1]}>{fmt(r.total)}</W>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <table className="dtable mp-fit mp-levels">
-              <caption>Prefix tree, shortest opcode first</caption>
-              <thead>
-                <tr>
-                  <th className="mp-r">Opcode bits</th>
-                  <th className="mp-r">Codes</th>
-                  <th>Taken</th>
-                  <th className="mp-r">Left over</th>
-                </tr>
-              </thead>
-              <tbody>
-                {r.levels.map((L, k) => (
-                  <tr key={k}>
-                    <td className="mono mp-r">{L.opcodeBits}</td>
-                    <td className="mono mp-r"><W e={L.why}>{fmt(L.available)}</W></td>
-                    <td className="mono">{L.taken.map((x) => `${x.name} ${fmt(x.count)}`).join(', ')}</td>
-                    <td className="mono mp-r">{fmt(L.passedDown)}</td>
+                </thead>
+                <tbody>
+                  {r.classes.map((c, k) => (
+                    <tr key={k}>
+                      <td>{c.name}</td>
+                      <td className="mono mp-r">{c.operandBits}</td>
+                      <td className="mono mp-r"><W e={c.why}>{c.opcodeBits}</W></td>
+                      <td className="mono mp-r"><W e={c.countWhy}>{fmt(c.count)}</W></td>
+                    </tr>
+                  ))}
+                  <tr className="mp-total">
+                    <td>{goal} total</td>
+                    <td />
+                    <td />
+                    <td className="mono mp-r">
+                      <W e={r.steps[r.steps.length - 1]}>{fmt(r.total)}</W>
+                    </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </Panel>
-        </>
-      )}
+                </tbody>
+              </table>
+            )
+          ) : null}
+          {detail === 'tree' ? (
+            r.error ? (
+              <p className="mp-err">{r.error}</p>
+            ) : (
+              <table className="dtable mp-fit mp-levels">
+                <caption>Prefix tree, shortest opcode first</caption>
+                <thead>
+                  <tr>
+                    <th className="mp-r">Opcode bits</th>
+                    <th className="mp-r">Codes</th>
+                    <th>Taken</th>
+                    <th className="mp-r">Left over</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {r.levels.map((L, k) => (
+                    <tr key={k}>
+                      <td className="mono mp-r">{L.opcodeBits}</td>
+                      <td className="mono mp-r"><W e={L.why}>{fmt(L.available)}</W></td>
+                      <td className="mono">{L.taken.map((x) => `${x.name} ${fmt(x.count)}`).join(', ')}</td>
+                      <td className="mono mp-r">{fmt(L.passedDown)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )
+          ) : null}
+          {detail === 'work' ? r.error ? <p className="mp-err">{r.error}</p> : <Steps steps={r.steps} label="Expanding opcode working" /> : null}
+          {detail === 'traps' ? (
+            <div className="mp-callouts">
+              <Callout kind="course" title="Maximum and minimum" cite="R04 p45">
+                For the maximum, give every shorter-opcode type its minimum (usually 1) and let the longest-opcode type take what is left. For the minimum, give the shorter types every code except the prefixes the next width needs.
+              </Callout>
+              <Callout kind="trap" title="The conditions are part of the question" cite="L10 p30, AY20-21 Q3">
+                At least one of each type sets the minimum counts. Fully utilised means no pattern may be left unused.
+              </Callout>
+              <Callout kind="trap" title="Register fields round up" cite="AY23/24 S2 Q7">
+                12 registers need ceil(log2 12) = 4 bits. A 512-byte memory needs log2 512 = 9 address bits.
+              </Callout>
+            </div>
+          ) : null}
+        </div>
+      </section>
     </Workspace>
   )
 }

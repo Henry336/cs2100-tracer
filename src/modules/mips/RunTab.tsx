@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   DEFAULT_TEXT_BASE,
   OP_BY_NAME,
@@ -21,10 +21,11 @@ import {
   type RunResult,
 } from '../../core/mips'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, Chip, CodeEditor, DataTable, Legend, Panel, Presets, Segmented, TextField, Workspace, type Column } from '../../ui/kit'
+import { Callout, Chip, CodeEditor, DataTable, Legend, Presets, Segmented, Tabs, TextField, Workspace, type Column } from '../../ui/kit'
 import { useStepper } from '../../ui/stepper'
 import { Transport } from '../../ui/Transport'
-import { Facts, Steps, W, parseAddress } from './common'
+import { BoardPlay, Facts, Steps, W, parseAddress } from './common'
+import { ProgramFlow } from './diagrams'
 import { RUN_PRESETS } from './presets'
 
 const MAX_STEPS = 2000
@@ -32,6 +33,17 @@ const MAX_MEM_ROWS = 96
 const START = RUN_PRESETS[0].value
 
 type Radix = 'hex' | 'dec'
+
+type Detail = 'regs' | 'mem' | 'trace' | 'lines' | 'counts' | 'notes'
+
+const DETAIL_TABS: { value: Detail; label: string }[] = [
+  { value: 'regs', label: 'Registers' },
+  { value: 'mem', label: 'Memory' },
+  { value: 'trace', label: 'Trace' },
+  { value: 'lines', label: 'Line counts' },
+  { value: 'counts', label: 'Counts' },
+  { value: 'notes', label: 'Course notes' },
+]
 
 const errorMap = (errors: AsmError[]) => {
   const out: Record<number, string> = {}
@@ -77,6 +89,7 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
   const [jal, setJal] = useUrlState<'pc+4' | 'pc+8'>('jal', 'pc+4')
   const [radix, setRadix] = useUrlState<Radix>('radix', 'hex')
   const [stepQ, setStepQ] = useUrlState('step', 0)
+  const [detail, setDetail] = useUrlState<Detail>('rdt', 'regs')
 
   const base = parseAddress(baseText)
   const sim = useMemo(() => {
@@ -88,6 +101,8 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
   }, [src, base, endian, regsText, memText, jal])
 
   const { program, result } = sim
+  // Open the editor on load only when the shared program does not assemble; after that the student decides.
+  const [editOpen] = useState(program.errors.length > 0)
   const frames = result.frames
   const stepper = useStepper(frames.length, { initial: stepQ })
   const i = stepper.index
@@ -144,6 +159,165 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
     { key: 't', header: 'Branch taken', align: 'right', mono: true, cell: (r) => (r.branches ? `${r.taken} of ${r.branches}` : '') },
   ]
 
+  const regPanel = (
+    <div className="mp-regs">
+      {regs.map((v, r) => {
+        const on = changed.has(r)
+        const k = lastWrite[r]
+        const why: Explain = r === 0
+          ? { rule: '$zero always holds 0; writes to it are discarded', cite: 'L06 p34' }
+          : k >= 0
+            ? { rule: `Written at step ${k + 1} by ${frames[k].instr.text}`, working: frames[k].note, cite: OP_BY_NAME[frames[k].instr.mnemonic]?.cite }
+            : { rule: 'Not written yet: this is the initial value', working: v ? `set in Initial registers: ${regName(r)} = ${v}` : 'registers start at 0' }
+        return (
+          <div key={on ? `${r}-${i}` : r} className={`mp-reg${on ? ' mp-reg-on' : ''}`}>
+            <span className="mp-reg-num mono">{r}</span>
+            <span className="mp-reg-name mono">{regName(r)}</span>
+            <span className="mp-reg-val mono"><W e={why}>{fmt(v, radix)}</W></span>
+            {on ? <span className="mp-reg-was mono">changed, was {fmt(prev[r], radix)}</span> : null}
+          </div>
+        )
+      })}
+    </div>
+  )
+
+  const memPanel = sim.rows.length === 0 ? (
+    <p className="mp-muted">This program does not use memory. Add words under Initial memory or a .data section.</p>
+  ) : (
+    <>
+      <p className="mp-muted">{endian === 'big' ? 'Big' : 'Little'}-endian, word view</p>
+      <table className="dtable dtable-compact mp-mem">
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Address</th>
+            <th className="mp-c">+0</th>
+            <th className="mp-c">+1</th>
+            <th className="mp-c">+2</th>
+            <th className="mp-c">+3</th>
+            <th className="mp-r">Word</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sim.rows.slice(0, MAX_MEM_ROWS).map((a) => {
+            const bytes = [0, 1, 2, 3].map((k) => mem[(a + k) >>> 0] ?? 0)
+            const w = readWord(mem, a, endian)
+            const overlaps = (list: { address: number; size: number }[]) => list.some((m) => m.address < a + 4 && m.address + m.size > a)
+            const wrote = f ? overlaps(f.memWrites) : false
+            const read = f ? overlaps(f.memReads) : false
+            const order = endian === 'big' ? [0, 1, 2, 3] : [3, 2, 1, 0]
+            return (
+              <tr key={a} className={wrote ? 'row-dirty' : read ? 'row-data' : undefined}>
+                <td className="mono">{[0, 1, 2, 3].flatMap((k) => labelAt[a + k] ?? []).join(', ')}</td>
+                <td className="mono">{hex(a)}</td>
+                {bytes.map((b, k) => {
+                  const hit = f && (touched(a + k, f.memWrites) || touched(a + k, f.memReads))
+                  return <td key={k} className={`mono mp-c${hit ? ' mp-byte-on' : ''}`}>{b.toString(16).toUpperCase().padStart(2, '0')}</td>
+                })}
+                <td className="mono mp-r">
+                  <W
+                    e={{
+                      rule: endian === 'big' ? 'Big-endian: the byte at +0 is the most significant' : 'Little-endian: the byte at +0 is the least significant; the online MIPS interpreter uses it (L10 p18). QtSpim on a PC also shows words this way, but that is a lab observation, not a slide fact',
+                      working: `${order.map((k) => bytes[k].toString(16).toUpperCase().padStart(2, '0')).join(' ')} = ${hex(w)} = ${w}`,
+                      cite: endian === 'big' ? 'R02 p8' : 'L10 p17-18',
+                    }}
+                  >
+                    {fmt(w, radix)}
+                  </W>
+                  {wrote ? <span className="visually-hidden"> (written this step)</span> : read ? <span className="visually-hidden"> (read this step)</span> : null}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      {sim.rows.length > MAX_MEM_ROWS ? <p className="mp-muted">Showing the first {MAX_MEM_ROWS} of {sim.rows.length} words.</p> : null}
+    </>
+  )
+
+  const countsPanel = (
+    <>
+      <Facts
+        items={[
+          [
+            'Real instructions run',
+            <W e={{ rule: 'Performance counts real instructions: a pseudo-instruction such as bge counts as its 2-instruction expansion', working: `${frames.length} steps in the trace, one per real instruction`, cite: 'L06 p8, T04 Q2' }}>{frames.length}</W>,
+          ],
+          [
+            'Source statements run',
+            <W e={{ rule: 'Each source line counted once, as L07 p38 counts ulw as one', working: `${result.statements}`, cite: 'L07 p38' }}>{result.statements}</W>,
+          ],
+          [
+            'Unique bytes read',
+            <W e={{ rule: 'Each byte counted once, however many loads read it: a word load reads 4 bytes, lb reads 1', working: `${frames.reduce((n, fr) => n + fr.memReads.length, 0)} loads touch ${sim.uniqueRead} different bytes`, cite: 'L07 p37-38' }}>{sim.uniqueRead}</W>,
+          ],
+          ['Output', result.output ? <span className="mp-out">{result.output}</span> : <span className="mp-muted">none</span>],
+        ]}
+      />
+      <Callout kind="trap" title="Pseudo-instructions are not free" cite="L06 p8">
+        bge, blt, li, la and move are not real instructions. The assembler expands them, and only real instructions count.
+      </Callout>
+    </>
+  )
+
+  const stepTraps = f ? (
+    <div className="mp-callouts">
+      {f.note.includes('discarded') ? (
+        <Callout kind="trap" title="$zero ignores writes" cite="L06 p34">
+          The result was computed, but $zero always reads 0, so nothing changed.
+        </Callout>
+      ) : null}
+      {f.instr.mnemonic === 'lb' ? (
+        <Callout kind="trap" title="lb sign-extends" cite="L07 p11, green card">
+          A byte of 0x80 or more loads as a negative number. lbu (on the card, not in lectures) fills with zeros instead.
+        </Callout>
+      ) : null}
+      {op?.kind === 'load' || op?.kind === 'store' ? (
+        <Callout kind="trap" title="Addresses step by 4" cite="L07 p10, p15">
+          A[i] sits at base + 4i, so walking a word array adds 4 to the address, not 1. lw and sw need an address that is a multiple of 4.
+        </Callout>
+      ) : null}
+    </div>
+  ) : null
+
+  const stepBody = f ? (
+    <div className="mp-step-body">
+      <p className="mp-does mono">{f.note}</p>
+      <Facts
+        items={[
+          ['PC', <W e={pcWhy(result, i, program.labels.main !== undefined)}>{hex(f.pc)}</W>],
+          ...(f.instr.pseudoOf || (op && !op.lecture)
+            ? [[
+                'Instruction',
+                <>
+                  {f.instr.pseudoOf ? <span className="mp-muted">from {f.instr.pseudoOf}</span> : null}
+                  {op && !op.lecture ? <> <Chip signal="dontcare" title={`Taught in ${op.cite}`}>not in lectures</Chip></> : null}
+                </>,
+              ] as [ReactNode, ReactNode]]
+            : []),
+          ['Machine word', <W e={{ rule: 'The 32-bit encoding of this instruction; Show the encoding splits it into fields', cite: 'L08 p12' }}>{hex(f.instr.word)}</W>],
+          ...(f.taken === undefined ? [] : [['Branch', f.taken ? <Chip signal="hit">taken</Chip> : <span>not taken</span>] as [ReactNode, ReactNode]]),
+          ['Next PC', <W e={nextPcWhy(f)}>{hex(f.nextPc)}</W>],
+          ...f.changedRegs.map((r) => [regName(r), `${fmt(prev[r], radix)} -> ${fmt(regs[r], radix)}`] as [ReactNode, ReactNode]),
+          ...f.memReads.map((m) => [`Read ${m.size} byte${m.size > 1 ? 's' : ''}`, `${hex(m.address)} -> ${hex(m.value, m.size * 2)}`] as [ReactNode, ReactNode]),
+          ...f.memWrites.map((m) => [`Wrote ${m.size} byte${m.size > 1 ? 's' : ''}`, `${hex(m.address)} <- ${hex(m.value, m.size * 2)}`] as [ReactNode, ReactNode]),
+          ...(f.output ? [['Printed', f.output] as [ReactNode, ReactNode]] : []),
+        ]}
+      />
+      <details className="mp-more">
+        <summary>Working</summary>
+        <Steps steps={f.why} label="Working for this step" />
+      </details>
+      <button type="button" className="mp-quiet" onClick={() => openEncode(f.instr.word, f.instr.address)}>
+        Show the encoding
+      </button>
+      {stepTraps}
+    </div>
+  ) : null
+
+  // Narrate only the current instruction; the one before and after stay one line each.
+  const storyRows = f ? [i - 1, i, i + 1].filter((k) => k >= 0 && k < frames.length) : []
+
   return (
     <Workspace
       title="MIPS"
@@ -158,233 +332,137 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
           describe={f ? f.instr.text : undefined}
         />
       }
-      inspector={
-        <>
-          <Panel title="Registers" actions={<Segmented label="Show values in" value={radix} onChange={setRadix} options={[{ value: 'hex', label: 'Hex' }, { value: 'dec', label: 'Decimal' }]} />}>
-            <div className="mp-regs">
-              {regs.map((v, r) => {
-                const on = changed.has(r)
-                const k = lastWrite[r]
-                const why: Explain = r === 0
-                  ? { rule: '$zero always holds 0; writes to it are discarded', cite: 'L06 p34' }
-                  : k >= 0
-                    ? { rule: `Written at step ${k + 1} by ${frames[k].instr.text}`, working: frames[k].note, cite: OP_BY_NAME[frames[k].instr.mnemonic]?.cite }
-                    : { rule: 'Not written yet: this is the initial value', working: v ? `set in Initial registers: ${regName(r)} = ${v}` : 'registers start at 0' }
-                return (
-                  <div key={on ? `${r}-${i}` : r} className={`mp-reg${on ? ' mp-reg-on' : ''}`}>
-                    <span className="mp-reg-num mono">{r}</span>
-                    <span className="mp-reg-name mono">{regName(r)}</span>
-                    <span className="mp-reg-val mono"><W e={why}>{fmt(v, radix)}</W></span>
-                    {on ? <span className="mp-reg-was mono">changed, was {fmt(prev[r], radix)}</span> : null}
-                  </div>
-                )
-              })}
-            </div>
-          </Panel>
-          <Panel title="Memory" actions={<span className="mp-muted">{endian === 'big' ? 'Big' : 'Little'}-endian, word view</span>}>
-            {sim.rows.length === 0 ? (
-              <p className="mp-muted">This program does not use memory. Add words under Initial memory or a .data section.</p>
-            ) : (
-              <table className="dtable dtable-compact mp-mem">
-                <thead>
-                  <tr>
-                    <th>Label</th>
-                    <th>Address</th>
-                    <th className="mp-c">+0</th>
-                    <th className="mp-c">+1</th>
-                    <th className="mp-c">+2</th>
-                    <th className="mp-c">+3</th>
-                    <th className="mp-r">Word</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sim.rows.slice(0, MAX_MEM_ROWS).map((a) => {
-                    const bytes = [0, 1, 2, 3].map((k) => mem[(a + k) >>> 0] ?? 0)
-                    const w = readWord(mem, a, endian)
-                    const overlaps = (list: { address: number; size: number }[]) => list.some((m) => m.address < a + 4 && m.address + m.size > a)
-                    const wrote = f ? overlaps(f.memWrites) : false
-                    const read = f ? overlaps(f.memReads) : false
-                    const order = endian === 'big' ? [0, 1, 2, 3] : [3, 2, 1, 0]
-                    return (
-                      <tr key={a} className={wrote ? 'row-dirty' : read ? 'row-data' : undefined}>
-                        <td className="mono">{[0, 1, 2, 3].flatMap((k) => labelAt[a + k] ?? []).join(', ')}</td>
-                        <td className="mono">{hex(a)}</td>
-                        {bytes.map((b, k) => {
-                          const hit = f && (touched(a + k, f.memWrites) || touched(a + k, f.memReads))
-                          return <td key={k} className={`mono mp-c${hit ? ' mp-byte-on' : ''}`}>{b.toString(16).toUpperCase().padStart(2, '0')}</td>
-                        })}
-                        <td className="mono mp-r">
-                          <W
-                            e={{
-                              rule: endian === 'big' ? 'Big-endian: the byte at +0 is the most significant' : 'Little-endian: the byte at +0 is the least significant; the online MIPS interpreter uses it (L10 p18). QtSpim on a PC also shows words this way, but that is a lab observation, not a slide fact',
-                              working: `${order.map((k) => bytes[k].toString(16).toUpperCase().padStart(2, '0')).join(' ')} = ${hex(w)} = ${w}`,
-                              cite: endian === 'big' ? 'R02 p8' : 'L10 p17-18',
-                            }}
-                          >
-                            {fmt(w, radix)}
-                          </W>
-                          {wrote ? <span className="visually-hidden"> (written this step)</span> : read ? <span className="visually-hidden"> (read this step)</span> : null}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            )}
-            {sim.rows.length > MAX_MEM_ROWS ? <p className="mp-muted">Showing the first {MAX_MEM_ROWS} of {sim.rows.length} words.</p> : null}
-          </Panel>
-          <Panel title="Counts">
-            <Facts
-              items={[
-                [
-                  'Real instructions run',
-                  <W e={{ rule: 'Performance counts real instructions: a pseudo-instruction such as bge counts as its 2-instruction expansion', working: `${frames.length} steps in the trace, one per real instruction`, cite: 'L06 p8, T04 Q2' }}>{frames.length}</W>,
-                ],
-                [
-                  'Source statements run',
-                  <W e={{ rule: 'Each source line counted once, as L07 p38 counts ulw as one', working: `${result.statements}`, cite: 'L07 p38' }}>{result.statements}</W>,
-                ],
-                [
-                  'Unique bytes read',
-                  <W e={{ rule: 'Each byte counted once, however many loads read it: a word load reads 4 bytes, lb reads 1', working: `${frames.reduce((n, fr) => n + fr.memReads.length, 0)} loads touch ${sim.uniqueRead} different bytes`, cite: 'L07 p37-38' }}>{sim.uniqueRead}</W>,
-                ],
-                ['Output', result.output ? <span className="mp-out">{result.output}</span> : <span className="mp-muted">none</span>],
-              ]}
-            />
-            <Callout kind="trap" title="Pseudo-instructions are not free" cite="L06 p8">
-              bge, blt, li, la and move are not real instructions. The assembler expands them, and only real instructions count.
-            </Callout>
-          </Panel>
-        </>
-      }
     >
-      <Legend
-        items={[
-          { signal: 'path', label: 'current instruction, register it changed' },
-          { signal: 'data', label: 'memory read this step' },
-          { signal: 'dirty', label: 'memory written this step' },
-        ]}
-      />
-      <Panel title="Program" actions={<span className="mp-status">{status}</span>}>
-        <div className="mp-prog">
-          <CodeEditor
-            label="MIPS code"
-            value={src}
-            onChange={setSrc}
-            rows={14}
-            marks={f && f.instr.line > 0 ? { [f.instr.line - 1]: 'path' } : undefined}
-            errors={errorMap(program.errors)}
-          />
-          <div className="mp-prog-side">
-            <div className="mp-row">
-              <TextField label="First instruction at" value={baseText} onChange={setBase} width="8.5em" />
-              <Segmented
-                label="Byte order"
-                value={endian}
-                onChange={setEndian}
-                options={[{ value: 'big', label: 'Big', title: 'Course MIPS, R02 p8' }, { value: 'little', label: 'Little', title: 'QtSpim on a PC, L10 p18' }]}
-              />
-              <Segmented
-                label="jal saves in $ra"
-                value={jal}
-                onChange={setJal}
-                options={[{ value: 'pc+4', label: 'PC+4', title: 'L08 p8 and QtSpim' }, { value: 'pc+8', label: 'PC+8', title: 'Green card' }]}
-              />
+      <div className="mp-command">
+        <p className="mp-status">{status}</p>
+        <details className="mp-options" open={editOpen}>
+          <summary>Edit the program, registers and memory</summary>
+          <div className="mp-prog">
+            <CodeEditor
+              label="MIPS code"
+              value={src}
+              onChange={setSrc}
+              rows={14}
+              marks={f && f.instr.line > 0 ? { [f.instr.line - 1]: 'path' } : undefined}
+              errors={errorMap(program.errors)}
+            />
+            <div className="mp-prog-side">
+              <div className="mp-row">
+                <TextField label="First instruction at" value={baseText} onChange={setBase} width="8.5em" />
+                <Segmented
+                  label="Byte order"
+                  value={endian}
+                  onChange={setEndian}
+                  options={[{ value: 'big', label: 'Big', title: 'Course MIPS, R02 p8' }, { value: 'little', label: 'Little', title: 'QtSpim on a PC, L10 p18' }]}
+                />
+                <Segmented
+                  label="jal saves in $ra"
+                  value={jal}
+                  onChange={setJal}
+                  options={[{ value: 'pc+4', label: 'PC+4', title: 'L08 p8 and QtSpim' }, { value: 'pc+8', label: 'PC+8', title: 'Green card' }]}
+                />
+              </div>
+              {optionErrors.length ? <p className="mp-err">{optionErrors.join('; ')}</p> : null}
+              <CodeEditor label="Initial registers (one per line, e.g. $t0 = 37)" value={regsText} onChange={setRegs} rows={3} errors={errorMap(sim.regErrors)} />
+              <CodeEditor label="Initial memory (address: words, 4 bytes each)" value={memText} onChange={setMem} rows={3} errors={errorMap(sim.memErrors)} />
             </div>
-            {optionErrors.length ? <p className="mp-err">{optionErrors.join('; ')}</p> : null}
-            <CodeEditor label="Initial registers (one per line, e.g. $t0 = 37)" value={regsText} onChange={setRegs} rows={3} errors={errorMap(sim.regErrors)} />
-            <CodeEditor label="Initial memory (address: words, 4 bytes each)" value={memText} onChange={setMem} rows={3} errors={errorMap(sim.memErrors)} />
           </div>
-        </div>
-      </Panel>
+        </details>
+      </div>
 
-      <Panel
-        title={f ? `Step ${i + 1}: ${f.instr.text}` : 'Step'}
-        actions={f ? <button type="button" className="btn" onClick={() => openEncode(f.instr.word, f.instr.address)}>Show the encoding</button> : null}
-      >
-        {f ? (
-          <div className="mp-stepbody">
-            <Facts
+      <div className="mp-stage">
+        <div className="mp-board canvas">
+          <div className="mp-board-bar">
+            <p className="mp-board-title">
+              {f ? (
+                <>
+                  <span className="mp-board-step">Step {i + 1}</span>
+                  <span className="mp-muted">of {frames.length}</span>
+                  <span className="mono">{f.instr.text}</span>
+                </>
+              ) : (
+                'Nothing has run'
+              )}
+            </p>
+            <div className="mp-board-actions">
+              <Segmented label="Numbers" value={radix} onChange={setRadix} options={[{ value: 'hex', label: 'Hex' }, { value: 'dec', label: 'Decimal' }]} />
+            </div>
+          </div>
+          {program.instructions.length ? (
+            <ProgramFlow program={program} f={f} step={i} />
+          ) : (
+            <p className="mp-pad mp-muted">No instructions yet. Write or load a program.</p>
+          )}
+          {frames.length ? <BoardPlay stepper={stepper} start="Run this program" next="Next instruction" /> : null}
+          <div className="mp-board-foot">
+            <Legend
               items={[
-                ['PC', <W e={pcWhy(result, i, program.labels.main !== undefined)}>{hex(f.pc)}</W>],
-                [
-                  'Instruction',
-                  <>
-                    {f.instr.text}
-                    {f.instr.pseudoOf ? <span className="mp-muted"> from {f.instr.pseudoOf}</span> : null}
-                    {op && !op.lecture ? <> <Chip signal="dontcare" title={`Taught in ${op.cite}`}>not in lectures</Chip></> : null}
-                  </>,
-                ],
-                ['Machine word', <W e={{ rule: 'The 32-bit encoding of this instruction; Show the encoding splits it into fields', cite: 'L08 p12' }}>{hex(f.instr.word)}</W>],
-                ['Register transfer', f.note],
-                ...(f.taken === undefined ? [] : [['Branch', f.taken ? <Chip signal="hit">taken</Chip> : <span>not taken</span>] as [ReactNode, ReactNode]]),
-                ['Next PC', <W e={nextPcWhy(f)}>{hex(f.nextPc)}</W>],
-                ...f.memReads.map((m) => [`Read ${m.size} byte${m.size > 1 ? 's' : ''}`, `${hex(m.address)} -> ${hex(m.value, m.size * 2)}`] as [ReactNode, ReactNode]),
-                ...f.memWrites.map((m) => [`Wrote ${m.size} byte${m.size > 1 ? 's' : ''}`, `${hex(m.address)} <- ${hex(m.value, m.size * 2)}`] as [ReactNode, ReactNode]),
-                ...(f.output ? [['Printed', f.output] as [ReactNode, ReactNode]] : []),
+                { signal: 'path', label: 'current instruction and where the PC goes next' },
+                { signal: 'data', label: 'memory read this step' },
+                { signal: 'dirty', label: 'memory written this step' },
               ]}
             />
-            <div>
-              <p className="control-label">Working</p>
-              <Steps steps={f.why} label="Working for this step" />
-            </div>
           </div>
-        ) : (
-          <p className="mp-muted">Nothing has run. Write or load a program above.</p>
-        )}
-        <div className="mp-callouts">
-          {f?.note.includes('discarded') ? (
-            <Callout kind="trap" title="$zero ignores writes" cite="L06 p34">
-              The result was computed, but $zero always reads 0, so nothing changed.
-            </Callout>
-          ) : null}
-          {f?.instr.mnemonic === 'lb' ? (
-            <Callout kind="trap" title="lb sign-extends" cite="L07 p11, green card">
-              A byte of 0x80 or more loads as a negative number. lbu (on the card, not in lectures) fills with zeros instead.
-            </Callout>
-          ) : null}
-          {op?.kind === 'load' || op?.kind === 'store' ? (
-            <Callout kind="trap" title="Addresses step by 4" cite="L07 p10, p15">
-              A[i] sits at base + 4i, so walking a word array adds 4 to the address, not 1. lw and sw need an address that is a multiple of 4.
-            </Callout>
-          ) : null}
         </div>
-      </Panel>
 
-      <Panel title="Trace" actions={<span className="mp-muted">Newest first, last 40 steps</span>} flush>
-        {frames.length ? (
-          <DataTable columns={traceCols} rows={traceRows} rowSignal={(r) => (r.step === i ? 'path' : undefined)} compact />
-        ) : (
-          <p className="mp-muted mp-pad">No instructions executed.</p>
-        )}
-      </Panel>
-
-      <Panel title="Line counts" actions={<span className="mp-muted">Whole run</span>} flush>
-        {sim.profile.length ? (
-          <DataTable
-            compact
-            rows={sim.profile}
-            rowSignal={(r) => (f && r.line === f.instr.line ? 'path' : undefined)}
-            columns={lineCols}
-          />
-        ) : (
-          <p className="mp-muted mp-pad">No instructions executed.</p>
-        )}
-      </Panel>
-
-      <div className="mp-callouts">
-        <Callout kind="course" title="Byte order" cite="R02 p8, L10 p17-18">
-          The course&apos;s MIPS is big-endian; QtSpim on a PC is little-endian. Only words and halfwords change: strings and byte arrays look the same in both.
-        </Callout>
-        <Callout kind="course" title="Return address of jal" cite="L08 p8, Lab 5 p3">
-          The lecture summary and QtSpim save PC+4 in $ra. The green card says PC+8. Pick the one your question uses.
-        </Callout>
-        {usesLab ? (
-          <Callout kind="beyond" title="Beyond the lectures: syscall, .data and jal">
-            These come from the labs (Lab 3 to 5), not the lecture slides. The tracer runs them as QtSpim does.
-          </Callout>
+        {f ? (
+          <aside className="mp-story" aria-label="The current instruction">
+            <ol className="mp-story-steps">
+              {storyRows.map((k) => (
+                <li key={k} className={k === i ? 'is-now' : k < i ? 'is-past' : 'is-next'}>
+                  <button type="button" className="mp-story-btn" onClick={() => stepper.set(k)} aria-current={k === i ? 'step' : undefined}>
+                    <span className="mp-story-dot" aria-hidden="true" />
+                    <span className="mp-story-n">{k + 1}</span>
+                    <span className="mono">{frames[k].instr.text}</span>
+                  </button>
+                  {k === i ? stepBody : null}
+                </li>
+              ))}
+            </ol>
+          </aside>
         ) : null}
       </div>
+
+      <section className="mp-details" aria-label="Registers, memory and tables">
+        <Tabs label="Tables" value={detail} onChange={setDetail} tabs={DETAIL_TABS} />
+        <div className="mp-detail-body">
+          {detail === 'regs' ? regPanel : null}
+          {detail === 'mem' ? memPanel : null}
+          {detail === 'trace' ? (
+            frames.length ? (
+              <>
+                <p className="mp-muted">Newest first, last 40 steps</p>
+                <DataTable columns={traceCols} rows={traceRows} rowSignal={(r) => (r.step === i ? 'path' : undefined)} compact />
+              </>
+            ) : (
+              <p className="mp-muted">No instructions executed.</p>
+            )
+          ) : null}
+          {detail === 'lines' ? (
+            sim.profile.length ? (
+              <DataTable compact rows={sim.profile} rowSignal={(r) => (f && r.line === f.instr.line ? 'path' : undefined)} columns={lineCols} />
+            ) : (
+              <p className="mp-muted">No instructions executed.</p>
+            )
+          ) : null}
+          {detail === 'counts' ? countsPanel : null}
+          {detail === 'notes' ? (
+            <div className="mp-callouts">
+              <Callout kind="course" title="Byte order" cite="R02 p8, L10 p17-18">
+                The course&apos;s MIPS is big-endian; QtSpim on a PC is little-endian. Only words and halfwords change: strings and byte arrays look the same in both.
+              </Callout>
+              <Callout kind="course" title="Return address of jal" cite="L08 p8, Lab 5 p3">
+                The lecture summary and QtSpim save PC+4 in $ra. The green card says PC+8. Pick the one your question uses.
+              </Callout>
+              {usesLab ? (
+                <Callout kind="beyond" title="Beyond the lectures: syscall, .data and jal">
+                  These come from the labs (Lab 3 to 5), not the lecture slides. The tracer runs them as QtSpim does.
+                </Callout>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </section>
     </Workspace>
   )
 }
