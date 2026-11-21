@@ -120,7 +120,7 @@ export default function ExamTab({ intro, p }: { intro: ReactNode; p: ProgramStat
     const c = computed[k]
     if (!c.trace) return ''
     if (k === 'a') return stallHint(v, c.trace)
-    if (k === 'd') return v === t.f.totals.stallCycles && v !== c.value ? 'That counts every stall cycle. Nops only replace the data stalls that forwarding leaves; control waits are not nops.' : 'One nop per data stall cycle left with forwarding: usually one after each lw whose value is used by the next instruction (L21 p19-20).'
+    if (k === 'd') return v === t.f.totals.stallCycles && v !== c.value ? 'That counts every stall cycle. Nops replace only the data stalls left with forwarding.' : 'One nop per data stall cycle left with forwarding: usually one after each lw whose value is used by the next instruction (L21 p19-20).'
     return cycleHint(v, c.trace)
   }
   const lines = useMemo(() => {
@@ -188,14 +188,14 @@ export default function ExamTab({ intro, p }: { intro: ReactNode; p: ProgramStat
   ]
   const ok = t.nf.ok && t.f.ok
   const g = settings[Math.min(grid, settings.length - 1)]
-  const later = <p className="pl-muted">Shown after you press Check, so you can work the parts first.</p>
+  const later = <p className="pl-muted">Shown after you check your answers.</p>
 
   return (
     <Workspace title="Pipeline" lectures="AY24/25 Q19, AY25/26 Q19, R11 Addendum" intro={intro} toolbar={<PresetPicker p={p} />}>
       <Setup p={p} only={['branchStage', 'prediction', 'delayedBranch', 'jumpStage', 'storeData']} />
       <Board label="The five exam parts" title="Your answers" step={shown ? 'Checked' : undefined}>
         <div className="pl-exam">
-          <p className="pl-board-note">Work each part on paper, type the numbers, then press Check.</p>
+          <p className="pl-board-note">Work each part on paper first.</p>
           <div className="pl-exam-fields">
             {PARTS.map((x) => (
               <TextField key={x.k} label={`(${x.k}) ${x.q}`} value={ans[x.k]} onChange={(v) => setAns({ ...ans, [x.k]: v })} width="5em" />
@@ -213,7 +213,7 @@ export default function ExamTab({ intro, p }: { intro: ReactNode; p: ProgramStat
                 <Button onClick={() => setChg(paper.change!)}>Use the paper's change ({paper.cite.split(';')[0]})</Button>
               ) : null}
             </div>
-            {!changedSrc ? <p className="pl-muted">Pick a line and type its replacement. The label and the row tag stay.</p> : null}
+            {!changedSrc ? <p className="pl-muted">The label and the row tag stay.</p> : null}
           </details>
           {t.e && !t.e.ok ? <p className="pl-err">The changed line does not assemble: {t.e.errors.map((e) => e.message).join('; ')}</p> : null}
           {!ok ? <p className="pl-err">Fix the code to run the template.</p> : null}
@@ -243,7 +243,7 @@ export default function ExamTab({ intro, p }: { intro: ReactNode; p: ProgramStat
           cur === 'rules' ? (
             <div className="pl-notes">
               <Callout kind="trap" title="Stall cycles, not stall events" cite="AY24/25 Q19 key; AY25/26 Q19 key">
-                AY24/25 words its answer as 2 stalls of 2 cycles; AY25/26 as 5 stalls of 1 cycle. Both mean stall cycles, so always give the cycle count.
+                AY24/25 words its answer as 2 stalls of 2 cycles; AY25/26 as 5 stalls of 1 cycle. Both mean stall cycles, so give the cycle count.
               </Callout>
               <Callout kind="course" title="Same five questions every year" cite="R11 Addendum p3-8">
                 Read one grid without forwarding and one with it, and you have (a) to (d). Part (e) changes one instruction, which can add or remove a dependency.
@@ -262,7 +262,7 @@ export default function ExamTab({ intro, p }: { intro: ReactNode; p: ProgramStat
           ) : cur === 'delay' ? (
             <>
               <DataTable columns={delayCols} rows={t.f.instructions.map((_, i) => i)} compact />
-              <p className="pl-muted pl-gap-top">Each +n is WB minus (previous WB + 1), the way the AY23/24 S2 Q17 key lays it out. Click one for the reason.</p>
+              <p className="pl-muted pl-gap-top">Each +n is WB minus (previous WB + 1), as in the AY23/24 S2 Q17 key.</p>
             </>
           ) : (
             <div className="pl-exam-grid">

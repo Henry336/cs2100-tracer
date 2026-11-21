@@ -29,7 +29,7 @@ function SlotCandidates({ t }: { t: PipelineTrace }) {
   return (
     <div className="pl-slots">
       <p className="pl-muted pl-gap">
-        The delayed-branch trace simply runs the next instruction in the slot. A compiler would rather move an earlier instruction there, as long as the move keeps every RAW, WAR and WAW order and the branch does not use its result (L21 p46-48).
+        The trace runs the next instruction in the slot. A compiler would move an earlier instruction there instead, if the move keeps every RAW, WAR and WAW order and the branch does not use its result (L21 p46-48).
       </p>
       {branches.map(({ ins, k }) => {
         const c = delaySlotCandidates(t.stream, k)
@@ -123,7 +123,7 @@ export default function BranchesTab({ intro, p }: { intro: ReactNode; p: Program
             ok ? (
               <>
                 <DataTable columns={cols} rows={traces} compact />
-                <p className="pl-muted pl-gap-top">Every row uses the same code, run settings and forwarding choice. Click a strategy name for the mechanism and its slide.</p>
+                <p className="pl-muted pl-gap-top">Every row uses the same code, run settings and forwarding choice.</p>
               </>
             ) : (
               <p className="pl-err">Fix the code to compare strategies.</p>
@@ -154,7 +154,7 @@ export default function BranchesTab({ intro, p }: { intro: ReactNode; p: Program
               <Callout kind="trap" title="No branch handling is not predict not taken" cite="L21 p31, p40-42; AY23/24 S1 Q5 key D">
                 With no handling, wrong-path instructions would run and give wrong results. Predict not taken flushes them when the branch is taken.
               </Callout>
-              <Callout kind="trap" title="Early branch is hungry for operands" cite="L21 p37-39">
+              <Callout kind="trap" title="The early branch needs its operands early" cite="L21 p37-39">
                 After an ALU instruction right before the branch, add 1 stall (ALU to ID). After a lw right before it, add 2 (MEM to ID): 3 in total with no prediction, no better than deciding in MEM.
               </Callout>
               <Callout kind="course" title="Delay slot size" cite="L21 p46">

@@ -115,7 +115,7 @@ function Verdict({ t, d, shift }: { t: PipelineTrace; d: Dependency; shift: numb
         <W e={d.why}>
           <strong>{d.stalls ? plural(d.stalls, 'stall cycle') : 'no stall'}</strong>
         </W>
-        . Only RAW can stall: the reader genuinely needs a value that does not exist yet.
+        . Only RAW can stall, because the reader needs a value that does not exist yet.
       </p>
     )
   }
@@ -125,7 +125,7 @@ function Verdict({ t, d, shift }: { t: PipelineTrace; d: Dependency; shift: numb
     return (
       <>
         <p>
-          {a.name} reads {rl} in ID, cycle {a.stages.ID} (stage 2). {b.name} writes it in WB, cycle {b.stages.WB} (stage 5). In this pipeline every read is in stage 2 and every write in stage 5, in program order, so the write can never come first:{' '}
+          {a.name} reads {rl} in ID, cycle {a.stages.ID} (stage 2). {b.name} writes it in WB, cycle {b.stages.WB} (stage 5). Reads are always in stage 2 and writes in stage 5, in program order, so the write cannot come first:{' '}
           <W e={d.why}>
             <strong>no stall</strong>
           </W>
@@ -295,7 +295,7 @@ export default function HazardsTab({ intro, p }: { intro: ReactNode; p: ProgramS
           ) : (
             <div className="pl-notes">
               <Callout kind="course" title="Only RAW stalls this pipeline" cite="L21 p13-14; R11 p9">
-                RAW is the true data dependency. WAR and WAW do not cause hazards in the 5-stage in-order pipeline; they matter only for out-of-order execution.
+                WAR and WAW cause no hazards in the 5-stage in-order pipeline. They matter only for out-of-order execution.
               </Callout>
               <Callout kind="course" title="The other two hazard types" cite="L21 p5, p7-11, p27">
                 Structural: none here, because instruction and data memory are separate and the register file writes in the first half of a cycle and reads in the second. Control: {plural(t.stream.items.filter((i) => i.cls === 'branch' || i.cls === 'jump').length, 'branch or jump', 'branches or jumps')} executed; the Branches tab shows what each one costs.

@@ -127,7 +127,7 @@ export function ProgramFields({ p, marks }: { p: ProgramState; marks?: Record<nu
   const lines = p.src.split('\n').length
   return (
     <div className="pl-program">
-      <CodeEditor label="MIPS code (labels, # i3 or #inst A tags name the rows)" value={p.src} onChange={p.setSrc} rows={Math.min(14, Math.max(6, lines))} marks={marks} errors={errorMap(p.trace.errors)} />
+      <CodeEditor label="MIPS code (a label, # i3 or #inst A names the row)" value={p.src} onChange={p.setSrc} rows={Math.min(14, Math.max(6, lines))} marks={marks} errors={errorMap(p.trace.errors)} />
       {p.preset ? (
         <p className="pl-muted">
           {p.presetIntact ? 'Loaded: ' : 'Edited since loading: '}
@@ -154,7 +154,7 @@ export function ProgramFields({ p, marks }: { p: ProgramState; marks?: Record<nu
           </div>
           {runErrors.outcomes ? <span className="pl-err">{runErrors.outcomes}</span> : null}
           <p className="pl-muted">
-            With outcomes given, the code is walked without values, so the pipeline registers show register names only. The count stops at the last stage of the stop instruction, as AY23/24 S2 Q17 asks.
+            With outcomes given, the code runs without values, so the pipeline registers show register names only. The count ends at the stop instruction's WB (AY23/24 S2 Q17).
           </p>
         </div>
       </details>
@@ -220,12 +220,6 @@ export function OptionsFields({ p, only }: { p: ProgramState; only?: (keyof Pipe
           />
         ) : null}
       </div>
-      {show('jumpStage') ? <p className="pl-muted">The two keys disagree on j: AY23/24 S2 Q17 resolves it in ID, the T10 Additional Question in MEM.</p> : null}
-      {o.prediction === 'taken' && show('prediction') ? (
-        <Callout kind="beyond" title="Predict taken">
-          Predict taken is not taught (L21 p40 covers only predict not taken). It is here because R11 Quiz Q7 uses it.
-        </Callout>
-      ) : null}
     </div>
   )
 }
@@ -355,7 +349,7 @@ export function Notes({ notes }: { notes: string[] }) {
 /** What happens in one cycle, in plain sentences from the engine. */
 export function EventList({ frame }: { frame: CycleFrame | undefined }) {
   if (!frame) return <p className="pl-muted">No cycles to show.</p>
-  if (!frame.events.length) return <p className="pl-muted">Nothing special: every instruction moves on one stage.</p>
+  if (!frame.events.length) return <p className="pl-muted">Every instruction moves on one stage.</p>
   return (
     <ul className="pl-events">
       {frame.events.map((e, i) => (

@@ -139,7 +139,7 @@ export function buildFrames(stream: Stream, rows: PlacedRow[], instructions: Ins
       const exLoad = exRes && byUid.get(exRes.uid)!.item!.cls === 'load' ? exRes : undefined
       const lu = exLoad ? idRes.stalls.find((s) => s.stage === 'EX' && s.producer === exLoad.seq) : undefined
       if (exLoad && lu?.register !== undefined) {
-        events.push(`Hazard detection: ${exLoad.name} in EX is a load (ID/EX.MemRead = 1) and ID/EX.RegisterRt ${rl(lu.register)} matches a source of ${idRes.name} in IF/ID, so HAZARD = 1: the PC and IF/ID hold and a bubble goes into EX next cycle (T10 Answers p16)`)
+        events.push(`Hazard detection: ${exLoad.name} in EX is a lw (ID/EX.MemRead = 1) and ID/EX.RegisterRt ${rl(lu.register)} is a source of ${idRes.name} in IF/ID, so HAZARD = 1. The PC and IF/ID hold, and a bubble enters EX next cycle (T10 Answers p16)`)
       }
       if (c > h.idStart) {
         const cause = idRes.stalls.find((s) => s.binding && s.kind !== 'branch' && s.kind !== 'jump')
@@ -201,7 +201,7 @@ export function buildFrames(stream: Stream, rows: PlacedRow[], instructions: Ins
         f('Branch target', hex(target), target, '(PC+4) + imm x 4, computed for every instruction'),
         f('ALU result', alu.text, alu.value),
         f('isZero', alu.zero === undefined ? 'X' : alu.zero ? '1' : '0', alu.zero === undefined ? undefined : alu.zero ? 1 : 0),
-        f('RD2', shown(ins.rt, val(ins.rt)), val(ins.rt), 'after the forwarding mux; it is the store data for sw'),
+        f('RD2', shown(ins.rt, val(ins.rt)), val(ins.rt), 'after the forwarding mux; the store data for sw'),
         f('Write register', rl(wr), wr, wrNote),
       )
     } else {

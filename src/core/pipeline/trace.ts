@@ -24,7 +24,7 @@ function optionNotes(o: PipelineOptions, s: Stream): string[] {
   if (o.prediction === 'taken') n.push('Predict taken is beyond the course (L21 p40 covers only predict not taken). This follows R11 Quiz Q7: the target is fetched right after the branch')
   if (o.delayedBranch && o.branchStage === 'MEM') n.push('The course uses one delay slot with the early branch (L21 p46). With the decision in MEM, the slot hides only one of the three cycles')
   if (o.forwarding && s.items.some((i, k) => i.cls === 'store' && k > 0 && s.items[k - 1].cls === 'load' && s.items[k - 1].writes === i.dataReg && i.instr.rs !== i.dataReg)) {
-    n.push(`lw then sw of the loaded value: no source works this case. Option "${o.storeData}" ${o.storeData === 'ex' ? 'treats the store data as an EX operand (1 stall)' : 'assumes a MEM/WB->MEM path (0 stalls)'}`)
+    n.push(`lw then sw of the loaded value: no course source covers this case. Option "${o.storeData}" ${o.storeData === 'ex' ? 'treats the store data as an EX operand (1 stall)' : 'assumes a MEM/WB->MEM path (0 stalls)'}`)
   }
   if (o.forwarding && o.branchStage === 'ID' && s.items.some((i, k) => i.cls === 'branch' && k > 0 && s.items[k - 1].cls === 'load' && s.items[k - 1].writes !== null && i.reads.includes(s.items[k - 1].writes!))) {
     n.push('lw right before an early branch costs 2 data stall cycles (T10 Q3 shows two bubbles). L21 p39 says "3 total" because it also counts the 1-cycle branch delay with no prediction')

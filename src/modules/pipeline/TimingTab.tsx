@@ -40,7 +40,7 @@ function StageChart({ stages, td, unit }: { stages: number[]; td: number; unit: 
         <g transform={`translate(0 ${stages.length * rh + 4})`}>
           <line x1={lw + (max + td) * scale} x2={lw + (max + td) * scale} y1={-stages.length * rh} y2={rh / 2} className="pl-chart-clock" />
           <text x={lw} y={rh / 2 + 4} className="pl-chart-label pl-chart-left">
-            Every stage gets one whole cycle, so faster stages sit idle for the rest of it
+            Each stage gets a whole cycle; faster stages sit idle for the rest
           </text>
         </g>
       </svg>
@@ -60,7 +60,7 @@ function LoopCounter() {
       <div className="pl-row">
         <Presets presets={LOOP_PRESETS.map((x) => ({ name: `${x.name} (${x.expect})`, source: x.source, value: x.value }))} onPick={(v) => setL(v)} />
       </div>
-      <p className="pl-muted pl-gap">For a loop that updates a counter and then tests it with bne against an exit value. Ideal means no hazards, so only the dynamic count matters. Assume registers start at 0 unless set (AY25/26 Q2).</p>
+      <p className="pl-muted pl-gap">For a loop that updates a counter, then tests it with bne against an exit value. Registers start at 0 unless set (AY25/26 Q2).</p>
       <div className="pl-row">
         <TextField label="Counter starts at (0x for hex)" value={l.init} onChange={(v) => set('init', v)} width="6em" />
         <NumberField label="Step per iteration" value={l.step} onChange={(v) => set('step', v)} />

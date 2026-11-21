@@ -12,12 +12,12 @@ import './pipeline.css'
 type Tab = 'diagram' | 'exam' | 'datapath' | 'hazards' | 'branches' | 'timing'
 
 const TABS: { value: Tab; label: string; blurb: string }[] = [
-  { value: 'diagram', label: 'Pipeline diagram', blurb: 'Step through the cycle grid: every stall, flush and forward, with the reason and the slide it comes from.' },
-  { value: 'exam', label: 'Exam (a) to (e)', blurb: 'Answer the five parts the papers ask every year (stalls and cycles with and without forwarding, nops, one changed instruction), then check them against the trace.' },
-  { value: 'datapath', label: 'Pipelined datapath', blurb: 'See which instruction sits in each stage of the L20 datapath and what each pipeline register holds, cycle by cycle.' },
-  { value: 'hazards', label: 'Hazards', blurb: 'Classify every RAW, WAR and WAW pair and see from the read and write cycles why only RAW stalls.' },
-  { value: 'branches', label: 'Branches', blurb: 'Run the same code with the branch decided in MEM or ID, with prediction, or with a delay slot, and compare the cycles.' },
-  { value: 'timing', label: 'Timing', blurb: 'Compare single-cycle, multi-cycle and pipelined time for a workload, with the formulas filled in.' },
+  { value: 'diagram', label: 'Pipeline diagram', blurb: 'Every stall, flush and forward, cycle by cycle, with its reason and slide.' },
+  { value: 'exam', label: 'Exam (a) to (e)', blurb: 'The five parts the papers ask every year: stalls and cycles with and without forwarding, nops, and one changed instruction.' },
+  { value: 'datapath', label: 'Pipelined datapath', blurb: 'Which instruction is in each stage of the L20 datapath, and what each pipeline register holds.' },
+  { value: 'hazards', label: 'Hazards', blurb: 'Every RAW, WAR and WAW pair, with the read and write cycles that show why only RAW stalls.' },
+  { value: 'branches', label: 'Branches', blurb: 'The same code with the branch decided in MEM or ID, with prediction, or with a delay slot.' },
+  { value: 'timing', label: 'Timing', blurb: 'Single-cycle, multi-cycle and pipelined time for one workload, with the formulas filled in.' },
 ]
 
 export default function PipelinePage() {
@@ -26,7 +26,7 @@ export default function PipelinePage() {
   const current = TABS.find((t) => t.value === tab) ?? TABS[0]
   const intro = (
     <div className="pl-intro">
-      <p>{current.blurb} Click any underlined value to see how it was worked out.</p>
+      <p>{current.blurb} Click an underlined value for its working.</p>
       <Tabs label="Pipeline tools" value={current.value} onChange={setTab} tabs={TABS} />
     </div>
   )

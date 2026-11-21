@@ -328,7 +328,7 @@ function RegisterCard({ name, c, filling, bug }: { name: PipeReg; c: RegContents
           ))}
         </dl>
       ) : (
-        <p className="pl-muted">{c.uid ? 'Nothing latched yet.' : empty ? 'Nothing has reached this register yet: the pipeline is still filling.' : 'A bubble: every control signal is 0, so it writes nothing (T10 Answers p16).'}</p>
+        <p className="pl-muted">{c.uid ? 'Nothing latched yet.' : empty ? 'The pipeline is still filling.' : 'Every control signal is 0, so it writes nothing (T10 Answers p16).'}</p>
       )}
       {groups.length ? (
         <div className="pl-ctlgroups" aria-label="Control signals carried">
@@ -386,7 +386,7 @@ export default function DatapathTab({ intro, p }: { intro: ReactNode; p: Program
           label="Pipelined datapath"
           title="Pipelined datapath"
           step={f ? `Cycle ${f.cycle}` : undefined}
-          actions={<Toggle label="Show only what this instruction uses" checked={focus} onChange={setFocus} hint="Each stage keeps only the units and wires its own instruction uses; the rest are hidden, not moved" />}
+          actions={<Toggle label="Show only what this instruction uses" checked={focus} onChange={setFocus} hint="Hides the units and wires that the instruction in each stage does not use" />}
           play={t.ok ? <PlayBar stepper={stepper} start="Step through the cycles" next={(i) => `Next: cycle ${t.frames[i]?.cycle ?? i + 1}`} /> : null}
           foot={
             <Legend
@@ -414,7 +414,7 @@ export default function DatapathTab({ intro, p }: { intro: ReactNode; p: Program
               <Callout kind="trap" title="Bug mode: the wrong register is written" cite="L20 p22-23">
                 {writer} should write {rl(f.regWrite.register)}
                 {f.regWrite.value === undefined ? '' : ` = ${f.regWrite.value}`}. Without the write register in MEM/WB, the number comes from IF/ID, which holds {idRow ? `${idRow.name} (${idRow.text})` : 'no instruction now'}
-                {wrongReg === undefined ? '.' : wrongReg === f.regWrite.register ? `, which names ${rl(wrongReg)} too, so this time the result happens to land in the right place.` : `, so the value goes into ${rl(wrongReg)} instead.`}
+                {wrongReg === undefined ? '.' : wrongReg === f.regWrite.register ? `, which also names ${rl(wrongReg)}, so the result lands in the right place by luck.` : `, so the value goes into ${rl(wrongReg)} instead.`}
               </Callout>
             ) : null}
           </CycleStory>

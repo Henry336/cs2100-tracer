@@ -135,7 +135,7 @@ describe('stall rules', () => {
     const mem = tracePipeline(src, { storeData: 'mem' })
     expect(mem.totals.cycles).toBe(6)
     expect(mem.instructions[1].operands.find((o) => o.register === 1)?.forward.path).toBe('MEM/WB -> MEM')
-    expect(mem.notes.some((n) => n.includes('no source works this case'))).toBe(true)
+    expect(mem.notes.some((n) => n.includes('no course source covers this case'))).toBe(true)
   })
   it('derived: delayed branch with early branch removes the branch delay (L21 p46)', () => {
     const src = 'add $1, $2, $3\nbeq $4, $5, L\nadd $6, $7, $8\nsub $9, $9, $9\nL: or $10, $11, $12'

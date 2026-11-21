@@ -42,7 +42,7 @@ export function Reasons({ trace, cycle, only }: { trace: PipelineTrace; cycle?: 
   const rl = (r: number) => regLabel(r, trace.stream.regStyle)
   const byseq = new Map(trace.instructions.map((i) => [i.seq, i]))
   const listed = trace.instructions.filter((i) => (i.operands.length || i.stalls.length || i.flushes.length) && (!only || only.has(i.uid)))
-  if (!listed.length) return only ? null : <p className="pl-muted">No instruction reads a register written by an earlier one, and there are no branches: the pipeline never waits.</p>
+  if (!listed.length) return only ? null : <p className="pl-muted">No dependencies and no branches, so nothing waits.</p>
   const active = (i: InstrResult) => cycle !== undefined && Object.values(i.stages).some((c) => c === cycle)
   return (
     <ol className="pl-reasons">
@@ -54,7 +54,7 @@ export function Reasons({ trace, cycle, only }: { trace: PipelineTrace; cycle?: 
           const cost = o.stalls > 0
             ? plural(o.stalls, 'stall cycle')
             : o.isolated > 0
-              ? `no extra stall (alone it costs ${o.isolated}; an earlier stall already covered it)`
+              ? `no extra stall (alone it costs ${o.isolated}; an earlier stall covers it)`
               : 'no stall'
           lines.push(
             <li key={`o${o.register}`}>
@@ -169,17 +169,17 @@ export function cycleHint(v: number, t: PipelineTrace): string {
   const x = t.totals
   if (v === x.ideal && x.stallCycles) return `${x.ideal} is the ideal count, I + 4. Each stall adds a cycle on top (L20 p32).`
   if (v === x.instructions) return 'One cycle per instruction is the single-cycle count. A 5-stage pipeline needs I + 4 plus stalls (L20 p32).'
-  if (Math.abs(v - x.cycles) === 1) return 'Off by one. Count up to the WB of the last instruction, cycle 1 being the first fetch (AY23/24 S2 Q17).'
+  if (Math.abs(v - x.cycles) === 1) return "Off by one. Cycle 1 is the first fetch, and the count ends at the last instruction's WB (AY23/24 S2 Q17)."
   const adj = t.instructions.filter((i) => i.operands.some((o) => o.distance === 1 && o.need === 'ID' && o.stalls === 2)).length
-  if (!t.options.forwarding && adj && v === x.cycles + adj) return 'An adjacent RAW without forwarding costs 2 stalls, not 3: the register file is written in the first half of WB and read in the second half of ID (L21 p10-11, p22).'
-  if (v === x.ideal + x.stallEvents && x.stallEvents !== x.stallCycles) return 'You added one cycle per delayed instruction. Some stalls last more than one cycle; the reasons list gives each length.'
+  if (!t.options.forwarding && adj && v === x.cycles + adj) return 'An adjacent RAW without forwarding costs 2 stalls. The register file is written in the first half of WB and read in the second half of ID (L21 p10-11, p22).'
+  if (v === x.ideal + x.stallEvents && x.stallEvents !== x.stallCycles) return 'You counted one cycle per delayed instruction. Some stalls last longer; the reasons list gives each length.'
   if (x.flushed && v === x.cycles - x.controlStallCycles) return 'That leaves out the control stalls. Count the cycles lost while the branch or jump resolves.'
-  return 'Not the same. Step through the cycles and compare where each stall starts with the reasons list.'
+  return 'Compare where each stall starts in the grid with the reasons list.'
 }
 
 export function stallHint(v: number, t: PipelineTrace): string {
   const x = t.totals
-  if (v === x.stallEvents) return `${x.stallEvents} is the number of delayed instructions (stall events). Count stall cycles instead: total ${x.cycles} minus ideal ${x.ideal} (AY24/25 Q19 key counts 2 stalls of 2 cycles as 4).`
+  if (v === x.stallEvents) return `${x.stallEvents} is the number of delayed instructions (stall events). Count stall cycles: total ${x.cycles} minus ideal ${x.ideal} (the AY24/25 Q19 key counts 2 stalls of 2 cycles as 4).`
   if (x.controlStallCycles && v === x.dataStallCycles) return 'That counts the data stalls only. Branches and jumps add control stall cycles too.'
   if (x.dataStallCycles && v === x.controlStallCycles) return 'That counts the control stalls only. Add the data stalls.'
   return `Stall cycles = total cycles minus the ideal I + 4. Check each stall in the reasons list.`
@@ -205,7 +205,7 @@ export function AnswerCheck({ trace }: { trace: PipelineTrace }) {
     )
   return (
     <div className="pl-check">
-      <p className="pl-muted">Work it out on paper first, then type your numbers. Nothing is checked until you press Check.</p>
+      <p className="pl-muted">Work it out on paper first.</p>
       <div className="pl-row">
         <TextField label="Total cycles" value={ans.cycles} onChange={(v) => set('cycles', v)} width="6em" />
         <TextField label="Stall cycles" value={ans.stalls} onChange={(v) => set('stalls', v)} width="6em" />
@@ -357,7 +357,7 @@ export function IdealCompare({ trace }: { trace: PipelineTrace }) {
           })}
         </ul>
       ) : (
-        <p className="pl-muted">Nothing waits, so the actual run is already ideal.</p>
+        <p className="pl-muted">Nothing waits, so actual equals ideal.</p>
       )}
     </div>
   )
@@ -491,7 +491,7 @@ export default function DiagramTab({ intro, p }: { intro: ReactNode; p: ProgramS
           ) : cur === 'why' ? (
             <>
               <p className="pl-muted pl-gap">
-                The +n after each instruction is its extra delay: WB minus (previous WB + 1), the way the AY23/24 S2 Q17 key counts. Click any underlined value for the rule and the slide.
+                Each +n is the extra delay: WB minus (previous WB + 1), as the AY23/24 S2 Q17 key counts.
               </p>
               <Reasons trace={t} cycle={frame?.cycle} />
             </>
