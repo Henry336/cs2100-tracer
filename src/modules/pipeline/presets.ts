@@ -49,7 +49,7 @@ const EXTRA: PipelinePreset[] = [
   },
   {
     id: 'P19', title: 'Delay slot candidates', cite: 'AY23/24 S1 Q12', official: true, source: F.AY2324S1_Q12,
-    parts: [{ label: 'Early branch, delayed branch', options: { forwarding: true, branchStage: 'ID', delayedBranch: true }, expect: {}, note: 'Key D: I5 (add $3, $3, $4) can fill the slot after I3; I6 cannot, because I7 reads $5' }],
+    parts: [{ label: 'Early branch, delayed branch', options: { forwarding: true, branchStage: 'ID', delayedBranch: true }, expect: {}, note: 'Key D: I5 (add $3, $3, $4) can fill the slot after I7; I6 cannot, because I7 reads $5' }],
   },
   {
     id: 'L21x', title: 'Load-use with a WAR pair', cite: 'L21 p19-20', official: false,

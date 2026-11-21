@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { Callout, DataTable, Panel, Workspace, type Column } from '../../ui/kit'
+import { Callout, DataTable, Panel, Toggle, Workspace, type Column } from '../../ui/kit'
+import { useUrlState } from '../../lib/url-state'
 import './reference.css'
 
 type Row = Record<string, ReactNode>
@@ -33,7 +34,64 @@ function regUse(n: number): string {
   return ['global pointer', 'stack pointer', 'frame pointer', 'return address'][n - 28]
 }
 
-const REGS: Row[] = REG_NAMES.map((name, n) => ({ No: n, Name: name, Binary: n.toString(2).padStart(5, '0'), Use: regUse(n) }))
+const REGS: Row[] = REG_NAMES.map((name, n) => ({ No: n, Name: name, Binary: n.toString(2).padStart(5, '0'), Hex: `0x${n.toString(16).toUpperCase().padStart(2, '0')}`, Use: regUse(n) }))
+
+const C_SIZES: Row[] = [
+  { Type: 'char', Bytes: '1' },
+  { Type: 'int', Bytes: '4' },
+  { Type: 'float', Bytes: '4' },
+  { Type: 'double', Bytes: '8' },
+  { Type: 'any pointer', Bytes: '4 in exam questions (32-bit addresses, midterm AY25/26 Q12); 8 on a 64-bit lab machine' },
+]
+
+const C_PREC: Row[] = [
+  { Level: '1 (highest)', Operators: '( )  [ ]  .  ->  expr++  expr--', Assoc: 'left to right' },
+  { Level: '2 (unary)', Operators: '*  &  +  -  !  ~  ++expr  --expr  (type)  sizeof', Assoc: 'right to left' },
+  { Level: '3', Operators: '*  /  %', Assoc: 'left to right' },
+  { Level: '4', Operators: '+  -', Assoc: 'left to right' },
+  { Level: '5', Operators: '<  >  <=  >=', Assoc: 'left to right' },
+  { Level: '6', Operators: '==  !=', Assoc: 'left to right' },
+  { Level: '7', Operators: '&&', Assoc: 'left to right' },
+  { Level: '8', Operators: '||', Assoc: 'left to right' },
+  { Level: '9', Operators: '?:', Assoc: 'right to left' },
+  { Level: '10 (lowest)', Operators: '=  +=  -=  *=  /=  %=', Assoc: 'right to left' },
+]
+
+const IMMEDIATES: Row[] = [
+  { Kind: 'C5', Used: 'sll, srl shift amount', Range: '0 to 2^5 − 1 (0 to 31)' },
+  { Kind: 'C16_2s', Used: 'addi, slti, lw, sw, beq, bne', Range: '−2^15 to 2^15 − 1 (−32768 to 32767), sign-extended' },
+  { Kind: 'C16', Used: 'andi, ori, xori', Range: 'any 16-bit pattern (0x0000 to 0xFFFF), zero-extended' },
+]
+
+const INT_RANGES: Row[] = [
+  { Scheme: 'Sign and magnitude', Range: '−(2^(n−1) − 1) to 2^(n−1) − 1', Note: 'two zeros', Source: 'L03B p9' },
+  { Scheme: '1s complement', Range: '−(2^(n−1) − 1) to 2^(n−1) − 1', Note: 'two zeros; −x = invert every bit', Source: 'L03B p13' },
+  { Scheme: '2s complement', Range: '−2^(n−1) to 2^(n−1) − 1', Note: 'one zero; −x = invert, then add 1', Source: 'L03B p18' },
+  { Scheme: 'Excess-K', Range: '−K to 2^n − 1 − K', Note: 'value = stored pattern − K', Source: 'L03C p16 (range derived)' },
+]
+
+const IEEE: Row[] = [
+  { Format: 'Single (32 bits)', Fields: 'sign 1 | exponent 8 | fraction 23', Bias: '127' },
+  { Format: 'Double (64 bits)', Fields: 'sign 1 | exponent 11 | fraction 52', Bias: '1023' },
+]
+
+const IEEE_SPECIAL: Row[] = [
+  { Exponent: 'all 0s', Fraction: 'all 0s', Value: '±0' },
+  { Exponent: 'all 0s', Fraction: 'not 0', Value: 'denormalised: (−1)^s × 0.fraction × 2^(1 − bias)' },
+  { Exponent: 'neither all 0s nor all 1s', Fraction: 'any', Value: 'normalised: (−1)^s × 1.fraction × 2^(exponent − bias)' },
+  { Exponent: 'all 1s', Fraction: 'all 0s', Value: '±infinity' },
+  { Exponent: 'all 1s', Fraction: 'not 0', Value: 'NaN (signals an error)' },
+]
+
+const CONVENTIONS: Row[] = [
+  { Topic: 'Byte order', Course: 'big-endian in course MIPS questions (R02 p8)', Other: 'L10 p17: MIPS byte order depends on the implementation; L10 p18: the online MIPS interpreter is little-endian' },
+  { Topic: 'jal saves', Course: '$ra = PC + 4 (L08 p8; QtSpim, Lab 5 p3)', Other: 'green card: PC + 8' },
+  { Topic: 'Text and data start', Course: 'text 0x00400000 (Lab 3 p4), data 0x10010000 (Lab 4 p4)', Other: 'QtSpim puts main at 0x00400024 after its startup code; past papers use that address' },
+  { Topic: 'Pointer size', Course: '4 bytes (midterm AY25/26 Q12)', Other: '8 bytes on a 64-bit machine' },
+  { Topic: 'j in the pipeline', Course: 'no lecture rule (L20, L21 leave j out)', Other: 'AY23/24 S2 Q17 resolves j in ID (+1); the T10 Additional Question in MEM (+3)' },
+  { Topic: 'Miss penalty', Course: '(block bytes ÷ 4) × time per word (R12 p44 to p48)', Other: 'add 1 cycle when the question counts the restart' },
+  { Topic: 'Priority encoder', Course: 'L18: has a V output; outputs are X when no input is high', Other: 'T08 and AY24/25 8-to-3 version: no V output' },
+]
 
 const INSTR: Row[] = [
   { Instruction: 'add', Format: 'R', Opcode: '0', Funct: '20', Meaning: 'rd = rs + rt' },
@@ -106,6 +164,13 @@ const ALU_CONTROL: Row[] = [
   { Instr: 'slt', ALUop: '10', Funct: '101010', Action: 'set on less than', ALUcontrol: '0111' },
 ]
 
+const ALU_BITS: Row[] = [
+  { Bit: 'ALUcontrol3', Equation: '0', Source: 'L12 p28' },
+  { Bit: 'ALUcontrol2', Equation: 'ALUop0 + ALUop1·F1', Source: 'L12 p28' },
+  { Bit: 'ALUcontrol1', Equation: "ALUop1' + F2'", Source: 'R06 p20' },
+  { Bit: 'ALUcontrol0', Equation: 'ALUop1·(F3 + F0)', Source: 'R06 p20' },
+]
+
 const ALU_CODES: Row[] = [
   { ALUcontrol: '0000', Function: 'AND' },
   { ALUcontrol: '0001', Function: 'OR' },
@@ -151,6 +216,8 @@ const CACHE: Row[] = [
   { Quantity: 'Index', Formula: 'block number mod (blocks or sets)' },
   { Quantity: 'Tag', Formula: 'block number ÷ (blocks or sets)' },
   { Quantity: 'Hit', Formula: 'valid AND tag match' },
+  { Quantity: 'Bits per line', Formula: 'block bytes × 8 (data) + tag bits + 1 valid, + 1 dirty for write-back (L22 p28, p68)' },
+  { Quantity: 'Total storage', Formula: 'bits per line × number of lines (L22 p28)' },
   { Quantity: 'Average access time', Formula: 'hit rate × hit time + (1 − hit rate) × miss penalty (penalty includes hit time, L22 p21)' },
   { Quantity: 'Miss penalty, one word at a time (R12)', Formula: '(block size ÷ 4) × time per word, +1 if restart is counted' },
   { Quantity: 'Cycles lost to data misses (R12)', Formula: 'instructions × data-access fraction × miss rate × miss penalty' },
@@ -213,7 +280,7 @@ const MSI: Row[] = [
   { Component: 'Decoder n to 2^n', Outputs: 'output i = minterm i (first variable on the MSB select); a 0-enable is drawn with a bubble' },
   { Component: 'Active-low decoder', Outputs: "output i = m_i' when enabled, all 1s when disabled" },
   { Component: 'Encoder 4 to 2', Outputs: 'D0 = F1 + F3, D1 = F2 + F3 (exactly one input high)' },
-  { Component: 'Priority encoder', Outputs: 'highest-numbered input wins; V = 0 when no input is high' },
+  { Component: 'Priority encoder', Outputs: 'highest-numbered input wins; V = 0 when no input is high (L18). The T08 and AY24/25 8-to-3 version has no V output' },
   { Component: '4:1 MUX', Outputs: "Y = I0·S1'S0' + I1·S1'S0 + I2·S1S0' + I3·S1S0" },
   { Component: 'Magnitude comparator', Outputs: 'x_i = A_i ⊙ B_i; (A=B) = x3x2x1x0; no cascade inputs in CS2100' },
 ]
@@ -225,8 +292,45 @@ const GRAY: Row[] = [
   { Variables: '5', Layout: "two 4-variable maps side by side: left V' (m0 to m15), right V (m16 to m31), stacked, not mirrored" },
 ]
 
+/** A caption whose source part disappears in cheat-sheet mode. */
+const cap = (text: string, cite: string) => (
+  <>
+    {text} <span className="ref-cite">{`(${cite})`}</span>
+  </>
+)
+const citeCol = (rows: Row[]) => rows.map((r) => ({ ...r, Source: <span className="ref-cite">{r.Source}</span> }))
+
 const SECTIONS: { id: string; title: string; refs: string; body: ReactNode }[] = [
-  { id: 'registers', title: 'Registers', refs: 'L08 p7', body: <DataTable compact columns={cols(['No', 'Name', 'Binary', 'Use'], { mono: ['No', 'Name', 'Binary'] })} rows={REGS} /> },
+  { id: 'registers', title: 'Registers', refs: 'L08 p7', body: <DataTable compact columns={cols(['No', 'Name', 'Binary', 'Hex', 'Use'], { mono: ['No', 'Name', 'Binary', 'Hex'] })} rows={REGS} /> },
+  {
+    id: 'c',
+    title: 'C sizes and operator precedence',
+    refs: 'L02A p26, L02C p9',
+    body: (
+      <>
+        <DataTable compact columns={cols(['Type', 'Bytes'], { mono: ['Type'] })} rows={C_SIZES} caption="sizeof" />
+        <DataTable compact columns={cols(['Level', 'Operators', 'Assoc'], { mono: ['Operators'], headers: { Assoc: 'Associativity' } })} rows={C_PREC} caption="Precedence, highest first" />
+        <Callout kind="trap" cite="L02C p9">
+          *p++ groups as *(p++): postfix ++ is level 1, unary * is level 2. Bitwise &amp;, |, ^ and the shifts are not in the course table, so add brackets when you use them.
+        </Callout>
+      </>
+    ),
+  },
+  {
+    id: 'numbers',
+    title: 'Number representation',
+    refs: 'L03B to L03D, L09 p14',
+    body: (
+      <>
+        <DataTable compact columns={cols(['Scheme', 'Range', 'Note', 'Source'], { mono: ['Range'], headers: { Range: 'Range on n bits' } })} rows={citeCol(INT_RANGES)} />
+        <DataTable compact columns={cols(['Format', 'Fields', 'Bias'], { mono: ['Bias'] })} rows={IEEE} caption={cap('IEEE 754', 'L03D p6')} />
+        <DataTable compact columns={cols(['Exponent', 'Fraction', 'Value'])} rows={IEEE_SPECIAL} caption={cap('IEEE 754 special values', 'L09 p14')} />
+        <Callout kind="course" cite="derived from L03D p6 and L09 p14">
+          Single precision: the smallest normalised value is 2^−126 and the smallest denormalised value is 2^−149. The stored exponent is the real one plus the bias: 2^3 is stored as 3 + 127 = 130.
+        </Callout>
+      </>
+    ),
+  },
   {
     id: 'formats',
     title: 'Instruction formats and opcodes',
@@ -235,6 +339,7 @@ const SECTIONS: { id: string; title: string; refs: string; body: ReactNode }[] =
       <>
         <DataTable compact columns={cols(['Format', 'Fields', 'Bits'], { mono: ['Bits'] })} rows={FORMATS} />
         <DataTable compact columns={cols(['Instruction', 'Format', 'Opcode', 'Funct', 'Meaning'], { mono: ['Instruction', 'Opcode', 'Funct'] })} rows={INSTR} caption="Opcode and funct in hex" />
+        <DataTable compact columns={cols(['Kind', 'Used', 'Range'], { mono: ['Kind'], headers: { Used: 'Used by' } })} rows={IMMEDIATES} caption={cap('Immediate kinds', 'L06 p45')} />
         <Callout kind="course" cite="L08 p28, p37 to p39">
           Branch immediate = (target − (PC + 4)) ÷ 4, signed 16 bits. Jump target field = target address bits 27 to 2;
           the CPU puts back PC+4[31:28] in front and 00 at the end.
@@ -266,6 +371,7 @@ const SECTIONS: { id: string; title: string; refs: string; body: ReactNode }[] =
       <>
         <DataTable compact columns={cols(['Instr', 'ALUop', 'Funct', 'Action', 'ALUcontrol'], { mono: ['ALUop', 'Funct', 'ALUcontrol'] })} rows={ALU_CONTROL} />
         <DataTable compact columns={cols(['ALUcontrol', 'Function'], { mono: ['ALUcontrol'] })} rows={ALU_CODES} caption="4-bit codes: Ainvert, Binvert, Operation[1:0]" />
+        <DataTable compact columns={cols(['Bit', 'Equation', 'Source'], { mono: ['Equation'] })} rows={citeCol(ALU_BITS)} caption="ALU control unit, bit by bit (F = funct bits)" />
       </>
     ),
   },
@@ -275,9 +381,9 @@ const SECTIONS: { id: string; title: string; refs: string; body: ReactNode }[] =
     refs: 'L20, L21, R11',
     body: (
       <>
-        <DataTable compact columns={cols(['Stage', 'Signals'])} rows={STAGE_CONTROL} caption="Where each control signal is used (L20 p27)" />
+        <DataTable compact columns={cols(['Stage', 'Signals'])} rows={STAGE_CONTROL} caption={cap('Where each control signal is used', 'L20 p27')} />
         <DataTable compact columns={cols(['Situation', 'Stall', 'Rule'])} rows={HAZARDS} caption="Stall rules used by the answer keys" />
-        <DataTable compact columns={cols(['Design', 'Cycle', 'Time'], { headers: { Cycle: 'Cycle time', Time: 'Time for I instructions' } })} rows={TIMING} caption="L20 p31 to p33" />
+        <DataTable compact columns={cols(['Design', 'Cycle', 'Time'], { headers: { Cycle: 'Cycle time', Time: 'Time for I instructions' } })} rows={TIMING} caption={cap('Timing', 'L20 p31 to p33')} />
       </>
     ),
   },
@@ -288,8 +394,8 @@ const SECTIONS: { id: string; title: string; refs: string; body: ReactNode }[] =
     body: (
       <>
         <DataTable compact columns={cols(['Quantity', 'Formula'])} rows={CACHE} />
-        <DataTable compact columns={cols(['Type', 'When'])} rows={MISSES} caption="Miss types (L22 p53, R12 p21 to p25)" />
-        <DataTable compact columns={cols(['Case', 'Effect'])} rows={WRITES} caption="Write policies (L22 p66 to p70)" />
+        <DataTable compact columns={cols(['Type', 'When'])} rows={MISSES} caption={cap('Miss types', 'L22 p53, R12 p21 to p25')} />
+        <DataTable compact columns={cols(['Case', 'Effect'])} rows={WRITES} caption={cap('Write policies', 'L22 p66 to p70')} />
       </>
     ),
   },
@@ -300,7 +406,7 @@ const SECTIONS: { id: string; title: string; refs: string; body: ReactNode }[] =
     body: (
       <>
         <DataTable compact columns={cols(['Law', 'AND', 'OR'], { mono: ['AND', 'OR'], headers: { AND: 'AND form', OR: 'OR form' } })} rows={LAWS} />
-        <DataTable compact columns={cols(['Identity', 'Source'], { mono: ['Identity'] })} rows={XOR} caption="XOR and XNOR" />
+        <DataTable compact columns={cols(['Identity', 'Source'], { mono: ['Identity'] })} rows={citeCol(XOR)} caption="XOR and XNOR" />
         <Callout kind="course" cite="L13 p9, T06 p2">
           Precedence: NOT, then AND, then OR. Always write the AND dot in answers.
         </Callout>
@@ -325,13 +431,21 @@ const SECTIONS: { id: string; title: string; refs: string; body: ReactNode }[] =
       </>
     ),
   },
+  {
+    id: 'conventions',
+    title: 'Conventions where sources differ',
+    refs: 'see each row',
+    body: <DataTable compact columns={cols(['Topic', 'Course', 'Other'], { headers: { Course: 'What the course uses', Other: 'What else you may see' } })} rows={CONVENTIONS} />,
+  },
 ]
 
 export default function ReferencePage() {
+  const [nocite, setNocite] = useUrlState('nocite', false)
   return (
     <Workspace
       title="Reference tables"
       lectures="Every table you look up during practice, with the slides it comes from"
+      toolbar={<Toggle label="Hide sources (cheat-sheet print)" checked={nocite} onChange={setNocite} hint="Drops slide references from the page and from the printout" />}
       inspector={
         <Panel title="On this page">
           <ul className="ref-toc">
@@ -340,7 +454,7 @@ export default function ReferencePage() {
                 <button
                   type="button"
                   className="ref-toc-link"
-                  onClick={() => document.getElementById(`ref-${s.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  onClick={() => document.getElementById(`ref-${s.id}`)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })}
                 >
                   {s.title}
                 </button>
@@ -351,6 +465,7 @@ export default function ReferencePage() {
         </Panel>
       }
     >
+      {nocite ? <span className="ref-nocite-on" hidden /> : null}
       {SECTIONS.map((s) => (
         <section key={s.id} id={`ref-${s.id}`} className="ref-section">
           <Panel title={s.title} actions={<span className="ref-refs">{s.refs}</span>}>

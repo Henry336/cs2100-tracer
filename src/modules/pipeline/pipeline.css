@@ -948,3 +948,24 @@
   font-size: 0.85rem;
   font-weight: 600;
 }
+
+/* Focus mode: hide what the stage's instruction does not use; visibility keeps every position. */
+.pl-dp.pl-focus .pl-wire:not(.pl-on):not(.pl-fwdwire),
+.pl-dp.pl-focus .pl-unit:not(.pl-unit-on),
+.pl-dp.pl-focus .pl-part:not(.pl-unit-on),
+.pl-dp.pl-focus .pl-preg:not(.pl-preg-on) {
+  visibility: hidden;
+}
+
+/* Export PDF: print every cycle, scaled to the page width, instead of the scrolled window. */
+@media print {
+  .pl-grid-scroll {
+    overflow: visible;
+  }
+  .pl-grid {
+    zoom: var(--pl-print-zoom, 1);
+  }
+  .pl-rowhead {
+    position: static;
+  }
+}

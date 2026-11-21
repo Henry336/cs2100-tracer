@@ -633,7 +633,7 @@
   border: 1px solid var(--rule);
   border-left: 3px solid var(--sig-data);
   border-radius: var(--r-panel);
-  box-shadow: 0 6px 20px rgb(20 30 35 / 0.16);
+  box-shadow: var(--shadow-pop);
   font-family: var(--font-sans);
   font-size: var(--fs-sm);
   font-weight: 400;
@@ -821,7 +821,7 @@
   padding: 0 var(--sp-5);
   background: var(--panel);
   border-top: 1px solid var(--rule);
-  box-shadow: 0 -4px 16px rgb(20 30 35 / 0.06);
+  box-shadow: var(--shadow-bar);
 }
 
 .transport-buttons {
@@ -979,7 +979,7 @@
     color-scheme: light;
   }
   body {
-    background: #fff;
+    background: var(--print-bg);
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -988,13 +988,26 @@
   }
   .rail,
   .topbar,
-  .ws-transport,
+  .transport-buttons,
+  .timeline,
   .ws-toolbar,
   .export-pdf,
-  .why-pop,
   .tabs,
   .presets {
     display: none !important;
+  }
+  /* Keep the step marker ("Cycle 4 / 11") and any open explanation in the printout. */
+  .ws-transport {
+    position: static;
+    margin-top: 8px;
+  }
+  .why-pop {
+    position: static;
+    display: flex;
+    width: auto;
+    max-width: none;
+    margin: 4px 0;
+    box-shadow: none;
   }
   .workspace,
   .workspace.has-inspector {

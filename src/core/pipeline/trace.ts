@@ -67,14 +67,23 @@ export function traceStream(input: Stream, options: Partial<PipelineOptions> = {
   let data = 0
   let control = 0
   const nops: Totals['nops'] = []
+  const dataList: string[] = []
+  const controlList: string[] = []
   instructions.forEach((i, k) => {
     if (i.delay <= 0) return
     const dataBinding = i.stalls.some((s) => s.binding && s.kind !== 'branch' && s.kind !== 'jump')
     if (dataBinding) {
       data += i.delay
+      dataList.push(`${i.name} +${i.delay}`)
       nops.push({ after: k > 0 ? instructions[k - 1].name : '(start)', count: i.delay })
-    } else control += i.delay
+    } else {
+      control += i.delay
+      controlList.push(`${i.name} +${i.delay}`)
+    }
   })
+  const delayed = instructions.filter((i) => i.delay > 0)
+  const wrong = rows.filter((r) => r.wrongPath)
+  const byName = (seq: number | undefined) => instructions.find((i) => i.seq === seq)?.name ?? '?'
   const totals: Totals = {
     instructions: I, stages: 5, ideal: I ? ideal.cycles : 0, cycles, stallCycles,
     stallEvents: instructions.filter((i) => i.delay > 0).length,
@@ -93,6 +102,21 @@ export function traceStream(input: Stream, options: Partial<PipelineOptions> = {
         rule: 'Without hazard detection, the compiler puts one nop per data stall cycle just before the stalled instruction',
         working: nops.length ? nops.map((x) => `${x.count} after ${x.after}`).join(', ') : 'none needed',
         cite: 'AY24/25 Q19(d)',
+      },
+      split: {
+        rule: 'Each delay is booked to its binding cause: data when a data hazard (RAW, load-use, branch operand, store data) holds the instruction back, control when it waits for a branch or jump to resolve. Data + control = stall cycles',
+        working: `data: ${dataList.join(', ') || 'none'} = ${data}; control: ${controlList.join(', ') || 'none'} = ${control}`,
+        cite: 'L21 p19-20, p40-42',
+      },
+      stallEvents: {
+        rule: 'Count the instructions that start WB later than one cycle after the one before (the +n of the AY23/24 S2 Q17 key); AY24/25 words its answer this way',
+        working: delayed.length ? delayed.map((i) => `${i.name} +${i.delay}`).join(', ') + ` = ${delayed.length}` : 'none',
+        cite: 'AY23/24 S2 Q17; AY24/25 Q19 key',
+      },
+      flushed: {
+        rule: 'Every fetch on the wrong path is squashed when the branch or jump resolves. A fetch past the end of the program counts too: AY23/24 S1 Q16(d) draws one, R11 p46 leaves it out',
+        working: wrong.length ? wrong.map((r) => `${r.name}${r.outside ? ' (not in the program)' : ''} after ${byName(r.flushedBy)}`).join(', ') + ` = ${wrong.length}` : 'none',
+        cite: 'L21 p40-42',
       },
     },
   }
@@ -117,6 +141,6 @@ function empty(stream: Stream, options: PipelineOptions): PipelineTrace {
   const none = { rule: 'Fix the code first' }
   return {
     ok: false, errors: stream.errors, notes: stream.notes, options, stream, instructions: [], rows: [], frames: [], dependencies: [],
-    totals: { instructions: 0, stages: 5, ideal: 0, cycles: 0, stallCycles: 0, stallEvents: 0, dataStallCycles: 0, controlStallCycles: 0, flushed: 0, nops: [], why: { ideal: none, cycles: none, stallCycles: none, nops: none } },
+    totals: { instructions: 0, stages: 5, ideal: 0, cycles: 0, stallCycles: 0, stallEvents: 0, dataStallCycles: 0, controlStallCycles: 0, flushed: 0, nops: [], why: { ideal: none, cycles: none, stallCycles: none, nops: none, split: none, stallEvents: none, flushed: none } },
   }
 }

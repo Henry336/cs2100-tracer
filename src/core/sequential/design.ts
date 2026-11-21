@@ -244,9 +244,9 @@ export function design(spec: DesignSpec): Result<{ design: Design }> {
           fitb: printExpr(best.e, 'fitb'),
           source: 'single-gate',
           why: {
-            rule: 'Fewest gates is not always the simplest SOP: check whether one gate fits the specified rows.',
-            working: `${t.label} = ${printExpr(best.e)} (${best.cost} gate${best.cost === 1 ? '' : 's'}) instead of ${sop[0]} (${sopCost.gates} gate${sopCost.gates === 1 ? '' : 's'})`,
-            cite: 'T09 Q2 Ans p3; AY23/24 S2 Q20e',
+            rule: "Fewest gates is not always the simplest SOP: check whether one gate fits the specified rows. This count charges an inverter for each complemented external input; the AY23/24 S2 Q20(e) key does not, and accepts either a NAND or an OR as the single gate for KB.",
+            working: `${t.label} = ${printExpr(best.e)} (${best.cost} gate${best.cost === 1 ? '' : 's'}) instead of ${sop[0]} (${sopCost.gates} gate${sopCost.gates === 1 ? '' : 's'}, inverters on inputs included)`,
+            cite: 'T09 Q2 Ans p3; AY23/24 S2 Ans p17 Q20e',
           },
         }
       }

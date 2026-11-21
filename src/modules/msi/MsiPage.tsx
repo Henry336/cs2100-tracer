@@ -24,7 +24,7 @@ const TABS: { value: Tab; label: string; blurb: string }[] = [
 ]
 
 /** Tabs whose diagrams mark unused parts (is-off); the adder tab has its own "settled" toggle. */
-const FOCUS_TABS: Tab[] = ['dec', 'enc', 'mux', 'wb']
+const FOCUS_TABS: Tab[] = ['cmp', 'dec', 'enc', 'mux', 'wb']
 
 export default function MsiPage() {
   const [tab, setTab] = useUrlState<Tab>('tab', 'adder')

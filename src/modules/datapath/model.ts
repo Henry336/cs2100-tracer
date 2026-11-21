@@ -74,7 +74,8 @@ export const NODE_UNIT: Record<NodeId, UnitId> = {
 }
 
 /** The critical path drawn on the same diagram: path units and the wires between them in the path colour. */
-export function buildTimingModel(r: TimingResult, writesRt: boolean): DiagramModel {
+/** focus: hide what the instruction does not need, instead of drawing it faint. */
+export function buildTimingModel(r: TimingResult, writesRt: boolean, focus = false): DiagramModel {
   const specs = wireSpecs('L11', r.cls === 'bne')
   const needed = new Set<UnitId>(['pc', ...r.nodes.map((n) => NODE_UNIT[n.id])])
   const onPath = new Set<UnitId>(['pc', ...r.path.map((id) => NODE_UNIT[id])])
@@ -92,13 +93,13 @@ export function buildTimingModel(r: TimingResult, writesRt: boolean): DiagramMod
   const wires: DiagramModel['wires'] = {}
   for (const s of specs) {
     const both = needed.has(s.from as UnitId) || s.from === 'const4'
-    const tone: Tone = pathWires.has(s.id) ? 'path' : both && needed.has(s.to) ? 'past' : 'future'
+    const tone: Tone = pathWires.has(s.id) ? 'path' : both && needed.has(s.to) ? 'past' : focus ? 'hidden' : 'future'
     wires[s.id] = { tone, control: s.kind === 'control', title: `${s.label} to ${s.port}${tone === 'path' ? ': on the critical path' : ''}` }
   }
   const units = {} as DiagramModel['units']
   for (const u of UNITS) {
     const ns = nodeOf(u.id)
-    const tone: Tone = onPath.has(u.id) ? 'path' : needed.has(u.id) ? 'past' : 'future'
+    const tone: Tone = onPath.has(u.id) ? 'path' : needed.has(u.id) ? 'past' : focus ? 'hidden' : 'future'
     const badge = u.id === 'pc' ? `0 ${r.unit}` : ns.length ? ns.map((n) => (u.id === 'rf' ? `${n.id === 'RFR' ? 'read' : 'write'} ${n.start} to ${n.finish}` : `${n.start} to ${n.finish}`)).join(', ') : undefined
     units[u.id] = { tone, badge, title: `${u.label}${ns.length ? `: ${ns.map((n) => `${n.label} starts ${n.start}, ends ${n.finish} ${r.unit}, slack ${n.slack}`).join('; ')}` : ': not needed'}` }
   }

@@ -58,8 +58,12 @@ export function controlRow(i: Instr): ControlRow {
       return i.mnemonic === 'beq'
         ? row('X', 0, '01', 0, 0, 1, 'X', 0)
         : row('X', 0, '01', 0, 0, 1, 'X', 0, 'bne has no row in L12/L20; shown like beq. AY25/26 Q18 adds a separate bne signal')
-    case 'arithImm': case 'logicImm': case 'lui':
+    case 'arithImm':
       return row(0, 1, '00', 0, 0, 0, 0, 1, `${i.mnemonic} has no row in L12/L20; derived like addi (AY15/16 Q9a)`)
+    case 'logicImm': case 'lui':
+      return row(0, 1, '00', 0, 0, 0, 0, 1, i.mnemonic === 'lui'
+        ? 'lui is not in the L11 p6 subset. Shown with the addi row (AY15/16 Q9a) only so the timing can be traced: ALUop 00 asks for an add and the immediate is sign-extended, so this datapath cannot do lui'
+        : `${i.mnemonic} is not supported by the course datapath, which always sign-extends the immediate (L11 p6). Shown with the addi row (AY15/16 Q9a) only so the timing can be traced: ALUop 00 asks for an add, not ${i.mnemonic.slice(0, -1).toUpperCase()}`)
     default:
       return row('X', 'X', 'XX', 0, 0, 0, 'X', i.mnemonic === 'jal' ? 1 : 0, `${i.mnemonic} is not in the L20 datapath; assumed to change no state through these signals`)
   }

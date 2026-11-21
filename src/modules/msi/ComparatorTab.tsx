@@ -513,7 +513,7 @@ function CmpBlock({
   const pin = (label: string, v: 0 | 1, y: number, name: string, on: boolean) => {
     const bad = gated.includes(name)
     return (
-      <g key={name} className={`ms-net ${on ? 'is-now' : 'is-ready'}${bad ? ' is-bad' : ''}`}>
+      <g key={name} className={`ms-net ${on ? 'is-now' : active === null ? 'is-ready' : 'is-off'}${bad ? ' is-bad' : ''}`}>
         <text x={L - 6} y={y + 4} textAnchor="end" className="ms-label-sm">
           {label}
         </text>

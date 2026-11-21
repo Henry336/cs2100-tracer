@@ -108,7 +108,7 @@ function occupants(t: PipelineTrace, f: CycleFrame | undefined): Record<Stage, O
   return out
 }
 
-function Diagram({ t, f, bug }: { t: PipelineTrace; f: CycleFrame | undefined; bug: boolean }) {
+function Diagram({ t, f, bug, focus }: { t: PipelineTrace; f: CycleFrame | undefined; bug: boolean; focus: boolean }) {
   const occ = occupants(t, f)
   const early = t.options.branchStage === 'ID'
   const forwards = (f?.forwards ?? []).filter((x) => x.from !== 'register file')
@@ -123,7 +123,7 @@ function Diagram({ t, f, bug }: { t: PipelineTrace; f: CycleFrame | undefined; b
     </g>
   )
   return (
-    <svg className="pl-dp" viewBox="0 -64 1000 490" role="img" aria-label={`Pipelined datapath in cycle ${f?.cycle ?? 0}: ${STAGES.map((s) => `${s} ${occ[s].name}`).join(', ')}`}>
+    <svg className={`pl-dp${focus ? ' pl-focus' : ''}`} viewBox="0 -64 1000 490" role="img" aria-label={`Pipelined datapath in cycle ${f?.cycle ?? 0}: ${STAGES.map((s) => `${s} ${occ[s].name}`).join(', ')}`}>
       {/* Stage bands and the instruction in each stage */}
       {STAGES.map((s) => {
         const [x0, x1] = STAGE_X[s]
@@ -153,20 +153,26 @@ function Diagram({ t, f, bug }: { t: PipelineTrace; f: CycleFrame | undefined; b
       })}
 
       {/* Units */}
-      <polygon points="12,200 24,208 24,242 12,250" className={`pl-mux${occ.IF.ins ? ' pl-unit-on' : ''}`} />
-      <text x={18} y={262} textAnchor="middle" className="pl-dp-small">PCSrc</text>
+      <g className={`pl-part${occ.IF.ins ? ' pl-unit-on' : ''}`}>
+        <polygon points="12,200 24,208 24,242 12,250" className={`pl-mux${occ.IF.ins ? ' pl-unit-on' : ''}`} />
+        <text x={18} y={262} textAnchor="middle" className="pl-dp-small">PCSrc</text>
+      </g>
       {box(34, 200, 30, 50, 'PC', 'IF')}
       {box(92, 180, 80, 90, 'Inst mem', 'IF')}
       {box(92, 80, 50, 50, 'Add', 'IF')}
-      <text x={72} y={122} textAnchor="end" className="pl-dp-small">4</text>
+      <g className={`pl-part${occ.IF.ins ? ' pl-unit-on' : ''}`}>
+        <text x={72} y={122} textAnchor="end" className="pl-dp-small">4</text>
+      </g>
 
       {box(270, 170, 100, 125, 'Registers', 'ID')}
-      <text x={274} y={194} className="pl-dp-port">RR1</text>
-      <text x={274} y={219} className="pl-dp-port">RR2</text>
-      <text x={274} y={264} className="pl-dp-port">WR</text>
-      <text x={274} y={284} className="pl-dp-port">WD</text>
-      <text x={366} y={199} textAnchor="end" className="pl-dp-port">RD1</text>
-      <text x={366} y={244} textAnchor="end" className="pl-dp-port">RD2</text>
+      <g className={`pl-part${occ.ID.status === 'active' || occ.ID.status === 'wrong' ? ' pl-unit-on' : ''}`}>
+        <text x={274} y={194} className="pl-dp-port">RR1</text>
+        <text x={274} y={219} className="pl-dp-port">RR2</text>
+        <text x={274} y={264} className="pl-dp-port">WR</text>
+        <text x={274} y={284} className="pl-dp-port">WD</text>
+        <text x={366} y={199} textAnchor="end" className="pl-dp-port">RD1</text>
+        <text x={366} y={244} textAnchor="end" className="pl-dp-port">RD2</text>
+      </g>
       <g className={`pl-unit${occ.ID.ins ? ' pl-unit-on' : ''}`}>
         <ellipse cx={325} cy={330} rx={25} ry={16} />
         <text x={325} y={334} textAnchor="middle" className="pl-dp-small">Sign ext</text>
@@ -181,28 +187,36 @@ function Diagram({ t, f, bug }: { t: PipelineTrace; f: CycleFrame | undefined; b
         </g>
       ) : null}
 
-      <polygon points="505,236 519,244 519,276 505,284" className={`pl-mux${occ.EX.ins ? ' pl-unit-on' : ''}`} />
-      <text x={512} y={296} textAnchor="middle" className="pl-dp-small">ALUSrc</text>
-      <polygon points="540,185 590,205 590,265 540,285 540,250 550,235 540,220" className={`pl-alu${occ.EX.ins ? ' pl-unit-on' : ''}`} />
-      <text x={570} y={239} textAnchor="middle" className="pl-dp-small">ALU</text>
-      <text x={594} y={209} className="pl-dp-port">isZero</text>
+      <g className={`pl-part${occ.EX.ins ? ' pl-unit-on' : ''}`}>
+        <polygon points="505,236 519,244 519,276 505,284" className={`pl-mux${occ.EX.ins ? ' pl-unit-on' : ''}`} />
+        <text x={512} y={296} textAnchor="middle" className="pl-dp-small">ALUSrc</text>
+        <polygon points="540,185 590,205 590,265 540,285 540,250 550,235 540,220" className={`pl-alu${occ.EX.ins ? ' pl-unit-on' : ''}`} />
+        <text x={570} y={239} textAnchor="middle" className="pl-dp-small">ALU</text>
+        <text x={594} y={209} className="pl-dp-port">isZero</text>
+      </g>
       <g className={`pl-unit${occ.EX.ctl?.M.Branch === 1 ? ' pl-unit-on' : ''}`}>
         <ellipse cx={510} cy={150} rx={12} ry={14} />
         <text x={510} y={154} textAnchor="middle" className="pl-dp-port">x4</text>
         <rect x={530} y={92} width={50} height={40} rx={3} />
         <text x={555} y={116} textAnchor="middle" className="pl-dp-small">Add</text>
       </g>
-      <polygon points="510,352 524,358 524,388 510,394" className={`pl-mux${occ.EX.ctl?.WB.RegWrite === 1 ? ' pl-unit-on' : ''}`} />
-      <text x={517} y={408} textAnchor="middle" className="pl-dp-small">RegDst</text>
+      <g className={`pl-part${occ.EX.ctl?.WB.RegWrite === 1 ? ' pl-unit-on' : ''}`}>
+        <polygon points="510,352 524,358 524,388 510,394" className={`pl-mux${occ.EX.ctl?.WB.RegWrite === 1 ? ' pl-unit-on' : ''}`} />
+        <text x={517} y={408} textAnchor="middle" className="pl-dp-small">RegDst</text>
+      </g>
 
       {box(720, 190, 90, 100, 'Data mem', 'MEM')}
-      <path d="M700 54H712A14 14 0 0 1 712 82H700Z" className={`pl-gate${occ.MEM.ctl?.M.Branch === 1 ? ' pl-unit-on' : ''}`} />
-      <text x={712} y={48} textAnchor="middle" className="pl-dp-small">AND</text>
+      <g className={`pl-part${occ.MEM.ctl?.M.Branch === 1 ? ' pl-unit-on' : ''}`}>
+        <path d="M700 54H712A14 14 0 0 1 712 82H700Z" className={`pl-gate${occ.MEM.ctl?.M.Branch === 1 ? ' pl-unit-on' : ''}`} />
+        <text x={712} y={48} textAnchor="middle" className="pl-dp-small">AND</text>
+      </g>
 
-      <polygon points="880,220 894,228 894,268 880,276" className={`pl-mux${occ.WB.ctl?.WB.RegWrite === 1 ? ' pl-unit-on' : ''}`} />
-      <text x={880} y={216} textAnchor="end" className="pl-dp-port">1</text>
-      <text x={880} y={288} textAnchor="end" className="pl-dp-port">0</text>
-      <text x={887} y={300} textAnchor="middle" className="pl-dp-small">MemToReg</text>
+      <g className={`pl-part${occ.WB.ctl?.WB.RegWrite === 1 ? ' pl-unit-on' : ''}`}>
+        <polygon points="880,220 894,228 894,268 880,276" className={`pl-mux${occ.WB.ctl?.WB.RegWrite === 1 ? ' pl-unit-on' : ''}`} />
+        <text x={880} y={216} textAnchor="end" className="pl-dp-port">1</text>
+        <text x={880} y={288} textAnchor="end" className="pl-dp-port">0</text>
+        <text x={887} y={300} textAnchor="middle" className="pl-dp-small">MemToReg</text>
+      </g>
 
       {bug ? (
         <text x={274} y={308} className="pl-dp-port">
@@ -309,6 +323,7 @@ function RegisterCard({ name, c, filling, bug }: { name: PipeReg; c: RegContents
           })}
         </div>
       ) : null}
+      {c.uid && c.control.note ? <p className="pl-note">{c.control.note}</p> : null}
     </section>
   )
 }
@@ -319,6 +334,7 @@ export default function DatapathTab({ intro, p }: { intro: ReactNode; p: Program
   const f = t.frames[stepper.index]
   const rl = (r: number) => regLabel(r, t.stream.regStyle)
   const [bug, setBug] = useUrlState('bug', false)
+  const [focus, setFocus] = useUrlState('focus', false)
   const marks = useMemo(() => frameMarks(t.frames), [t.frames])
   const writer = f?.regWrite ? t.rows.find((r) => r.uid === f.regWrite!.by)?.name : undefined
   // With the bug, WB takes the write register from IF/ID, i.e. from the instruction now in ID (L20 p22-23).
@@ -360,7 +376,12 @@ export default function DatapathTab({ intro, p }: { intro: ReactNode; p: Program
     >
       <Panel
         title={f ? `Pipelined datapath, cycle ${f.cycle}` : 'Pipelined datapath'}
-        actions={<Toggle label="Bug mode: drop the write register (L20 p22)" checked={bug} onChange={setBug} />}
+        actions={
+          <>
+            <Toggle label="Show only what this instruction uses" checked={focus} onChange={setFocus} hint="Each stage keeps only the units and wires its own instruction uses; the rest are hidden, not moved" />
+            <Toggle label="Bug mode: drop the write register (L20 p22)" checked={bug} onChange={setBug} />
+          </>
+        }
         flush
       >
         <div className="pl-pad">
@@ -374,7 +395,7 @@ export default function DatapathTab({ intro, p }: { intro: ReactNode; p: Program
             ]}
           />
         </div>
-        <div className="pl-dp-scroll">{t.ok ? <Diagram t={t} f={f} bug={bug} /> : <p className="pl-pad pl-err">Fix the code to see the datapath.</p>}</div>
+        <div className="pl-dp-scroll">{t.ok ? <Diagram t={t} f={f} bug={bug} focus={focus} /> : <p className="pl-pad pl-err">Fix the code to see the datapath.</p>}</div>
         <p className="pl-pad pl-muted">
           Simplified from L20 p29. Forwarding paths (L21 p18) and the early-branch comparator (L21 p34) are drawn only when they are used. The forwarding unit and hazard detection unit are left out; their rules are not tested (R11 p14).
         </p>

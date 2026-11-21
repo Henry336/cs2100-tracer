@@ -54,8 +54,8 @@ export function Home() {
           <h2>Stepping</h2>
           <p>
             <kbd>←</kbd> and <kbd>→</kbd> move one step, <kbd>Home</kbd> and <kbd>End</kbd> jump to the ends,{' '}
-            <kbd>Space</kbd> plays. The link in your address bar always holds the current trace, so you can bookmark or
-            share it.
+            <kbd>Space</kbd> plays. The link in your address bar holds your code, options and
+            toggles, so you can bookmark or share the trace. Most tracers reopen it at step 1; the datapath tracer also keeps the step.
           </p>
         </div>
         <div>

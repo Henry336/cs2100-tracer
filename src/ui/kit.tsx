@@ -408,7 +408,8 @@ export function Why({
   useEffect(() => {
     if (!open) return
     const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      // Clicking Export PDF keeps the explanation open so it is printed.
+      if (ref.current && !ref.current.contains(e.target as Node) && !(e.target as Element).closest?.('.export-pdf')) setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
     document.addEventListener('mousedown', onDoc)

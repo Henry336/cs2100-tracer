@@ -28,6 +28,28 @@ describe('course presets (official)', () => {
   }
 })
 
+describe('totals explain every number (reviewer: stall split, events, flushed)', () => {
+  const run = (id: string, k = 0) => {
+    const p = PIPELINE_PRESETS.find((x) => x.id === id)!
+    const part = p.parts[k]
+    return tracePipeline(part.source ?? p.source, part.options, part.stream ?? p.stream ?? {}).totals
+  }
+  it('P9 R11 p46: the third flushed fetch is named as outside the program', () => {
+    const t = run('P9')
+    expect(t.flushed).toBe(3)
+    expect(t.why.flushed.working).toContain('(not in the program)')
+    expect(t.why.flushed.working).toContain('= 3')
+  })
+  it('every preset: the split Why lists each delay and data + control = stall cycles', () => {
+    for (const p of PIPELINE_PRESETS) p.parts.forEach((_, k) => {
+      const t = run(p.id, k)
+      expect(t.dataStallCycles + t.controlStallCycles).toBe(t.stallCycles)
+      expect(t.why.split.working).toContain(`= ${t.dataStallCycles}; control`)
+      expect(t.why.stallEvents.working).toEqual(t.stallEvents ? expect.stringContaining(`= ${t.stallEvents}`) : 'none')
+    })
+  })
+})
+
 describe('ideal counts', () => {
   it('P3 R11 p5, p40: I + N - 1', () => {
     expect(idealCycles(10, 5).cycles).toBe(14)
@@ -149,6 +171,14 @@ describe('pipelined datapath view', () => {
     expect(s.frames[3].regs['ID/EX'].uid).toBeNull()
     expect(s.frames[3].events.some((e) => e.includes('stays in ID'))).toBe(true)
     expect(s.frames.length).toBe(11)
+  })
+  it('T10 Additional Question / L11 p6: andi in ID/EX says it is not supported and why', () => {
+    const andi = T10_EXTRA.split(/\r?\n/).find((l) => l.includes('andi'))!.replace(/#.*/, '')
+    const regs = tracePipeline(andi, { forwarding: true }).frames.map((fr) => fr.regs['ID/EX']).find((r) => r.uid)!
+    expect(regs.control.EX?.ALUop).toBe('00')
+    expect(regs.control.note).toContain('L11 p6')
+    expect(regs.fields.find((f) => f.label === 'Immediate (sign-extended)')?.note).toContain('only sign-extends')
+    expect(tracePipeline('sll $1, $2, 2', {}).frames.map((fr) => fr.regs['ID/EX']).find((r) => r.uid)?.control.note).toContain('L11 p47')
   })
 })
 

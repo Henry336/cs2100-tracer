@@ -47,7 +47,7 @@ export interface AsmError {
   message: string
 }
 
-/** Byte order in memory. R02 p8 calls our MIPS big-endian; QtSpim on a PC is little-endian (L10 p17-18). */
+/** Byte order in memory. R02 p8 calls our MIPS big-endian; the online MIPS interpreter is little-endian (L10 p18); QtSpim on a PC being little-endian is a lab observation. */
 export type Endian = 'big' | 'little'
 
 export interface Program {

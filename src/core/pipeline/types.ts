@@ -243,7 +243,7 @@ export interface Totals {
   flushed: number
   /** Nops a compiler would insert for the data stalls (no hazard detection unit). */
   nops: { after: string; count: number }[]
-  why: { ideal: Explain; cycles: Explain; stallCycles: Explain; nops: Explain }
+  why: { ideal: Explain; cycles: Explain; stallCycles: Explain; nops: Explain; split: Explain; stallEvents: Explain; flushed: Explain }
 }
 
 export interface PipelineTrace {

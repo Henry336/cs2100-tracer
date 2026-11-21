@@ -190,7 +190,7 @@ export function buildFrames(stream: Stream, rows: PlacedRow[], instructions: Ins
         fields.push(f(label, shown(reg, reg === 0 ? 0 : stale), reg === 0 ? 0 : stale, note))
       }
       fields.push(
-        f('Immediate (sign-extended)', `${hex(ins.imm, 8)} (${ins.imm})`, ins.imm),
+        f('Immediate (sign-extended)', `${hex(ins.imm, 8)} (${ins.imm})`, ins.imm, it?.cls === 'alu' && (OP_BY_NAME[ins.mnemonic]?.kind === 'logicImm' || ins.mnemonic === 'lui') ? `${ins.mnemonic} needs a zero-extended or shifted immediate; this datapath only sign-extends (L11 p6)` : undefined),
         f('PC+4', hex(ins.address + 4), (ins.address + 4) >>> 0),
         f('rt (Inst[20:16])', rl(ins.rt), ins.rt),
         f('rd (Inst[15:11])', rl(ins.rd), ins.rd),
@@ -239,7 +239,7 @@ const KIND: Record<string, string> = { raw: 'RAW', 'load-use': 'load-use', 'bran
 
 function groups(pr: PipeReg, ctl: ReturnType<typeof controlRow>): RegContents['control'] {
   if (pr === 'IF/ID') return {}
-  if (pr === 'ID/EX') return { EX: ctl.EX, M: ctl.M, WB: ctl.WB }
+  if (pr === 'ID/EX') return { EX: ctl.EX, M: ctl.M, WB: ctl.WB, ...(ctl.note ? { note: ctl.note } : {}) }
   if (pr === 'EX/MEM') return { M: ctl.M, WB: ctl.WB }
   return { WB: ctl.WB }
 }

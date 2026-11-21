@@ -5,7 +5,7 @@ import {
   type DelayKey, type Delays, type TimingClass, type UnitId,
 } from '../../core/datapath'
 import { useUrlState } from '../../lib/url-state'
-import { Button, Callout, Chip, DataTable, NumberField, Panel, Presets, Segmented, Workspace } from '../../ui/kit'
+import { Button, Callout, Chip, DataTable, NumberField, Panel, Presets, Segmented, Toggle, Workspace } from '../../ui/kit'
 import { ExplainText, W } from './common'
 import { Diagram } from './Diagram'
 import { NODE_UNIT, buildTimingModel } from './model'
@@ -41,7 +41,8 @@ export default function TimingTab({ intro }: { intro: ReactNode }) {
   const dkey = JSON.stringify(delays)
   const r = useMemo(() => criticalPath(cls, delays), [cls, dkey]) // eslint-disable-line react-hooks/exhaustive-deps
   const [cyc, st] = useMemo(() => [cycleTime(delays, ['R', 'lw', 'sw', 'beq']), stageTable(delays)] as const, [dkey]) // eslint-disable-line react-hooks/exhaustive-deps
-  const model = useMemo(() => buildTimingModel(r, cls === 'addi' || cls === 'lw'), [r, cls])
+  const [focus, setFocus] = useUrlState('tfocus', false)
+  const model = useMemo(() => buildTimingModel(r, cls === 'addi' || cls === 'lw', focus), [r, cls, focus])
   const u = delays.unit
   const selNodes = sel ? r.nodes.filter((n) => NODE_UNIT[n.id] === sel) : []
 
@@ -116,7 +117,16 @@ export default function TimingTab({ intro }: { intro: ReactNode }) {
         </Panel>
       </div>
 
-      <Panel title="Path on the datapath" actions={<span className="dp-cite">R06 p42</span>} flush>
+      <Panel
+        title="Path on the datapath"
+        actions={
+          <>
+            <Toggle label="Show only what this instruction uses" checked={focus} onChange={setFocus} hint="Hides the units and wires this instruction class does not need" />
+            <span className="dp-cite">R06 p42</span>
+          </>
+        }
+        flush
+      >
         <div className="dp-scroll">
           <Diagram model={model} selected={sel} onSelect={(id) => setSel((s) => (s === id ? null : id))} label={`Critical path for ${cls}: ${r.path.join(', ')}`} />
         </div>

@@ -247,11 +247,11 @@ Characteristic tables are used for analysis and excitation tables for design (p4
 | L15 p37 / R07 p39: Σm(0,2,3,4,7,8,9,10,11,13,14) | 7 | 4 (A'C'D', A'CD, AC'D, ACD') | 3 | EPIs + any 2 of {B'D', B'C, AB'} |
 | L15 p39–41: Σm(2,3,4,5,7,8,10,13,15) | 6 | 3 | 1 | BD + A'BC' + AB'D' + A'B'C |
 | L15 p42 G = AY25/26 H: Σm(3,4,5,7,9,13,14,15) | 5 | 4 (BD not an EPI) | 1 | A'BC' + ACD... see note* |
-| L15 p43: Σm(0,1,2,3,5,7,8,9,10,11) | — | — | — | POS (A'+B')(B'+D), from F' = AB + BD' |
+| L15 p43: Σm(0,1,2,3,5,7,8,9,10,11) | not given | not given | not given | POS (A'+B')(B'+D), from F' = AB + BD' |
 | L15 p50–51: ABC + B'CD' + AD + B'C'D' | 4 | 3 | 1 | SOP AD + AC + B'D'; POS (A+B')(A+D')(B'+C+D) |
 | L15 p53: Σm(2,8,10,15) + d(0,1,3,7) | 3 (A'B', BCD, B'D') | 2 | 1 | B'D' + BCD |
-| L15 p47: Σm(3,5,6) + d(0,7) | — | — | — | AC + AB + BC |
-| L15 p47: Σm(1,2,4) + d(0,7) | — | — | — | B'C' + A'B' + A'C' |
+| L15 p47: Σm(3,5,6) + d(0,7) | not given | not given | not given | AC + AB + BC |
+| L15 p47: Σm(1,2,4) + d(0,7) | not given | not given | not given | B'C' + A'B' + A'C' |
 | L15 p49: F(K,L,M,N) = Σm(2,6,8) + d(3,7,11..15) | 3 (K'M, LM, KM'N') | 2 | 1 | K'M + KM'N' |
 | R07 p36: Σm(1,3,6,7) | 3 | 2 | 1 | A'C + AB (BC removed by consensus) |
 | T06 F1: Σm(5,8,10,12,13,14) | 3 | 2 | 1 | AD' + BC'D |
@@ -260,17 +260,17 @@ Characteristic tables are used for analysis and excitation tables for design (p4
 | T06 F4: ΠM(4,8,9,11,12)∙D(2,3,6,7,10,14) | 4 | 2 | 1 | SOP A'B' + BD; POS (A'+B)(B'+D) |
 | T06 Q3 T: Σm(0,1,2,4,5,9) + X(6,11,14,15) | 4 | 2 (A'D', A'C') | 2 | +B'C'D or +AB'D; POS (A'+D)(C'+D')(A'+B') |
 | AY23/24 S2 Q19: ΠM(0,2,8,10,13)∙X(3,7,11,12,15) | 5 | 1 (B'D) | 3 | B'D + {A'B+BD', A'B+BC, A'D+BD'} |
-| AY23/24 S1 Q17a: Σm(1,8,13) + d(0,2,5,9,10,15) | 4 | 0 | — | — |
-| AY23/24 S1 Q17b: ΠM(5,7,8,10,13,15)∙d(0,2,3,4,9,14) | 4 | 2 | — | — |
-| AY24/25 Q3/Q4: Σm(1,3,4,6,10,12) + x(2,5,7,13,14) | 6 | 2 | — | MCQ keys D and E |
+| AY23/24 S1 Q17a: Σm(1,8,13) + d(0,2,5,9,10,15) | 4 | 0 | not given | not given |
+| AY23/24 S1 Q17b: ΠM(5,7,8,10,13,15)∙d(0,2,3,4,9,14) | 4 | 2 | not given | not given |
+| AY24/25 Q3/Q4: Σm(1,3,4,6,10,12) + x(2,5,7,13,14) | 6 | 2 | not given | MCQ keys D and E |
 | AY24/25 Q17a: Σm(0,1,4,6,9,11) + d(5,7,13,15) | 4 | 3 | 1 | SOP A'C' + A'B + AD; POS (A'+D)(A+B+C') |
-| AY25/26 Q1: Σm(0,1,2,6,8,10,12) | 4 | 4 | — | — |
-| AY25/26 Q17a H | 5 | 4 | — | POS (A'+B+C')(A'+C+D)(A+B+C)(A+C'+D) |
+| AY25/26 Q1: Σm(0,1,2,6,8,10,12) | 4 | 4 | not given | not given |
+| AY25/26 Q17a H | 5 | 4 | not given | POS (A'+B+C')(A'+C+D)(A+B+C)(A+C'+D) |
 | AY21/22 S2 Q14c: Σm(0,4,6,8,9,10,12..15) | 5 | 5 | 1 | AB + C'D' + AC' + BD' + AD' (R08 p39) |
-| [derived] AY20/21 S2 Q1–2: Σm(0,1,2,7,15) + x(3,9,11,12,13) | 4 | 2 | — | A'B' + CD |
-| [derived] AY21/22 S1 Q5: Σm(3,10,11,15) + x(1,2,4,7,9,12,14) | 4 | 0 | 4 | — |
-| [derived] AY21/22 S2 Q5: Σm(1,3,6,8,9,11,15) + x(7,14) | — | — | — | CD is the non-EPI |
-| [derived] T07 SE3 (5 variables) | — | — | — | P = A'C'D' + B'C'D' + B'C'E'; Q = A'C'E' + B'D'; input 00100 gives PQ = 01 |
+| [derived] AY20/21 S2 Q1–2: Σm(0,1,2,7,15) + x(3,9,11,12,13) | 4 | 2 | not given | A'B' + CD |
+| [derived] AY21/22 S1 Q5: Σm(3,10,11,15) + x(1,2,4,7,9,12,14) | 4 | 0 | 4 | not given |
+| [derived] AY21/22 S2 Q5: Σm(1,3,6,8,9,11,15) + x(7,14) | not given | not given | not given | CD is the non-EPI |
+| [derived] T07 SE3 (5 variables) | not given | not given | not given | P = A'C'D' + B'C'D' + B'C'E'; Q = A'C'E' + B'D'; input 00100 gives PQ = 01 |
 
 \*Correction to the row above: the minimal SOP for L15 p42 G / AY25/26 H is A'BC' + A'CD + ABC + AC'D.
 

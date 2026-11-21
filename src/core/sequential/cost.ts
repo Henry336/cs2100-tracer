@@ -35,9 +35,9 @@ export function gateCount(e: Expr, bits: string[]): GateCount {
     gates: list.length,
     list,
     why: {
-      rule: "Count every gate. A complemented state bit costs nothing because each flip-flop also gives Q'; a complemented external input needs an inverter.",
+      rule: "Count every gate. A complemented state bit costs nothing because each flip-flop also gives Q'; here a complemented external input needs an inverter (the AY23/24 S2 Q20e key does not count that inverter).",
       working: list.length ? `${list.join('; ')} = ${list.length} gate${list.length === 1 ? '' : 's'}` : 'no gates: a wire, a constant or a free Q\'',
-      cite: 'AY23/24 S1 Q18b; AY23/24 S2 Q20e',
+      cite: 'AY23/24 S1 Q18b',
     },
   }
 }

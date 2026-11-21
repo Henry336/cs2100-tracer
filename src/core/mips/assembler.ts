@@ -9,7 +9,7 @@ export const DEFAULT_DATA_BASE = 0x10010000 // Lab 4 p4
 export interface AssembleOptions {
   textBase?: number
   dataBase?: number
-  /** Byte order for .word/.half and ulw; run() uses the same. Default big (R02 p8); QtSpim is little (L10 p18). */
+  /** Byte order for .word/.half and ulw; run() uses the same. Default big (R02 p8); the online MIPS interpreter is little (L10 p18). */
   endian?: Endian
   /**
    * What a number after j/jal means. 'field' (default): the 26-bit target field, so j 2500 goes to 10000 (L08 p8;

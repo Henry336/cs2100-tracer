@@ -45,6 +45,9 @@ function rowCells(r: Row, total: number): Cell[] {
   return cells
 }
 
+/** Scale that fits the whole grid on an A4 landscape page (about 1000 px of usable width) when printing. */
+export const printZoom = (cyclesWidth: number, compact?: boolean) => Math.min(1, 1000 / ((compact ? 64 : 230) + cyclesWidth))
+
 export function PipelineGrid({
   trace,
   cycle,
@@ -116,7 +119,7 @@ export function PipelineGrid({
 
   return (
     <div className={`pl-grid-scroll${compact ? ' pl-compact' : ''}`} ref={scroll}>
-      <div className="pl-grid" role="table" aria-label={label} style={{ ['--pl-cw' as string]: `${cw}px`, ['--pl-rh' as string]: `${rh}px` }}>
+      <div className="pl-grid" role="table" aria-label={label} style={{ ['--pl-cw' as string]: `${cw}px`, ['--pl-rh' as string]: `${rh}px`, ['--pl-print-zoom' as string]: printZoom(W, compact) }}>
         <div role="rowgroup">
         <div className="pl-grow pl-ghead" role="row">
           <div className="pl-rowhead pl-corner" role="columnheader">

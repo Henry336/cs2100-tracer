@@ -1,6 +1,7 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import BranchCondTab from './BranchCondTab'
+import ConstTab from './ConstTab'
 import EncodeTab from './EncodeTab'
 import MipsPage from './MipsPage'
 import OpcodeTab from './OpcodeTab'
@@ -12,5 +13,6 @@ describe('MIPS page renders', () => {
     expect(renderToString(<EncodeTab intro={null} />)).toContain('Check your answer')
     expect(renderToString(<BranchCondTab intro={null} />)).toContain('slt $t0, $s1, $s2')
     expect(renderToString(<OpcodeTab intro={null} />)).toContain('Prefix tree')
+    expect(renderToString(<ConstTab intro={null} />)).toContain('ori $t0, $t0, 0xF0F0')
   })
 })

@@ -190,34 +190,35 @@ export function OptionsPanel({ p, only }: { p: ProgramState; only?: (keyof Pipel
             options={[
               { value: 'none', label: 'None (stall)', title: 'Wait until the branch is decided' },
               { value: 'not-taken', label: 'Predict not taken', title: 'L21 p40-42' },
-              { value: 'taken', label: 'Predict taken', title: 'Beyond the lectures; used by R11 Quiz Q7' },
+              { value: 'taken', label: 'Predict taken (beyond the course)', title: 'Beyond the lectures; used by R11 Quiz Q7' },
             ]}
           />
         ) : null}
         {show('delayedBranch') ? <Toggle label="Delayed branch, 1 slot (L21 p46)" checked={o.delayedBranch} onChange={(v) => p.setOption('delayedBranch', v)} /> : null}
-        {show('jumpStage') && hasJump ? (
+        {show('jumpStage') ? (
           <Segmented
-            label="j resolves in"
+            label={`j resolves in${hasJump ? '' : ' (no j in this code)'}`}
             value={o.jumpStage}
             onChange={(v) => p.setOption('jumpStage', v)}
             options={[
-              { value: 'ID', label: 'ID', title: 'AY23/24 S2 Q17' },
-              { value: 'MEM', label: 'MEM', title: 'T10 Additional Question' },
+              { value: 'ID', label: 'ID (AY23/24 S2 Q17)', title: 'AY23/24 S2 Q17' },
+              { value: 'MEM', label: 'MEM (T10 Additional)', title: 'T10 Additional Question' },
             ]}
           />
         ) : null}
-        {show('storeData') && hasStore && o.forwarding ? (
+        {show('storeData') ? (
           <Segmented
-            label="lw then sw of the loaded value"
+            label={`lw then sw of the loaded value${!hasStore ? ' (no sw in this code)' : !o.forwarding ? ' (needs forwarding on)' : ''}`}
             value={o.storeData}
             onChange={(v) => p.setOption('storeData', v)}
             options={[
-              { value: 'ex', label: 'Data needed in EX', title: 'Forwarding to EX only, as R11 p14 teaches: 1 stall' },
-              { value: 'mem', label: 'MEM/WB to MEM path', title: 'Not taught: 0 stalls' },
+              { value: 'ex', label: 'Data needed in EX (R11 p14, 1 stall)', title: 'Forwarding to EX only, as R11 p14 teaches: 1 stall' },
+              { value: 'mem', label: 'MEM/WB to MEM path (not taught, 0 stalls)', title: 'Not taught: 0 stalls' },
             ]}
           />
         ) : null}
       </div>
+      {show('jumpStage') ? <p className="pl-muted">The two keys disagree on j: AY23/24 S2 Q17 resolves it in ID, the T10 Additional Question in MEM.</p> : null}
       {o.prediction === 'taken' && show('prediction') ? (
         <Callout kind="beyond" title="Beyond the course">
           Predict taken is not taught (L21 p40 covers only predict not taken). It is here because R11 Quiz Q7 uses it.

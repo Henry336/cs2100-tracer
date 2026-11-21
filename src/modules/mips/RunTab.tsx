@@ -216,7 +216,7 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
                         <td className="mono mp-r">
                           <W
                             e={{
-                              rule: endian === 'big' ? 'Big-endian: the byte at +0 is the most significant' : 'Little-endian: the byte at +0 is the least significant (QtSpim on a PC)',
+                              rule: endian === 'big' ? 'Big-endian: the byte at +0 is the most significant' : 'Little-endian: the byte at +0 is the least significant; the online MIPS interpreter uses it (L10 p18). QtSpim on a PC also shows words this way, but that is a lab observation, not a slide fact',
                               working: `${order.map((k) => bytes[k].toString(16).toUpperCase().padStart(2, '0')).join(' ')} = ${hex(w)} = ${w}`,
                               cite: endian === 'big' ? 'R02 p8' : 'L10 p17-18',
                             }}

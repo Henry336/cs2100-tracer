@@ -155,6 +155,8 @@ describe('design fixtures (logic.md section 6)', () => {
     const f = run({ ...spec, prefer: 'fewest-gates' })
     expect(f.total.gates).toBe(1)
     expect(fn(f, 'KB').chosen.text).toBe("(A∙C)'")
+    // AY23/24 S2 Ans p17 Q20e: the key accepts NAND or OR as the 1 gate, so the Why must not say the OR form is wrong.
+    expect(fn(f, 'KB').chosen.why.rule).toContain('accepts either a NAND or an OR')
     expect(unusedText(d)).toBe('0:0>2 0:1>3')
   })
 

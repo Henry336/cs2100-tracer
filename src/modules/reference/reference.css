@@ -52,3 +52,8 @@
     align-self: start;
   }
 }
+
+/* Cheat-sheet mode: no sources on screen or in the printout. */
+body:has(.ref-nocite-on) :is(.ref-refs, .ref-toc-refs, .ref-cite, .callout-cite) {
+  display: none;
+}

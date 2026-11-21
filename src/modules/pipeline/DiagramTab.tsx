@@ -138,16 +138,22 @@ export function Totals({ trace }: { trace: PipelineTrace }) {
       <div>
         <dt>Data stall cycles / control</dt>
         <dd className="mono">
-          {t.dataStallCycles} / {t.controlStallCycles}
+          <W e={t.why.split}>
+            {t.dataStallCycles} / {t.controlStallCycles}
+          </W>
         </dd>
       </div>
       <div>
         <dt>Instructions delayed (stall events)</dt>
-        <dd className="mono">{t.stallEvents}</dd>
+        <dd className="mono">
+          <W e={t.why.stallEvents}>{t.stallEvents}</W>
+        </dd>
       </div>
       <div>
         <dt>Fetches flushed</dt>
-        <dd className="mono">{t.flushed}</dd>
+        <dd className="mono">
+          <W e={t.why.flushed}>{t.flushed}</W>
+        </dd>
       </div>
       <div>
         <dt>Nops without hazard detection</dt>

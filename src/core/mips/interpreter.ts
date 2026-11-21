@@ -5,7 +5,7 @@ import type { Endian, ExecFrame, Explain, Instr, MemAccess, Program, RunInit, Ru
 
 const ORDER: Record<Endian, Explain> = {
   big: { rule: 'Big-endian: the most significant byte sits at the lowest address', cite: 'R02 p8' },
-  little: { rule: 'Little-endian: the least significant byte sits at the lowest address (QtSpim on a PC)', cite: 'L10 p17-18' },
+  little: { rule: 'Little-endian: the least significant byte sits at the lowest address; the online MIPS interpreter uses it (L10 p18). QtSpim on a PC also shows words this way, but that is a lab observation, not a slide fact', cite: 'L10 p17-18' },
 }
 
 /** Byte map for init.mem from 32-bit words laid out from `base` (big-endian unless told otherwise). */

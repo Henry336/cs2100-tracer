@@ -94,4 +94,10 @@ describe('diagram model', () => {
     expect(m.units.sext.tone).toBe('past')
     expect(m.units.dm.tone).toBe('future')
   })
+  it('architecture.md focus mode: the timing diagram hides what addi does not need and keeps the rest', () => {
+    const m = buildTimingModel(criticalPath('addi', LATENCY_PRESETS[0].delays), true, true)
+    expect(m.units.dm.tone).toBe('hidden')
+    expect(m.units.sext.tone).toBe('past')
+    expect(m.wires.wd.tone).toBe('path')
+  })
 })

@@ -209,6 +209,13 @@ describe('options for course ambiguities (verifier round 2)', () => {
     expect(little.endian).toBe('little')
   })
 
+  it('L10 p17-18: the little-endian Why names the online MIPS interpreter, and QtSpim only as a lab observation', () => {
+    const r = run(assemble('lw $t0, 0($zero)', { endian: 'little' }))
+    const rule = r.frames.flatMap((f) => f.why).find((e) => e.rule.startsWith('Little-endian'))!.rule
+    expect(rule).toContain('online MIPS interpreter uses it (L10 p18)')
+    expect(rule).toContain('lab observation, not a slide fact')
+  })
+
   it('L07 p12, p38: ulw reads the same word in both byte orders, and Ex5 counts 42 statements', () => {
     const src = 'addi $t1, $t0, 10\nadd $t2, $zero, $zero\nLoop: ulw $t3, 0($t1)\nadd $t2, $t2, $t3\naddi $t1, $t1, -1\nbne $t1, $t0, Loop'
     const r = run(assemble(src), { regs: { [R('$t0')]: 0x10010000 } })

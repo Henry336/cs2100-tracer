@@ -318,6 +318,11 @@ describe('field use of refused instructions (AY23/24 S2 Q10 key D)', () => {
     if (r.ok) throw new Error('lui should be refused')
     expect(r.support!.fieldUse).toMatchObject({ reads: [], writes: 'rt' })
   })
+  it('L11 p6 never names lui: the refusal says lui is outside the listed subset', () => {
+    const r = traceDatapath({ source: 'lui $8, 0x1001' })
+    if (r.ok) throw new Error('lui should be refused')
+    expect(r.support!.notes.some((n) => n.cite === 'L11 p6' && n.rule.includes('not in the L11 p6 subset'))).toBe(true)
+  })
 })
 
 describe('bne row from the AY25/26 key', () => {

@@ -4,8 +4,9 @@ import { PRESETS } from './presets'
 import BranchesTab from './BranchesTab'
 import DatapathTab from './DatapathTab'
 import DiagramTab, { idealTrace } from './DiagramTab'
+import { printZoom } from './Grid'
 import ExamTab, { changedLine, nopListing, replaceInstruction } from './ExamTab'
-import { tracePipeline } from '../../core/pipeline'
+import { buildStream, delaySlotCandidates, tracePipeline } from '../../core/pipeline'
 import HazardsTab from './HazardsTab'
 import PipelinePage from './PipelinePage'
 import TimingTab from './TimingTab'
@@ -70,5 +71,21 @@ describe('ideal view', () => {
     expect(i.rows.every((r) => !r.wrongPath)).toBe(true)
     i.rows.forEach((r, k) => expect(r.stages).toEqual({ IF: k + 1, ID: k + 2, EX: k + 3, MEM: k + 4, WB: k + 5 }))
     expect(t.totals.ideal + t.totals.dataStallCycles + t.totals.controlStallCycles).toBe(t.totals.cycles)
+  })
+})
+
+describe('preset notes match the engine', () => {
+  it('P19 AY23/24 S1 Q12 (Answers p6-7): the note names the slot after I7, which only I5 fills', () => {
+    const p = PRESETS.find((x) => x.id === 'P19')!
+    expect(p.note).toContain('after I7')
+    const ok = delaySlotCandidates(buildStream(p.code, { outcomes: [] }), 6).filter((c) => c.ok).map((c) => c.name)
+    expect(ok).toEqual(['I5'])
+  })
+})
+
+describe('Export PDF (reviewer F2)', () => {
+  it('a wide grid is scaled to fit A4 landscape instead of being clipped; a short one is not scaled', () => {
+    expect(printZoom(83 * 40)).toBeLessThan(0.3)
+    expect(printZoom(10 * 40)).toBe(1)
   })
 })
