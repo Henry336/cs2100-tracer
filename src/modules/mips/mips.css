@@ -565,20 +565,6 @@
   max-width: 640px;
 }
 
-.mp-more > summary {
-  cursor: pointer;
-  color: var(--ink-3);
-  font-size: var(--fs-sm);
-  width: max-content;
-  max-width: 100%;
-  padding: 2px 4px;
-}
-
-.mp-more[open] > summary {
-  margin-bottom: var(--sp-2);
-  color: var(--ink);
-}
-
 /* Board tools are self-explaining (Hex or Decimal); the radiogroup keeps its aria-label. */
 .mp-root .board-tools .control-label {
   display: none;
@@ -753,7 +739,6 @@
 }
 
 @media print {
-  .mp-more > summary,
   .mp-quiet {
     display: none;
   }

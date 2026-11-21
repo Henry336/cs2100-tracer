@@ -293,10 +293,9 @@ export default function RunTab({ intro, openEncode }: { intro: ReactNode; openEn
           ...(f.output ? [['Printed', f.output] as [ReactNode, ReactNode]] : []),
         ]}
       />
-      <details className="mp-more">
-        <summary>Working</summary>
+      <Options summary="Working">
         <Steps steps={f.why} label="Working for this step" />
-      </details>
+      </Options>
       <button type="button" className="mp-quiet" onClick={() => openEncode(f.instr.word, f.instr.address)}>
         Show the encoding
       </button>
