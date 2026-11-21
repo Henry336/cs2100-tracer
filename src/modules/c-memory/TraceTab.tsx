@@ -1,7 +1,8 @@
 import { useDeferredValue, useEffect, useMemo, type ReactNode } from 'react'
 import { exprTreesByLine, traceC, type CMemConfig, type CTrace, type Endian, type ExprNode, type TraceFrame, type VarView } from '../../core/c-memory'
 import { useUrlState } from '../../lib/url-state'
-import { Button, Callout, Chip, CodeEditor, DataTable, Legend, Presets, Segmented, Tabs, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Board, Details, Options, PlayBar, Stage, Story } from '../../ui/board'
+import { Button, Callout, Chip, CodeEditor, DataTable, Legend, Presets, Segmented, Toggle, Workspace, type Column } from '../../ui/kit'
 import { useStepper } from '../../ui/stepper'
 import { Transport } from '../../ui/Transport'
 import { ByteReading, ByteStrip } from './ByteStrip'
@@ -19,17 +20,6 @@ export function useTrace(src: string, cfg: Partial<CMemConfig>): CTrace {
   return useMemo(() => traceC(src, cfg), [src, key]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-type DetailTab = 'output' | 'strip' | 'vars' | 'group' | 'traps' | 'conv'
-
-const DETAIL_TABS: { value: DetailTab; label: string }[] = [
-  { value: 'output', label: 'Output' },
-  { value: 'strip', label: 'Memory strip' },
-  { value: 'vars', label: 'Name, address, value' },
-  { value: 'group', label: 'Operator grouping' },
-  { value: 'traps', label: 'Traps' },
-  { value: 'conv', label: 'Conventions' },
-]
-
 export default function TraceTab({ intro }: { intro: ReactNode }) {
   const [src, setSrc] = useUrlState('src', DEFAULT_PRESET.code)
   const [stdin, setStdin] = useUrlState('in', DEFAULT_PRESET.config?.stdin ?? '')
@@ -42,8 +32,6 @@ export default function TraceTab({ intro }: { intro: ReactNode }) {
   const [rawSel, setSel] = useUrlState<string | null>('sel', null)
   const [stepQ, setStepQ] = useUrlState('step', 0)
   const [rawGuess, setGuess] = useUrlState('guess', '')
-  const [rawDetail, setDetail] = useUrlState<DetailTab>('ct', 'output')
-  const detail = DETAIL_TABS.some((t) => t.value === rawDetail) ? rawDetail : 'output'
   const guess = typeof rawGuess === 'string' ? rawGuess : ''
 
   const code = useDeferredValue(typeof src === 'string' ? src : '')
@@ -127,9 +115,6 @@ export default function TraceTab({ intro }: { intro: ReactNode }) {
   const defaults = cfg.pointerSize === 4 && cfg.pointerFormat === 'slides' && topNow === presetTop
   const traps = useMemo(() => relevantTraps(code), [code])
 
-  const atEnd = i >= frames.length - 1
-  const playLabel = stepper.playing ? 'Pause' : atEnd ? 'Run it again' : i === 0 ? 'Run this program' : 'Play from here'
-
   return (
     <Workspace title="C memory and pointers" lectures="L02 to L05, R01 to R02, T01" intro={intro} toolbar={<Presets presets={PRESET_LIST} onPick={pick} />} transport={transport}>
       <div className="cm-command">
@@ -144,8 +129,7 @@ export default function TraceTab({ intro }: { intro: ReactNode }) {
             {stripLine(w.message)}
           </Callout>
         ))}
-        <details className="cm-options">
-          <summary>Pointer size, addresses and options</summary>
+        <Options summary="Pointer size, addresses and options">
           <div className="cm-row">
             <Segmented
               label="Pointer size"
@@ -179,39 +163,56 @@ export default function TraceTab({ intro }: { intro: ReactNode }) {
               The slides print addresses as plain hex digits from the course's old Sun machines. gcc on Linux writes them with a 0x prefix, and NULL as (nil).
             </Callout>
           ) : null}
-        </details>
+        </Options>
       </div>
 
-      <div className="cm-stage">
-        <div className="cm-board canvas">
-          <div className="cm-board-bar">
-            <p className="cm-board-title">
-              {f ? (
-                <>
-                  <span className="cm-board-step">Step {i + 1}</span>
-                  <span className="cm-muted">of {frames.length}, line {f.line}</span>
-                </>
-              ) : (
-                'Cannot run'
-              )}
-            </p>
-            {f ? (
-              <div className="cm-board-actions">
+      <Stage>
+        <Board
+          title={f ? `Line ${f.line}` : 'Cannot run'}
+          step={f ? `Step ${i + 1} of ${frames.length}` : undefined}
+          tools={
+            f ? (
+              <>
                 <Toggle label="Addresses" checked={showAddr !== false} onChange={(v) => setShowAddr(v)} hint="Turn off to see only boxes and arrows" />
                 <Toggle label="Show only what this step changes" checked={focus === true} onChange={(v) => setFocus(v)} hint="Hides the boxes this step leaves alone. The others keep their place." />
+              </>
+            ) : undefined
+          }
+          play={
+            f ? (
+              <div className="cm-play-row">
+                <PlayBar stepper={stepper} start="Run this program" />
+                <button type="button" className="cm-quiet" onClick={() => stepper.set(overTo)} disabled={overTo < 0} title="Run any function this step calls, and stop at the next step in this function">
+                  Step over
+                </button>
+                <button type="button" className="cm-quiet" onClick={() => stepper.set(outTo)} disabled={outTo < 0} title="Run to the end of this function and stop back in the caller">
+                  Step out
+                </button>
               </div>
-            ) : null}
-          </div>
+            ) : undefined
+          }
+          foot={
+            f ? (
+              <Legend
+                items={[
+                  { signal: 'path', label: 'changed this step' },
+                  { signal: 'data', label: 'pointer and its arrow' },
+                  { signal: 'dontcare', label: 'garbage (never given a value)' },
+                  { signal: 'miss', label: 'error or bad pointer' },
+                  { signal: 'control', label: 'call or return (timeline)' },
+                ]}
+              />
+            ) : undefined
+          }
+        >
           {f ? (
             <>
               {f.error ? (
-                <div className="cm-pad">
-                  <Callout kind="trap" title={`Stopped at line ${f.error.line}: ${f.error.kind}`} cite={f.error.cite}>
-                    {stripLine(f.error.message)}
-                  </Callout>
-                </div>
+                <Callout kind="trap" title={`Stopped at line ${f.error.line}: ${f.error.kind}`} cite={f.error.cite}>
+                  {stripLine(f.error.message)}
+                </Callout>
               ) : null}
-              {focus === true && !frameChanges(f) ? <p className="cm-pad cm-muted">This step changes nothing in memory.</p> : null}
+              {focus === true && !frameChanges(f) ? <p className="cm-muted">This step changes nothing in memory.</p> : null}
               <MemoryDiagram
                 frame={f}
                 line={srcLines[f.line - 1]}
@@ -220,56 +221,17 @@ export default function TraceTab({ intro }: { intro: ReactNode }) {
                 selected={sel}
                 onSelect={(id) => setSel(id === sel ? null : id)}
               />
-              <div className="cm-board-play">
-                <button type="button" className="cm-play" onClick={stepper.toggle} data-playing={stepper.playing}>
-                  {stepper.playing ? (
-                    <svg viewBox="0 0 16 16" aria-hidden="true">
-                      <path d="M4 3h3v10H4zM9 3h3v10H9z" />
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 16 16" aria-hidden="true">
-                      <path d="M4.5 2.8l9 5.2-9 5.2z" />
-                    </svg>
-                  )}
-                  {playLabel}
-                </button>
-                {!atEnd ? (
-                  <button type="button" className="cm-next" onClick={stepper.next}>
-                    Next step
-                    <svg viewBox="0 0 16 16" aria-hidden="true">
-                      <path d="M3 8h10M9 4l4 4-4 4" />
-                    </svg>
-                  </button>
-                ) : null}
-                <button type="button" className="cm-quiet" onClick={() => stepper.set(overTo)} disabled={overTo < 0} title="Run any function this step calls, and stop at the next step in this function">
-                  Step over
-                </button>
-                <button type="button" className="cm-quiet" onClick={() => stepper.set(outTo)} disabled={outTo < 0} title="Run to the end of this function and stop back in the caller">
-                  Step out
-                </button>
-              </div>
-              <div className="cm-board-foot">
-                <Legend
-                  items={[
-                    { signal: 'path', label: 'changed this step' },
-                    { signal: 'data', label: 'pointer and its arrow' },
-                    { signal: 'dontcare', label: 'garbage (never given a value)' },
-                    { signal: 'miss', label: 'error or bad pointer' },
-                    { signal: 'control', label: 'call or return (timeline)' },
-                  ]}
-                />
-              </div>
             </>
           ) : (
-            <ul className="cm-errors cm-pad">
+            <ul className="cm-errors">
               {trace.errors.map((e, k) => (
                 <li key={k}>{e.message}</li>
               ))}
             </ul>
           )}
-        </div>
+        </Board>
 
-        <aside className="cm-story" aria-label="Program and the current step">
+        <aside className="cm-side" aria-label="Program and the current step">
           <CodeEditor
             label="C source"
             value={typeof src === 'string' ? src : ''}
@@ -286,56 +248,65 @@ export default function TraceTab({ intro }: { intro: ReactNode }) {
             <p className="cm-tip">{sel ? 'That variable is not in memory at this step. ' : ''}Click a box to see its address, size and bytes.</p>
           ) : null}
         </aside>
-      </div>
+      </Stage>
 
       {f ? (
-        <section className="cm-details" aria-label="Tables for this step">
-          <Tabs label="Tables" value={detail} onChange={setDetail} tabs={DETAIL_TABS} />
-          <div className="cm-detail-body">
-            {detail === 'output' ? (
-              <OutputPane
-                f={f}
-                expected={expected}
-                source={preset?.source}
-                errorKind={preset?.expect.errorKind}
-                defaults={defaults}
-                fullOutput={trace.summary.output}
-                guess={guess}
-                setGuess={setGuess}
-                check={check}
-                onJump={stepper.set}
-              />
-            ) : null}
-            {detail === 'strip' ? (
-              <>
-                <div className="cm-row cm-row-top">
-                  <Segmented
-                    label="Byte order"
-                    value={cfg.endian ?? 'big'}
-                    onChange={(v) => setEndian(v)}
-                    options={[
-                      { value: 'big', label: 'Big-endian', title: 'Most significant byte at the lowest address' },
-                      { value: 'little', label: 'Little-endian', title: 'Least significant byte at the lowest address' },
-                    ]}
-                  />
-                </div>
-                <ByteStrip frame={f} endian={cfg.endian ?? 'big'} selected={sel} onSelect={setSel} />
-                <div className="cm-callouts">
-                  <Callout kind="course" title="Which byte order?" cite="R02 p8; L10 p17-18">
-                    R02 calls our MIPS big-endian, so that is the default. L10 says it depends on the implementation, and the online interpreter is little-endian, so a question always states the order.
-                  </Callout>
-                  <Callout kind="trap" title="Endianness only reorders the bytes of one value" cite="L10 p17-18">
-                    A char array is stored in index order either way, and the bits inside a byte never move. Only an int, float, double or pointer has its bytes reversed.
-                  </Callout>
-                </div>
-              </>
-            ) : null}
-            {detail === 'vars' ? <VariablesTable f={f} sel={sel} onSelect={setSel} /> : null}
-            {detail === 'group' ? <Grouping trees={trees.get(f.line) ?? []} line={f.line} /> : null}
-            {detail === 'traps' ? <TrapList traps={traps} /> : null}
-            {detail === 'conv' ? <Conventions trace={trace} /> : null}
-          </div>
-        </section>
+        <Details
+          urlKey="ct"
+          label="Tables"
+          tabs={[
+            {
+              value: 'output',
+              label: 'Output',
+              body: (
+                <OutputPane
+                  f={f}
+                  expected={expected}
+                  source={preset?.source}
+                  errorKind={preset?.expect.errorKind}
+                  defaults={defaults}
+                  fullOutput={trace.summary.output}
+                  guess={guess}
+                  setGuess={setGuess}
+                  check={check}
+                  onJump={stepper.set}
+                />
+              ),
+            },
+            {
+              value: 'strip',
+              label: 'Memory strip',
+              body: (
+                <>
+                  <div className="cm-row cm-row-top">
+                    <Segmented
+                      label="Byte order"
+                      value={cfg.endian ?? 'big'}
+                      onChange={(v) => setEndian(v)}
+                      options={[
+                        { value: 'big', label: 'Big-endian', title: 'Most significant byte at the lowest address' },
+                        { value: 'little', label: 'Little-endian', title: 'Least significant byte at the lowest address' },
+                      ]}
+                    />
+                  </div>
+                  <ByteStrip frame={f} endian={cfg.endian ?? 'big'} selected={sel} onSelect={setSel} />
+                  <div className="cm-callouts">
+                    <Callout kind="course" title="Which byte order?" cite="R02 p8; L10 p17-18">
+                      R02 calls our MIPS big-endian, so that is the default. L10 says it depends on the implementation, and the online interpreter is little-endian, so a question always states the order.
+                    </Callout>
+                    <Callout kind="trap" title="Endianness only reorders the bytes of one value" cite="L10 p17-18">
+                      A char array is stored in index order either way, and the bits inside a byte never move. Only an int, float, double or pointer has its bytes reversed.
+                    </Callout>
+                  </div>
+                </>
+              ),
+            },
+            { value: 'vars', label: 'Name, address, value', body: <VariablesTable f={f} sel={sel} onSelect={setSel} /> },
+            { value: 'group', label: 'Operator grouping', body: <Grouping trees={trees.get(f.line) ?? []} line={f.line} /> },
+            { value: 'traps', label: 'Traps', body: <TrapList traps={traps} /> },
+            { value: 'conv', label: 'Conventions', body: <Conventions trace={trace} /> },
+          ]}
+        />
       ) : null}
     </Workspace>
   )
@@ -343,49 +314,45 @@ export default function TraceTab({ intro }: { intro: ReactNode }) {
 
 /** The current step bright and opened; the steps either side as one clickable line. */
 function StepStory({ frames, i, srcLines, onJump }: { frames: TraceFrame[]; i: number; srcLines: string[]; onJump: (i: number) => void }) {
+  // a trace can run to hundreds of steps, so only this step and its neighbours are listed
   const items = [i - 1, i, i + 1].filter((k) => k >= 0 && k < frames.length)
+  const x = frames[i]
   return (
-    <ol className="cm-story-steps" aria-label="Steps around this one">
-      {items.map((k) => {
-        const x = frames[k]
-        const now = k === i
-        return (
-          <li key={k} className={now ? 'is-now' : k < i ? 'is-past' : 'is-next'}>
-            <button type="button" className="cm-story-btn" onClick={() => onJump(k)} aria-current={now ? 'step' : undefined}>
-              <span className="cm-story-dot" aria-hidden="true" />
-              <span className="cm-story-line">{now ? `Step ${k + 1}, ${kindName(x)}` : `Step ${k + 1}: ${x.description}`}</span>
-            </button>
-            {now ? (
-              <div className="cm-story-body">
-                <p className="cm-codeline mono">
-                  <span className="cm-muted">{x.line}</span> {srcLines[x.line - 1]?.trim()}
-                </p>
-                <p className="cm-does">{x.description}</p>
-                {x.newOutput ? (
-                  <p className="cm-line">
-                    Prints <span className="mono cm-printed">{JSON.stringify(x.newOutput)}</span>
-                  </p>
-                ) : null}
-                {x.whys.length ? (
-                  <details className="cm-why">
-                    <summary>How this step works</summary>
-                    <ul className="cm-whys">
-                      {x.whys.map((w, n) => (
-                        <li key={n}>
-                          <span>{w.rule}</span>
-                          {w.working ? <span className="why-working mono">{w.working}</span> : null}
-                          {w.cite ? <span className="cm-cite">{w.cite}</span> : null}
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                ) : null}
-              </div>
-            ) : null}
-          </li>
-        )
-      })}
-    </ol>
+    <Story
+      label="Steps around this one"
+      index={items.indexOf(i)}
+      onPick={(j) => onJump(items[j])}
+      titles={items.map((k) => (
+        <span className="cm-story-line">{k === i ? `Step ${k + 1}, ${kindName(frames[k])}` : `Step ${k + 1}: ${frames[k].description}`}</span>
+      ))}
+      body={
+        <>
+          <p className="cm-codeline mono">
+            <span className="cm-muted">{x.line}</span> {srcLines[x.line - 1]?.trim()}
+          </p>
+          <p className="cm-does">{x.description}</p>
+          {x.newOutput ? (
+            <p className="cm-line">
+              Prints <span className="mono cm-printed">{JSON.stringify(x.newOutput)}</span>
+            </p>
+          ) : null}
+          {x.whys.length ? (
+            <details className="cm-why">
+              <summary>How this step works</summary>
+              <ul className="cm-whys">
+                {x.whys.map((w, n) => (
+                  <li key={n}>
+                    <span>{w.rule}</span>
+                    {w.working ? <span className="why-working mono">{w.working}</span> : null}
+                    {w.cite ? <span className="cm-cite">{w.cite}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
+        </>
+      }
+    />
   )
 }
 

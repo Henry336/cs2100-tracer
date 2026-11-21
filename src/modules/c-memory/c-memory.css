@@ -17,10 +17,6 @@
   margin: var(--sp-1) 0;
 }
 
-.cm-pad {
-  padding: var(--sp-3);
-}
-
 .cm-line {
   font-size: var(--fs-sm);
   margin: var(--sp-2) 0 0;
@@ -120,9 +116,8 @@
   margin-top: var(--sp-3);
 }
 
+/* Sits inside the shared .board-scroll, which gives the padding and the horizontal scroll. */
 .cm-diagram {
-  overflow-x: auto;
-  padding: var(--sp-3);
   min-width: 0;
 }
 
@@ -514,9 +509,6 @@
     max-height: none;
     overflow: visible;
   }
-  .cm-diagram {
-    overflow: visible;
-  }
   .cm-svg {
     max-width: 100%;
     height: auto;
@@ -589,7 +581,7 @@
   fill: var(--focus);
 }
 
-/* ---------- Calm layout: options line, board with Play inside, step story beside it, one tab strip ---------- */
+/* ---------- Inputs above the board; the board, story and tables come from the shared kit (shell.css) ---------- */
 
 .cm-command {
   display: flex;
@@ -617,155 +609,19 @@
   max-width: 520px;
 }
 
-.cm-options > summary {
-  cursor: pointer;
-  color: var(--ink-3);
-  font-size: var(--fs-sm);
-  width: max-content;
-  max-width: 100%;
-  padding: 2px 4px;
+.options-body > .cm-row {
+  margin-top: 0;
 }
 
-.cm-options[open] > summary {
-  color: var(--ink);
-}
-
-.cm-options > .cm-row {
-  margin-top: var(--sp-2);
-}
-
-.cm-options > .callout {
-  margin-top: var(--sp-3);
-}
-
-.cm-stage {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: var(--sp-4);
-  align-items: start;
-}
-
-.cm-board {
-  position: relative;
-  min-width: 0;
-  border: 1px solid var(--rule);
-  border-radius: var(--r-panel);
-  overflow: hidden;
-}
-
-.cm-board-bar {
+/* Step over and step out sit beside the shared Play and Next pills. */
+.cm-play-row {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--sp-2) var(--sp-4);
-  padding: 12px 16px 0;
+  align-items: flex-start;
 }
 
-.cm-board-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--sp-2) var(--sp-3);
-  margin: 0;
-  font-size: var(--fs-md);
-}
-
-.cm-board-step {
-  font-family: var(--font-display);
-  font-size: var(--fs-xl);
-  color: var(--sig-path);
-}
-
-.cm-board-answer {
-  font-size: var(--fs-md);
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.cm-board-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2) var(--sp-4);
-}
-
-.cm-board .cm-diagram {
-  padding: var(--sp-3) var(--sp-4);
-}
-
-.cm-board-play {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: 0 16px 14px;
-}
-
-.cm-play,
-.cm-next {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.cm-play-row > .cm-quiet {
   height: 40px;
-  padding: 0 18px;
-  border-radius: var(--r-pill);
-  font: 600 var(--fs-sm) / 1 var(--font-sans);
-  cursor: pointer;
-  transition: transform 0.25s var(--ease-spring), background-color 0.15s var(--ease);
-}
-
-.cm-play {
-  position: relative;
-  border: 0;
-  background: var(--primary);
-  color: var(--primary-ink);
-}
-
-.cm-play svg {
-  width: 14px;
-  height: 14px;
-  fill: currentColor;
-}
-
-.cm-play:hover {
-  transform: scale(1.03);
-}
-
-.cm-play[data-playing='true']::before {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: inherit;
-  padding: 2px;
-  background: var(--glow);
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box exclude,
-    linear-gradient(#000 0 0);
-  animation: glow-spin 2.4s linear infinite;
-}
-
-.cm-next {
-  border: 1px solid var(--rule);
-  background: var(--panel);
-  color: var(--ink);
-}
-
-.cm-next svg {
-  width: 14px;
-  height: 14px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.cm-next:hover {
-  border-color: var(--ink-3);
 }
 
 .cm-quiet {
@@ -791,87 +647,27 @@
   text-decoration: none;
 }
 
-.cm-play:focus-visible,
-.cm-next:focus-visible,
 .cm-quiet:focus-visible,
-.cm-story-btn:focus-visible,
-.cm-options > summary:focus-visible,
 .cm-why > summary:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
-.cm-board-foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-2) var(--sp-4);
-  padding: var(--sp-2) var(--sp-4);
-  border-top: 1px solid var(--grid);
-  background: color-mix(in srgb, var(--panel) 70%, transparent);
+.board-foot > .cm-muted {
+  margin-top: var(--sp-1);
 }
 
-.cm-board .cm-diagram > .cm-board-foot {
-  margin: var(--sp-3) calc(-1 * var(--sp-4)) calc(-1 * var(--sp-3));
-}
-
-.cm-board-foot > .cm-muted {
-  margin: 0;
-}
-
-/* The story: the code, then the current step bright and open, its neighbours one line each. */
-.cm-story {
+/* The side column: the code, then the shared step story, then the selected box. */
+.cm-side {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
   min-width: 0;
 }
 
-.cm-story-steps {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.cm-story-steps li {
-  position: relative;
-  padding-left: 22px;
-}
-
-.cm-story-steps li::before {
-  content: '';
-  position: absolute;
-  left: 5px;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--rule);
-}
-
-.cm-story-steps li:first-child::before {
-  top: 16px;
-}
-
-.cm-story-steps li:last-child::before {
-  bottom: calc(100% - 16px);
-}
-
-.cm-story-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  background: none;
-  padding: 7px 0;
-  color: var(--ink-3);
-  font: inherit;
-  font-size: var(--fs-sm);
-  text-align: left;
-  cursor: pointer;
+/* The story sits mid-column here, so it must not stick and slide over the selected box. */
+.cm-side > .story {
+  position: static;
 }
 
 .cm-story-line {
@@ -881,43 +677,7 @@
   text-overflow: ellipsis;
 }
 
-.cm-story-dot {
-  position: absolute;
-  left: 0;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  border: 1.5px solid var(--rule);
-  background: var(--paper);
-}
-
-.cm-story-steps .is-past .cm-story-dot {
-  background: var(--ink-3);
-  border-color: var(--ink-3);
-}
-
-.cm-story-steps .is-now .cm-story-btn {
-  color: var(--ink);
-  font-weight: 600;
-  font-size: var(--fs-md);
-}
-
-.cm-story-steps .is-now .cm-story-dot {
-  border-color: var(--sig-path);
-  background: var(--sig-path);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--sig-path) 25%, transparent);
-}
-
-.cm-story-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  padding: 2px 0 12px;
-  font-size: var(--fs-sm);
-  animation: rise 0.35s var(--ease) both;
-}
-
-.cm-story-body .cm-line {
+.story-body .cm-line {
   margin: 0;
 }
 
@@ -960,22 +720,6 @@
   font-weight: 600;
 }
 
-.cm-details {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  min-width: 0;
-}
-
-.cm-detail-body {
-  border: 1px solid var(--rule);
-  border-radius: var(--r-panel);
-  background: var(--panel);
-  padding: var(--sp-3);
-  overflow-x: auto;
-  min-width: 0;
-}
-
 .cm-row-top {
   margin: 0 0 var(--sp-3);
 }
@@ -999,26 +743,13 @@
   stroke-width: 1.5;
 }
 
-@media (max-width: 1180px) {
-  .cm-stage {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cm-story-body,
-  .cm-play[data-playing='true']::before {
-    animation: none;
-  }
-}
-
 @media print {
-  .cm-board-play,
-  .cm-options > summary,
+  .cm-play-row,
   .cm-why > summary {
     display: none;
   }
-  .cm-board {
+  .cm-root .board,
+  .cm-root .board-scroll {
     overflow: visible;
   }
 }

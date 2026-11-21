@@ -18,13 +18,13 @@ describe('c-memory page renders', () => {
   it('both tabs render their default state', () => {
     const html = renderToString(<CMemoryPage />)
     // picture first: the board with its step title and Play inside it, tables in one tab strip below
-    expect(html).toContain('cm-board canvas')
+    expect(html).toContain('class="board canvas"')
     expect(html).toContain('Step 1')
     expect(html).toContain('Run this program')
     expect(html).toContain('Next step')
     expect(html).toContain('Memory strip')
     expect(html).toContain('Name, address, value')
-    expect(html.indexOf('cm-board canvas')).toBeLessThan(html.indexOf('role="tablist" aria-label="Tables"'))
+    expect(html.indexOf('class="board canvas"')).toBeLessThan(html.indexOf('role="tablist" aria-label="Tables"'))
     const calc = renderToString(<CalcTab intro={null} />)
     expect(calc).toContain('A0 + 36')
     expect(calc).toContain('flow-draw')

@@ -1,5 +1,6 @@
 import { useId, useMemo, type KeyboardEvent } from 'react'
 import type { CellView, TraceFrame } from '../../core/c-memory'
+import { Flow } from '../../ui/board'
 import { fit, layoutFrame, shortValue, touched, type Box, type Item } from './layout'
 
 /** Same cell, or one holds the other (an element of an array, a member of a struct). */
@@ -230,20 +231,7 @@ export function MemoryDiagram({
             )
           })}
         </g>
-        {lit.length ? (
-          <>
-            <g className="flow-draw" key={`d${frame.index}`} aria-hidden="true">
-              {lit.map((e) => (
-                <path key={e.key} d={e.d} pathLength={1} />
-              ))}
-            </g>
-            <g className="flow-packets" key={`p${frame.index}`} aria-hidden="true">
-              {lit.map((e, k) => (
-                <path key={e.key} d={e.d} pathLength={1} style={{ animationDelay: `${0.7 + (k % 5) * 0.18}s` }} />
-              ))}
-            </g>
-          </>
-        ) : null}
+        <Flow id={frame.index} paths={lit.map((e) => e.d)} />
       </svg>
     </div>
   )

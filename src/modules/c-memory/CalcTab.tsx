@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { arrayAddress, endianBytes, structLayout, wordFromBytes, type Endian } from '../../core/c-memory'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, CodeEditor, DataTable, Legend, NumberField, Presets, Segmented, Select, Tabs, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Board, Details, Flow, Options } from '../../ui/board'
+import { Callout, CodeEditor, DataTable, Legend, NumberField, Presets, Segmented, Select, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
 import { addressToIndex, paddedLayout, parseList, parseMembers, unionLayout } from './calc'
 import { W, hexAddr, parseAddr } from './common'
 
@@ -40,7 +41,6 @@ const PRESETS: { name: string; source: string; value: CalcPreset }[] = [
 export default function CalcTab({ intro, defaultTool = 'array' }: { intro: ReactNode; defaultTool?: Tool }) {
   const [rawTool, setTool] = useUrlState<Tool>('ck', defaultTool)
   const tool: Tool = TOOLS.some((t) => t.value === rawTool) ? rawTool : 'array'
-  const [detail, setDetail] = useUrlState('cd', '')
   const [et, setEt] = useUrlState<ElemType>('at', 'int')
   const [es, setEs] = useUrlState('as', 12)
   const [dimsText, setDims] = useUrlState('ad', '3, 4')
@@ -101,8 +101,6 @@ export default function CalcTab({ intro, defaultTool = 'array' }: { intro: React
           setAddr={setAddr}
           order={order === 'column' ? 'column' : 'row'}
           setOrder={setOrder}
-          detail={detail}
-          setDetail={setDetail}
         />
       ) : null}
       {tool === 'struct' ? (
@@ -119,34 +117,18 @@ export default function CalcTab({ intro, defaultTool = 'array' }: { intro: React
           setPad={setPad}
           kind={sKind === 'union' ? 'union' : 'struct'}
           setKind={setSKind}
-          detail={detail}
-          setDetail={setDetail}
         />
       ) : null}
-      {tool === 'bytes' ? <BytesTool value={bValue} setValue={setBValue} base={bBase} setBase={setBBase} bytes={bBytes} setBytes={setBBytes} detail={detail} setDetail={setDetail} /> : null}
+      {tool === 'bytes' ? <BytesTool value={bValue} setValue={setBValue} base={bBase} setBase={setBBase} bytes={bBytes} setBytes={setBBytes} /> : null}
     </Workspace>
   )
 }
 
-/** One tab strip of tables under the board; an unknown or stale tab falls back to the first. */
-function DetailTabs<T extends string>({ tabs, value, onChange, children }: { tabs: { value: T; label: string }[]; value: string; onChange: (v: T) => void; children: (v: T) => ReactNode }) {
-  const v = (tabs.find((t) => t.value === value) ?? tabs[0]).value
-  return (
-    <section className="cm-details" aria-label="Working and rules">
-      <Tabs label="Working and rules" value={v} onChange={onChange} tabs={tabs} />
-      <div className="cm-detail-body">{children(v)}</div>
-    </section>
-  )
-}
+/** The three tools share one tab key in the URL; a tab another tool left there falls back to the first. */
+const DETAILS_KEY = 'cd'
+const DETAILS_LABEL = 'Working and rules'
 
 /* ---------- arrays ---------- */
-
-type ArrayDetail = 'work' | 'back' | 'rules'
-const ARRAY_TABS: { value: ArrayDetail; label: string }[] = [
-  { value: 'work', label: 'Working' },
-  { value: 'back', label: 'Address to indices' },
-  { value: 'rules', label: 'Rules' },
-]
 
 function ArrayTool(p: {
   et: ElemType
@@ -163,8 +145,6 @@ function ArrayTool(p: {
   setAddr: (v: string) => void
   order: 'row' | 'column'
   setOrder: (v: 'row' | 'column') => void
-  detail: string
-  setDetail: (v: string) => void
 }) {
   const S = p.et === 'custom' ? p.es : (ELEM_SIZE[p.et] ?? 4)
   const dims = parseList(p.dimsText)
@@ -226,8 +206,7 @@ function ArrayTool(p: {
           <TextField label="Dimensions" value={p.dimsText} onChange={p.setDims} placeholder="3, 4" width="8em" />
           <TextField label="Indices" value={p.idxText} onChange={p.setIdx} placeholder="2, 1" width="8em" />
         </div>
-        <details className="cm-options">
-          <summary>Start address and storage order</summary>
+        <Options summary="Start address and storage order">
           <div className="cm-row">
             <TextField label="Start address A0 (blank: symbolic)" value={p.baseText} onChange={p.setBase} placeholder="0x10010000" width="11em" />
             <Segmented
@@ -240,32 +219,48 @@ function ArrayTool(p: {
               ]}
             />
           </div>
-        </details>
+        </Options>
         {baseBad ? <p className="cm-err">{p.baseText} is not an address.</p> : null}
       </div>
 
-      <div className="cm-board canvas">
-        <div className="cm-board-bar">
-          <p className="cm-board-title">
-            <span className="mono">{decl}</span>
-            {fwd.ok ? (
-              <span className="cm-board-answer mono">
-                &amp;{elemName} = <W e={fwd.explain}>{fwd.answer}</W>
-              </span>
-            ) : null}
-          </p>
-        </div>
+      <Board
+        title={<span className="mono">{decl}</span>}
+        step={
+          fwd.ok ? (
+            <span className="mono">
+              &amp;{elemName} = <W e={fwd.explain}>{fwd.answer}</W>
+            </span>
+          ) : undefined
+        }
+        foot={
+          fwd.ok && dims.reduce((a, b) => a * b, 1) <= MAX_CELLS ? (
+            <>
+              <Legend
+                items={[
+                  { signal: 'path', label: 'the element asked for' },
+                  { signal: 'data', label: 'elements stored before it (they make the offset)' },
+                ]}
+              />
+              <p className="cm-muted">The number above each box is its position in memory.</p>
+            </>
+          ) : undefined
+        }
+      >
         {fwd.ok ? (
           <ArrayStrip dims={dims} index={index} order={p.order} S={S} base={base !== undefined && Number.isFinite(base) ? base : undefined} />
         ) : (
-          <p className="cm-err cm-pad">{fwd.error}</p>
+          <p className="cm-err">{fwd.error}</p>
         )}
-      </div>
+      </Board>
 
-      <DetailTabs tabs={ARRAY_TABS} value={p.detail} onChange={p.setDetail}>
-        {(v) =>
-          v === 'work' ? (
-            fwd.ok ? (
+      <Details
+        urlKey={DETAILS_KEY}
+        label={DETAILS_LABEL}
+        tabs={[
+          {
+            value: 'work',
+            label: 'Working',
+            body: fwd.ok ? (
               <div className="cm-sub">
                 <DataTable compact columns={termCols} rows={fwd.terms.map((t, j) => ({ ...t, j }))} />
                 <ol className="cm-steps">
@@ -278,8 +273,12 @@ function ArrayTool(p: {
               </div>
             ) : (
               <p className="cm-err">{fwd.error}</p>
-            )
-          ) : v === 'back' ? (
+            ),
+          },
+          {
+            value: 'back',
+            label: 'Address to indices',
+            body: (
             <div className="cm-sub" aria-label="Address to indices">
               <TextField label={symbolic ? 'Byte offset from A0' : 'Address'} value={p.addrText} onChange={p.setAddr} placeholder={symbolic ? '36' : '0x100100c0'} width="11em" />
               {addr !== undefined && !Number.isFinite(addr) ? <p className="cm-err">{p.addrText} is not a number.</p> : null}
@@ -308,7 +307,12 @@ function ArrayTool(p: {
                 </>
               ) : null}
             </div>
-          ) : (
+            ),
+          },
+          {
+            value: 'rules',
+            label: 'Rules',
+            body: (
             <div className="cm-callouts">
               <Callout kind="course" title="Row-major: the last index changes fastest" cite="R02 p25-26">
                 A0 + S x (i1 x D2 x ... x Dn + i2 x D3 x ... x Dn + ... + in). a[r][c + 1] is the next element, while a[r + 1][c] is a whole row (D2 x S bytes) away.
@@ -317,9 +321,10 @@ function ArrayTool(p: {
                 a is the address of a[0]...[0], so a and &amp;a[0] print the same. It cannot be assigned, and a[i] is *(a + i), which moves i x S bytes.
               </Callout>
             </div>
-          )
-        }
-      </DetailTabs>
+            ),
+          },
+        ]}
+      />
     </>
   )
 }
@@ -328,7 +333,7 @@ const MAX_CELLS = 144
 
 export function ArrayStrip({ dims, index, order, S, base }: { dims: number[]; index: number[]; order: 'row' | 'column'; S: number; base?: number }) {
   const total = dims.reduce((a, b) => a * b, 1)
-  if (total > MAX_CELLS) return <p className="cm-muted cm-pad">The strip is drawn for arrays of up to {MAX_CELLS} elements.</p>
+  if (total > MAX_CELLS) return <p className="cm-muted">The strip is drawn for arrays of up to {MAX_CELLS} elements.</p>
   // the index tuple of the k-th element in storage order
   const tuple = (k: number) => {
     const t = dims.map(() => 0)
@@ -384,41 +389,13 @@ export function ArrayStrip({ dims, index, order, S, base }: { dims: number[]; in
             </g>
           )
         })}
-        {runs.length ? (
-          <>
-            <g className="flow-draw" key={`d${tk}-${dims.join('x')}`} aria-hidden="true">
-              {runs.map(({ L, n }) => (
-                <path key={L} d={`M${AX},${L * LH + 41} H${AX + n * (cw + 2) - 2}`} pathLength={1} style={{ animationDelay: `${L * 0.12}s` }} />
-              ))}
-            </g>
-            <g className="flow-packets" key={`p${tk}-${dims.join('x')}`} aria-hidden="true">
-              {runs.map(({ L, n }) => (
-                <path key={L} d={`M${AX},${L * LH + 41} H${AX + n * (cw + 2) - 2}`} pathLength={1} style={{ animationDelay: `${0.7 + (L % 5) * 0.18}s` }} />
-              ))}
-            </g>
-          </>
-        ) : null}
+        <Flow id={`${tk}-${dims.join('x')}`} paths={runs.map(({ L, n }) => `M${AX},${L * LH + 41} H${AX + n * (cw + 2) - 2}`)} />
       </svg>
-      <div className="cm-board-foot">
-        <Legend
-          items={[
-            { signal: 'path', label: 'the element asked for' },
-            { signal: 'data', label: 'elements stored before it (they make the offset)' },
-          ]}
-        />
-        <p className="cm-muted">The number above each box is its position in memory.</p>
-      </div>
     </div>
   )
 }
 
 /* ---------- structs ---------- */
-
-type StructDetail = 'members' | 'rules'
-const STRUCT_TABS: { value: StructDetail; label: string }[] = [
-  { value: 'members', label: 'Members' },
-  { value: 'rules', label: 'Rules' },
-]
 
 function StructTool(p: {
   members: string
@@ -433,8 +410,6 @@ function StructTool(p: {
   setPad: (v: boolean) => void
   kind: 'struct' | 'union'
   setKind: (v: 'struct' | 'union') => void
-  detail: string
-  setDetail: (v: string) => void
 }) {
   const union = p.kind === 'union'
   const layout = (base?: number) => (union ? unionLayout(spec, base) : structLayout(spec, base))
@@ -478,26 +453,30 @@ function StructTool(p: {
             ]}
           />
         </div>
-        <details className="cm-options">
-          <summary>Start address, array element and options</summary>
+        <Options summary="Start address, array element and options">
           <div className="cm-row">
             <TextField label="Start address (blank: offsets only)" value={p.base} onChange={p.setBase} placeholder="0xffbff7f4" width="11em" />
             <NumberField label="Element i of an array of them" value={p.n} onChange={(v) => p.setN(Math.max(0, Math.floor(v)))} min={0} />
             <Segmented label="Pointer size" value={p.ptr} onChange={p.setPtr} options={[{ value: 4, label: '4' }, { value: 8, label: '8' }]} />
             {union ? null : <Toggle label="Show compiler padding (beyond the course)" checked={p.pad} onChange={p.setPad} />}
           </div>
-        </details>
+        </Options>
         {base !== undefined && !Number.isFinite(base) ? <p className="cm-err">{p.base} is not an address.</p> : null}
       </div>
 
-      <div className="cm-board canvas">
-        <div className="cm-board-bar">
-          {parsed.members.length ? (
-            <p className="cm-board-title">
-              <span className="cm-board-answer mono">
-                sizeof = <W e={lay.explain}>{`${lay.size} bytes`}</W>
-              </span>
-              {p.pad && !union ? <span className="cm-muted">{padded.size} with padding</span> : null}
+      <Board
+        title={parsed.members.length ? <span className="mono">{p.kind}</span> : <span className="cm-muted">Add members such as int id; or char name[10];</span>}
+        step={
+          parsed.members.length ? (
+            <span className="mono">
+              sizeof = <W e={lay.explain}>{`${lay.size} bytes`}</W>
+            </span>
+          ) : undefined
+        }
+        note={
+          parsed.members.length && ((p.pad && !union) || elemAddr !== undefined) ? (
+            <>
+              {p.pad && !union ? <span className="cm-muted">{padded.size} with padding </span> : null}
               {elemAddr !== undefined ? (
                 <span className="cm-muted">
                   element {Math.floor(p.n)} starts at{' '}
@@ -512,23 +491,26 @@ function StructTool(p: {
                   </W>
                 </span>
               ) : null}
-            </p>
-          ) : (
-            <p className="cm-muted">Add members such as int id; or char name[10];</p>
-          )}
-        </div>
+            </>
+          ) : undefined
+        }
+      >
         {parsed.members.length ? <StructBar members={lay.members} size={lay.size} union={union} padded={p.pad && !union ? padded : undefined} /> : null}
-      </div>
+      </Board>
 
-      <DetailTabs tabs={STRUCT_TABS} value={p.detail} onChange={p.setDetail}>
-        {(v) =>
-          v === 'members' ? (
-            parsed.members.length ? (
-              <DataTable compact columns={cols} rows={lay.members.map((m, i) => ({ ...m, i }))} />
-            ) : (
-              <p className="cm-muted">No members yet.</p>
-            )
-          ) : (
+      <Details
+        urlKey={DETAILS_KEY}
+        label={DETAILS_LABEL}
+        tabs={[
+          {
+            value: 'members',
+            label: 'Members',
+            body: parsed.members.length ? <DataTable compact columns={cols} rows={lay.members.map((m, i) => ({ ...m, i }))} /> : <p className="cm-muted">No members yet.</p>,
+          },
+          {
+            value: 'rules',
+            label: 'Rules',
+            body: (
             <div className="cm-callouts">
               <Callout kind="course" title="No padding in this course" cite="L05C p3">
                 Members are laid out in declaration order with no gaps, so sizeof is the sum of the member sizes. A struct type takes no memory until a variable of it is declared (L05C p5).
@@ -540,9 +522,10 @@ function StructTool(p: {
                 Real compilers usually start each member at a multiple of its own size and round the whole struct up to its largest member. That is why the slides' printed addresses show gaps (L04B p5). Not examinable.
               </Callout>
             </div>
-          )
-        }
-      </DetailTabs>
+            ),
+          },
+        ]}
+      />
     </>
   )
 }
@@ -625,12 +608,7 @@ export function StructBar({
         </text>
         <line className="cm-axis" x1={AX} x2={AX + span * bw} y1={axisY} y2={axisY} />
         {/* light runs from offset 0 to sizeof: the struct's bytes, measured end to end */}
-        <g className="flow-draw" key={`d${size}-${members.map((m) => m.size).join('.')}`} aria-hidden="true">
-          <path d={`M${AX},${axisY} H${AX + size * bw}`} pathLength={1} />
-        </g>
-        <g className="flow-packets" key={`p${size}-${members.map((m) => m.size).join('.')}`} aria-hidden="true">
-          <path d={`M${AX},${axisY} H${AX + size * bw}`} pathLength={1} />
-        </g>
+        <Flow id={`${size}-${members.map((m) => m.size).join('.')}`} paths={[`M${AX},${axisY} H${AX + size * bw}`]} />
       </svg>
     </div>
   )
@@ -638,14 +616,7 @@ export function StructBar({
 
 /* ---------- byte order ---------- */
 
-type BytesDetail = 'tables' | 'read' | 'rules'
-const BYTES_TABS: { value: BytesDetail; label: string }[] = [
-  { value: 'tables', label: 'Byte tables' },
-  { value: 'read', label: 'Read bytes back' },
-  { value: 'rules', label: 'Rules' },
-]
-
-function BytesTool(p: { value: string; setValue: (v: string) => void; base: string; setBase: (v: string) => void; bytes: string; setBytes: (v: string) => void; detail: string; setDetail: (v: string) => void }) {
+function BytesTool(p: { value: string; setValue: (v: string) => void; base: string; setBase: (v: string) => void; bytes: string; setBytes: (v: string) => void }) {
   const v = parseAddr(p.value)
   const base = parseAddr(p.base)
   const b = base !== undefined && Number.isFinite(base) ? base : undefined
@@ -697,22 +668,30 @@ function BytesTool(p: { value: string; setValue: (v: string) => void; base: stri
         </div>
       </div>
 
-      <div className="cm-board canvas">
-        {ok ? <EndianPicture value={v as number} base={b} /> : <p className="cm-err cm-pad">Give a value from 0 to 0xffffffff.</p>}
-      </div>
+      <Board title="One value, two byte orders">
+        {ok ? <EndianPicture value={v as number} base={b} /> : <p className="cm-err">Give a value from 0 to 0xffffffff.</p>}
+      </Board>
 
-      <DetailTabs tabs={BYTES_TABS} value={p.detail} onChange={p.setDetail}>
-        {(d) =>
-          d === 'tables' ? (
-            ok ? (
+      <Details
+        urlKey={DETAILS_KEY}
+        label={DETAILS_LABEL}
+        tabs={[
+          {
+            value: 'tables',
+            label: 'Byte tables',
+            body: ok ? (
               <div className="cm-calc-grid">
                 {table('big')}
                 {table('little')}
               </div>
             ) : (
               <p className="cm-err">Give a value from 0 to 0xffffffff.</p>
-            )
-          ) : d === 'read' ? (
+            ),
+          },
+          {
+            value: 'read',
+            label: 'Read bytes back',
+            body: (
             <>
               <TextField label="Bytes, lowest address first" value={p.bytes} onChange={p.setBytes} placeholder="43 61 74 73" width="12em" />
               {bytesOk ? (
@@ -749,15 +728,21 @@ function BytesTool(p: { value: string; setValue: (v: string) => void; base: stri
                 <p className="cm-err">Give 1 to 4 bytes in hex, separated by spaces.</p>
               )}
             </>
-          ) : (
+            ),
+          },
+          {
+            value: 'rules',
+            label: 'Rules',
+            body: (
             <div className="cm-callouts">
               <Callout kind="trap" title="Chars read in address order never change" cite="L10 p17; AY21/22 S1 Final Q7">
                 Byte order only matters when several bytes are read as one number. Read one by one as chars, the bytes spell the same text either way.
               </Callout>
             </div>
-          )
-        }
-      </DetailTabs>
+            ),
+          },
+        ]}
+      />
     </>
   )
 }
@@ -824,16 +809,7 @@ export function EndianPicture({ value, base }: { value: number; base?: number })
           </text>
         </g>
         {row(little, yLit, 'Little-endian', false)}
-        <g className="flow-draw" key={`d${value}`} aria-hidden="true">
-          {links.map((d, k) => (
-            <path key={k} d={d} pathLength={1} />
-          ))}
-        </g>
-        <g className="flow-packets" key={`p${value}`} aria-hidden="true">
-          {links.map((d, k) => (
-            <path key={k} d={d} pathLength={1} style={{ animationDelay: `${0.7 + (k % 4) * 0.18}s` }} />
-          ))}
-        </g>
+        <Flow id={value} paths={links} />
       </svg>
     </div>
   )
