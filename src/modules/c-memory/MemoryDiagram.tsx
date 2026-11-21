@@ -4,6 +4,9 @@ import { fit, layoutFrame, shortValue, touched, type Box, type Item } from './la
 
 /** Same cell, or one holds the other (an element of an array, a member of a struct). */
 const related = (a: string, b: string) => a === b || b.startsWith(`${a}[`) || b.startsWith(`${a}.`) || a.startsWith(`${b}[`) || a.startsWith(`${b}.`)
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+/** The line follows this pointer: *p, *(p + 1), p->m or p[i]. */
+const derefs = (line: string, name: string) => new RegExp(`\\*\\s*\\(?\\s*${esc(name)}\\b|\\b${esc(name)}\\s*(->|\\[)`).test(line)
 
 /**
  * Boxes and arrows for one trace frame. Click or press Enter on a box to inspect it.
@@ -15,8 +18,11 @@ export function MemoryDiagram({
   selected,
   onSelect,
   focus = false,
+  line = '',
 }: {
   frame: TraceFrame
+  /** Source text of the step's line, to tell which arrow a write went through. */
+  line?: string
   showAddr: boolean
   selected: string | null
   onSelect: (id: string) => void
@@ -26,11 +32,22 @@ export function MemoryDiagram({
   const L = useMemo(() => layoutFrame(frame, showAddr), [frame, showAddr])
   const aliasCount = useMemo(() => new Map(frame.aliases.map((a) => [a.toId, a.from.length])), [frame])
   const bad = useMemo(() => new Set(frame.edges.filter((e) => e.status !== 'ok').map((e) => e.from)), [frame])
+  const changed = useMemo(
+    () => L.items.flatMap((it) => (it.kind === 'row' ? [it.cell] : it.kind === 'strip' ? it.cells.map((c) => c.cell) : [])).filter((c) => c.changed).map((c) => c.id),
+    [L],
+  )
   const edges = useMemo(() => {
     if (!focus) return L.edges
-    const changed = L.items.flatMap((it) => (it.kind === 'row' ? [it.cell] : it.kind === 'strip' ? it.cells.map((c) => c.cell) : [])).filter((c) => c.changed).map((c) => c.id)
     return L.edges.filter((e) => changed.some((id) => related(id, e.edge.from) || (e.edge.toId !== null && related(id, e.edge.toId))))
-  }, [L, focus])
+  }, [L, focus, changed])
+  // Light runs along an arrow this step set, or one the step wrote through (*p = ...).
+  const lit = useMemo(
+    () =>
+      edges.filter(
+        (e) => e.ok && (changed.some((id) => related(id, e.edge.from)) || (e.edge.toId !== null && changed.some((id) => related(id, e.edge.toId!)) && derefs(line, e.edge.fromName))),
+      ),
+    [edges, changed, line],
+  )
 
   const cellProps = (c: CellView, label: string) => ({
     className: `cm-cell${selected === c.id ? ' cm-sel' : ''}`,
@@ -213,6 +230,20 @@ export function MemoryDiagram({
             )
           })}
         </g>
+        {lit.length ? (
+          <>
+            <g className="flow-draw" key={`d${frame.index}`} aria-hidden="true">
+              {lit.map((e) => (
+                <path key={e.key} d={e.d} pathLength={1} />
+              ))}
+            </g>
+            <g className="flow-packets" key={`p${frame.index}`} aria-hidden="true">
+              {lit.map((e, k) => (
+                <path key={e.key} d={e.d} pathLength={1} style={{ animationDelay: `${0.7 + (k % 5) * 0.18}s` }} />
+              ))}
+            </g>
+          </>
+        ) : null}
       </svg>
     </div>
   )

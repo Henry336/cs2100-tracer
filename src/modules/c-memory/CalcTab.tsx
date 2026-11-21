@@ -1,13 +1,20 @@
 import type { ReactNode } from 'react'
 import { arrayAddress, endianBytes, structLayout, wordFromBytes, type Endian } from '../../core/c-memory'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, CodeEditor, DataTable, Legend, NumberField, Panel, Presets, Segmented, Select, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Callout, CodeEditor, DataTable, Legend, NumberField, Presets, Segmented, Select, Tabs, TextField, Toggle, Workspace, type Column } from '../../ui/kit'
 import { addressToIndex, paddedLayout, parseList, parseMembers, unionLayout } from './calc'
 import { W, hexAddr, parseAddr } from './common'
 
 type ElemType = 'char' | 'int' | 'float' | 'double' | 'ptr' | 'custom'
 const ELEM_SIZE: Record<Exclude<ElemType, 'custom'>, number> = { char: 1, int: 4, float: 4, double: 8, ptr: 4 }
 const ELEM_NAME: Record<ElemType, string> = { char: 'char', int: 'int', float: 'float', double: 'double', ptr: 'int *', custom: 'T' }
+
+type Tool = 'array' | 'struct' | 'bytes'
+const TOOLS: { value: Tool; label: string }[] = [
+  { value: 'array', label: 'Array address' },
+  { value: 'struct', label: 'Struct layout' },
+  { value: 'bytes', label: 'Byte order' },
+]
 
 type CalcPreset =
   | { kind: 'array'; et: ElemType; es?: number; dims: string; idx: string; base: string; addr: string }
@@ -30,7 +37,10 @@ const PRESETS: { name: string; source: string; value: CalcPreset }[] = [
   { name: "Bytes: 43 61 74 73 at 0x3E8 ('Cats')", source: 'AY21/22 S1 Final Q7', value: { kind: 'bytes', value: '0x43617473', base: '0x3e8', bytes: '43 61 74 73' } },
 ]
 
-export default function CalcTab({ intro }: { intro: ReactNode }) {
+export default function CalcTab({ intro, defaultTool = 'array' }: { intro: ReactNode; defaultTool?: Tool }) {
+  const [rawTool, setTool] = useUrlState<Tool>('ck', defaultTool)
+  const tool: Tool = TOOLS.some((t) => t.value === rawTool) ? rawTool : 'array'
+  const [detail, setDetail] = useUrlState('cd', '')
   const [et, setEt] = useUrlState<ElemType>('at', 'int')
   const [es, setEs] = useUrlState('as', 12)
   const [dimsText, setDims] = useUrlState('ad', '3, 4')
@@ -67,35 +77,78 @@ export default function CalcTab({ intro }: { intro: ReactNode }) {
       setBBase(p.base)
       setBBytes(p.bytes)
     }
+    setTool(p.kind)
   }
 
   return (
     <Workspace title="C memory and pointers" lectures="L05, R02, L10 p17" intro={intro} toolbar={<Presets presets={PRESETS} onPick={pick} />}>
-      <ArrayPanel
-        et={et}
-        setEt={setEt}
-        es={es}
-        setEs={setEs}
-        dimsText={dimsText}
-        setDims={setDims}
-        idxText={idxText}
-        setIdx={setIdx}
-        baseText={baseText}
-        setBase={setBase}
-        addrText={addrText}
-        setAddr={setAddr}
-        order={order === 'column' ? 'column' : 'row'}
-        setOrder={setOrder}
-      />
-      <StructPanel members={members} setMembers={setMembers} base={sBase} setBase={setSBase} ptr={sPtr === 8 ? 8 : 4} setPtr={setSPtr} n={sN} setN={setSN} pad={pad === true} setPad={setPad} kind={sKind === 'union' ? 'union' : 'struct'} setKind={setSKind} />
-      <BytesPanel value={bValue} setValue={setBValue} base={bBase} setBase={setBBase} bytes={bBytes} setBytes={setBBytes} />
+      <div className="cm-command">
+        <Segmented label="Work out" value={tool} onChange={setTool} options={TOOLS} />
+      </div>
+      {tool === 'array' ? (
+        <ArrayTool
+          et={et}
+          setEt={setEt}
+          es={es}
+          setEs={setEs}
+          dimsText={dimsText}
+          setDims={setDims}
+          idxText={idxText}
+          setIdx={setIdx}
+          baseText={baseText}
+          setBase={setBase}
+          addrText={addrText}
+          setAddr={setAddr}
+          order={order === 'column' ? 'column' : 'row'}
+          setOrder={setOrder}
+          detail={detail}
+          setDetail={setDetail}
+        />
+      ) : null}
+      {tool === 'struct' ? (
+        <StructTool
+          members={members}
+          setMembers={setMembers}
+          base={sBase}
+          setBase={setSBase}
+          ptr={sPtr === 8 ? 8 : 4}
+          setPtr={setSPtr}
+          n={sN}
+          setN={setSN}
+          pad={pad === true}
+          setPad={setPad}
+          kind={sKind === 'union' ? 'union' : 'struct'}
+          setKind={setSKind}
+          detail={detail}
+          setDetail={setDetail}
+        />
+      ) : null}
+      {tool === 'bytes' ? <BytesTool value={bValue} setValue={setBValue} base={bBase} setBase={setBBase} bytes={bBytes} setBytes={setBBytes} detail={detail} setDetail={setDetail} /> : null}
     </Workspace>
+  )
+}
+
+/** One tab strip of tables under the board; an unknown or stale tab falls back to the first. */
+function DetailTabs<T extends string>({ tabs, value, onChange, children }: { tabs: { value: T; label: string }[]; value: string; onChange: (v: T) => void; children: (v: T) => ReactNode }) {
+  const v = (tabs.find((t) => t.value === value) ?? tabs[0]).value
+  return (
+    <section className="cm-details" aria-label="Working and rules">
+      <Tabs label="Working and rules" value={v} onChange={onChange} tabs={tabs} />
+      <div className="cm-detail-body">{children(v)}</div>
+    </section>
   )
 }
 
 /* ---------- arrays ---------- */
 
-function ArrayPanel(p: {
+type ArrayDetail = 'work' | 'back' | 'rules'
+const ARRAY_TABS: { value: ArrayDetail; label: string }[] = [
+  { value: 'work', label: 'Working' },
+  { value: 'back', label: 'Address to indices' },
+  { value: 'rules', label: 'Rules' },
+]
+
+function ArrayTool(p: {
   et: ElemType
   setEt: (v: ElemType) => void
   es: number
@@ -110,6 +163,8 @@ function ArrayPanel(p: {
   setAddr: (v: string) => void
   order: 'row' | 'column'
   setOrder: (v: 'row' | 'column') => void
+  detail: string
+  setDetail: (v: string) => void
 }) {
   const S = p.et === 'custom' ? p.es : (ELEM_SIZE[p.et] ?? 4)
   const dims = parseList(p.dimsText)
@@ -151,107 +206,129 @@ function ArrayPanel(p: {
   ]
 
   return (
-    <Panel title="Array element address">
-      <div className="cm-row">
-        <Select
-          label="Element type"
-          value={p.et}
-          onChange={p.setEt}
-          options={[
-            { value: 'char', label: 'char (1 byte)' },
-            { value: 'int', label: 'int (4 bytes)' },
-            { value: 'float', label: 'float (4 bytes)' },
-            { value: 'double', label: 'double (8 bytes)' },
-            { value: 'ptr', label: 'pointer (4 bytes)' },
-            { value: 'custom', label: 'other size (e.g. a struct)' },
-          ]}
-        />
-        {p.et === 'custom' ? <NumberField label="Element size S" value={p.es} onChange={p.setEs} min={1} suffix="bytes" /> : null}
-        <TextField label="Dimensions" value={p.dimsText} onChange={p.setDims} placeholder="3, 4" width="9em" />
-        <TextField label="Start address A0 (blank: symbolic)" value={p.baseText} onChange={p.setBase} placeholder="0x10010000" width="11em" />
-        <Segmented
-          label="Storage order"
-          value={p.order}
-          onChange={p.setOrder}
-          options={[
-            { value: 'row', label: 'Row-major (C)' },
-            { value: 'column', label: 'Column-major', title: 'For comparison only; C is row-major' },
-          ]}
-        />
+    <>
+      <div className="cm-command">
+        <div className="cm-inline">
+          <Select
+            label="Element type"
+            value={p.et}
+            onChange={p.setEt}
+            options={[
+              { value: 'char', label: 'char (1 byte)' },
+              { value: 'int', label: 'int (4 bytes)' },
+              { value: 'float', label: 'float (4 bytes)' },
+              { value: 'double', label: 'double (8 bytes)' },
+              { value: 'ptr', label: 'pointer (4 bytes)' },
+              { value: 'custom', label: 'other size (e.g. a struct)' },
+            ]}
+          />
+          {p.et === 'custom' ? <NumberField label="Element size S" value={p.es} onChange={p.setEs} min={1} suffix="bytes" /> : null}
+          <TextField label="Dimensions" value={p.dimsText} onChange={p.setDims} placeholder="3, 4" width="8em" />
+          <TextField label="Indices" value={p.idxText} onChange={p.setIdx} placeholder="2, 1" width="8em" />
+        </div>
+        <details className="cm-options">
+          <summary>Start address and storage order</summary>
+          <div className="cm-row">
+            <TextField label="Start address A0 (blank: symbolic)" value={p.baseText} onChange={p.setBase} placeholder="0x10010000" width="11em" />
+            <Segmented
+              label="Storage order"
+              value={p.order}
+              onChange={p.setOrder}
+              options={[
+                { value: 'row', label: 'Row-major (C)' },
+                { value: 'column', label: 'Column-major', title: 'For comparison only; C is row-major' },
+              ]}
+            />
+          </div>
+        </details>
+        {baseBad ? <p className="cm-err">{p.baseText} is not an address.</p> : null}
       </div>
-      {baseBad ? <p className="cm-err">{p.baseText} is not an address.</p> : null}
-      <p className="cm-codeline mono">{decl}</p>
 
-      <div className="cm-calc-grid">
-        <section className="cm-sub" aria-label="Indices to address">
-          <h3 className="cm-h3">Indices to address</h3>
-          <TextField label="Indices" value={p.idxText} onChange={p.setIdx} placeholder="2, 1" width="9em" />
-          {!fwd.ok ? (
-            <p className="cm-err">{fwd.error}</p>
-          ) : (
-            <>
-              <p className="cm-answer">
+      <div className="cm-board canvas">
+        <div className="cm-board-bar">
+          <p className="cm-board-title">
+            <span className="mono">{decl}</span>
+            {fwd.ok ? (
+              <span className="cm-board-answer mono">
                 &amp;{elemName} = <W e={fwd.explain}>{fwd.answer}</W>
-              </p>
-              <DataTable compact columns={termCols} rows={fwd.terms.map((t, j) => ({ ...t, j }))} />
-              <ol className="cm-steps">
-                {p.order === 'row' ? fwd.horner.map((h, k) => <li key={k} className="mono">{h}</li>) : null}
-                <li className="mono">
-                  {fwd.offsetElems} elements x {S} bytes = {fwd.offsetBytes} bytes
-                </li>
-                <li className="mono">{fwd.answer}</li>
-              </ol>
-            </>
-          )}
-        </section>
-        <section className="cm-sub" aria-label="Address to indices">
-          <h3 className="cm-h3">Address to indices</h3>
-          <TextField label={symbolic ? 'Byte offset from A0' : 'Address'} value={p.addrText} onChange={p.setAddr} placeholder={symbolic ? '36' : '0x100100c0'} width="11em" />
-          {addr !== undefined && !Number.isFinite(addr) ? <p className="cm-err">{p.addrText} is not a number.</p> : null}
-          {back && !back.ok ? <p className="cm-err">{back.error}</p> : null}
-          {back && back.ok ? (
-            <>
-              <p className="cm-answer">
-                <W e={back.explain}>{`a${back.index.map((d) => `[${d}]`).join('')}`}</W>
-                {back.byteIn ? <span className="cm-muted"> (byte {back.byteIn} inside it)</span> : null}
-              </p>
-              <ol className="cm-steps">
-                {!symbolic ? (
+              </span>
+            ) : null}
+          </p>
+        </div>
+        {fwd.ok ? (
+          <ArrayStrip dims={dims} index={index} order={p.order} S={S} base={base !== undefined && Number.isFinite(base) ? base : undefined} />
+        ) : (
+          <p className="cm-err cm-pad">{fwd.error}</p>
+        )}
+      </div>
+
+      <DetailTabs tabs={ARRAY_TABS} value={p.detail} onChange={p.setDetail}>
+        {(v) =>
+          v === 'work' ? (
+            fwd.ok ? (
+              <div className="cm-sub">
+                <DataTable compact columns={termCols} rows={fwd.terms.map((t, j) => ({ ...t, j }))} />
+                <ol className="cm-steps">
+                  {p.order === 'row' ? fwd.horner.map((h, k) => <li key={k} className="mono">{h}</li>) : null}
                   <li className="mono">
-                    {hexAddr(addr as number)} - {hexAddr(base as number)} = {back.offsetBytes}
+                    {fwd.offsetElems} elements x {S} bytes = {fwd.offsetBytes} bytes
                   </li>
-                ) : null}
-                {back.steps.map((s, k) => (
-                  <li key={k} className="mono">
-                    {s}
-                  </li>
-                ))}
-              </ol>
-              <button type="button" className="btn" onClick={() => p.setIdx(back.index.join(', '))}>
-                Use these indices above
-              </button>
-            </>
-          ) : null}
-        </section>
-      </div>
-      {fwd.ok ? <ArrayStrip dims={dims} index={index} order={p.order} S={S} base={base !== undefined && Number.isFinite(base) ? base : undefined} /> : null}
-      <div className="cm-callouts">
-        <Callout kind="course" title="Row-major: the last index changes fastest" cite="R02 p25-26">
-          A0 + S x (i1 x D2 x ... x Dn + i2 x D3 x ... x Dn + ... + in). a[r][c + 1] is the next element, while a[r + 1][c] is a whole row (D2 x S bytes) away.
-        </Callout>
-        <Callout kind="trap" title="The array name is not a variable" cite="L05A p8-9">
-          a is the address of a[0]...[0], so a and &amp;a[0] print the same. It cannot be assigned, and a[i] is *(a + i), which moves i x S bytes.
-        </Callout>
-      </div>
-    </Panel>
+                  <li className="mono">{fwd.answer}</li>
+                </ol>
+              </div>
+            ) : (
+              <p className="cm-err">{fwd.error}</p>
+            )
+          ) : v === 'back' ? (
+            <div className="cm-sub" aria-label="Address to indices">
+              <TextField label={symbolic ? 'Byte offset from A0' : 'Address'} value={p.addrText} onChange={p.setAddr} placeholder={symbolic ? '36' : '0x100100c0'} width="11em" />
+              {addr !== undefined && !Number.isFinite(addr) ? <p className="cm-err">{p.addrText} is not a number.</p> : null}
+              {back && !back.ok ? <p className="cm-err">{back.error}</p> : null}
+              {back && back.ok ? (
+                <>
+                  <p className="cm-answer">
+                    <W e={back.explain}>{`a${back.index.map((d) => `[${d}]`).join('')}`}</W>
+                    {back.byteIn ? <span className="cm-muted"> (byte {back.byteIn} inside it)</span> : null}
+                  </p>
+                  <ol className="cm-steps">
+                    {!symbolic ? (
+                      <li className="mono">
+                        {hexAddr(addr as number)} - {hexAddr(base as number)} = {back.offsetBytes}
+                      </li>
+                    ) : null}
+                    {back.steps.map((s, k) => (
+                      <li key={k} className="mono">
+                        {s}
+                      </li>
+                    ))}
+                  </ol>
+                  <button type="button" className="btn" onClick={() => p.setIdx(back.index.join(', '))}>
+                    Use these indices
+                  </button>
+                </>
+              ) : null}
+            </div>
+          ) : (
+            <div className="cm-callouts">
+              <Callout kind="course" title="Row-major: the last index changes fastest" cite="R02 p25-26">
+                A0 + S x (i1 x D2 x ... x Dn + i2 x D3 x ... x Dn + ... + in). a[r][c + 1] is the next element, while a[r + 1][c] is a whole row (D2 x S bytes) away.
+              </Callout>
+              <Callout kind="trap" title="The array name is not a variable" cite="L05A p8-9">
+                a is the address of a[0]...[0], so a and &amp;a[0] print the same. It cannot be assigned, and a[i] is *(a + i), which moves i x S bytes.
+              </Callout>
+            </div>
+          )
+        }
+      </DetailTabs>
+    </>
   )
 }
 
 const MAX_CELLS = 144
 
-function ArrayStrip({ dims, index, order, S, base }: { dims: number[]; index: number[]; order: 'row' | 'column'; S: number; base?: number }) {
+export function ArrayStrip({ dims, index, order, S, base }: { dims: number[]; index: number[]; order: 'row' | 'column'; S: number; base?: number }) {
   const total = dims.reduce((a, b) => a * b, 1)
-  if (total > MAX_CELLS) return <p className="cm-muted">The strip is drawn for arrays of up to {MAX_CELLS} elements.</p>
+  if (total > MAX_CELLS) return <p className="cm-muted cm-pad">The strip is drawn for arrays of up to {MAX_CELLS} elements.</p>
   // the index tuple of the k-th element in storage order
   const tuple = (k: number) => {
     const t = dims.map(() => 0)
@@ -274,14 +351,10 @@ function ArrayStrip({ dims, index, order, S, base }: { dims: number[]; index: nu
   const LH = 40
   const width = AX + per * (cw + 2) + 4
   const height = lines * LH + 6
+  // the elements stored before the target, one run per line: counting them gives the offset
+  const runs = tk > 0 ? Array.from({ length: Math.floor((tk - 1) / per) + 1 }, (_, L) => ({ L, n: Math.min(per, tk - L * per) })) : []
   return (
     <div className="cm-diagram">
-      <Legend
-        items={[
-          { signal: 'path', label: 'the element asked for' },
-          { signal: 'data', label: 'elements stored before it (they make the offset)' },
-        ]}
-      />
       <svg className="cm-svg" viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" aria-label={`Storage order of ${total} elements, element ${tk} highlighted`}>
         {Array.from({ length: lines }, (_, L) => {
           const k0 = L * per
@@ -311,15 +384,43 @@ function ArrayStrip({ dims, index, order, S, base }: { dims: number[]; index: nu
             </g>
           )
         })}
+        {runs.length ? (
+          <>
+            <g className="flow-draw" key={`d${tk}-${dims.join('x')}`} aria-hidden="true">
+              {runs.map(({ L, n }) => (
+                <path key={L} d={`M${AX},${L * LH + 41} H${AX + n * (cw + 2) - 2}`} pathLength={1} style={{ animationDelay: `${L * 0.12}s` }} />
+              ))}
+            </g>
+            <g className="flow-packets" key={`p${tk}-${dims.join('x')}`} aria-hidden="true">
+              {runs.map(({ L, n }) => (
+                <path key={L} d={`M${AX},${L * LH + 41} H${AX + n * (cw + 2) - 2}`} pathLength={1} style={{ animationDelay: `${0.7 + (L % 5) * 0.18}s` }} />
+              ))}
+            </g>
+          </>
+        ) : null}
       </svg>
-      <p className="cm-muted">Each box is one element, labelled with its indices; the number above is its position in memory. One line is one run of the fastest-changing index.</p>
+      <div className="cm-board-foot">
+        <Legend
+          items={[
+            { signal: 'path', label: 'the element asked for' },
+            { signal: 'data', label: 'elements stored before it (they make the offset)' },
+          ]}
+        />
+        <p className="cm-muted">Each box is one element, labelled with its indices; the number above is its position in memory.</p>
+      </div>
     </div>
   )
 }
 
 /* ---------- structs ---------- */
 
-function StructPanel(p: {
+type StructDetail = 'members' | 'rules'
+const STRUCT_TABS: { value: StructDetail; label: string }[] = [
+  { value: 'members', label: 'Members' },
+  { value: 'rules', label: 'Rules' },
+]
+
+function StructTool(p: {
   members: string
   setMembers: (v: string) => void
   base: string
@@ -332,6 +433,8 @@ function StructPanel(p: {
   setPad: (v: boolean) => void
   kind: 'struct' | 'union'
   setKind: (v: 'struct' | 'union') => void
+  detail: string
+  setDetail: (v: string) => void
 }) {
   const union = p.kind === 'union'
   const layout = (base?: number) => (union ? unionLayout(spec, base) : structLayout(spec, base))
@@ -359,36 +462,45 @@ function StructPanel(p: {
   ]
 
   return (
-    <Panel title={union ? 'Union layout' : 'Struct layout'}>
-      <div className="cm-calc-grid">
-        <div>
-          <CodeEditor label="Members, one declaration per line" value={p.members} onChange={p.setMembers} rows={5} errors={Object.keys(errMap).length ? errMap : undefined} />
+    <>
+      <div className="cm-command">
+        <div className="cm-inline cm-inline-top">
+          <div className="cm-members">
+            <CodeEditor label="Members, one declaration per line" value={p.members} onChange={p.setMembers} rows={4} errors={Object.keys(errMap).length ? errMap : undefined} />
+          </div>
+          <Segmented
+            label="Kind"
+            value={p.kind}
+            onChange={p.setKind}
+            options={[
+              { value: 'struct', label: 'struct', title: 'Members one after another (L05C p3)' },
+              { value: 'union', label: 'union', title: 'Members share the same bytes (R02 p32)' },
+            ]}
+          />
+        </div>
+        <details className="cm-options">
+          <summary>Start address, array element and options</summary>
           <div className="cm-row">
             <TextField label="Start address (blank: offsets only)" value={p.base} onChange={p.setBase} placeholder="0xffbff7f4" width="11em" />
             <NumberField label="Element i of an array of them" value={p.n} onChange={(v) => p.setN(Math.max(0, Math.floor(v)))} min={0} />
             <Segmented label="Pointer size" value={p.ptr} onChange={p.setPtr} options={[{ value: 4, label: '4' }, { value: 8, label: '8' }]} />
-            <Segmented
-              label="Kind"
-              value={p.kind}
-              onChange={p.setKind}
-              options={[
-                { value: 'struct', label: 'struct', title: 'Members one after another (L05C p3)' },
-                { value: 'union', label: 'union', title: 'Members share the same bytes (R02 p32)' },
-              ]}
-            />
+            {union ? null : <Toggle label="Show compiler padding (beyond the course)" checked={p.pad} onChange={p.setPad} />}
           </div>
-          {base !== undefined && !Number.isFinite(base) ? <p className="cm-err">{p.base} is not an address.</p> : null}
-        </div>
-        <div>
+        </details>
+        {base !== undefined && !Number.isFinite(base) ? <p className="cm-err">{p.base} is not an address.</p> : null}
+      </div>
+
+      <div className="cm-board canvas">
+        <div className="cm-board-bar">
           {parsed.members.length ? (
-            <>
-              <p className="cm-answer">
+            <p className="cm-board-title">
+              <span className="cm-board-answer mono">
                 sizeof = <W e={lay.explain}>{`${lay.size} bytes`}</W>
-                {p.pad && !union ? <span className="cm-muted"> ({padded.size} with padding)</span> : null}
-              </p>
+              </span>
+              {p.pad && !union ? <span className="cm-muted">{padded.size} with padding</span> : null}
               {elemAddr !== undefined ? (
-                <p className="cm-line">
-                  Element {Math.floor(p.n)} starts at{' '}
+                <span className="cm-muted">
+                  element {Math.floor(p.n)} starts at{' '}
                   <W
                     e={{
                       rule: `Elements of an array of ${p.kind}s sit back to back, each sizeof(${p.kind}) bytes long`,
@@ -398,42 +510,142 @@ function StructPanel(p: {
                   >
                     <span className="mono">{hexAddr(elemAddr)}</span>
                   </W>
-                </p>
+                </span>
               ) : null}
-              <DataTable compact columns={cols} rows={lay.members.map((m, i) => ({ ...m, i }))} />
-            </>
+            </p>
           ) : (
             <p className="cm-muted">Add members such as int id; or char name[10];</p>
           )}
-          {union ? null : (
-            <div className="cm-row">
-              <Toggle label="Show compiler padding (beyond the course)" checked={p.pad} onChange={p.setPad} />
-            </div>
-          )}
         </div>
+        {parsed.members.length ? <StructBar members={lay.members} size={lay.size} union={union} padded={p.pad && !union ? padded : undefined} /> : null}
       </div>
-      <div className="cm-callouts">
-        <Callout kind="course" title="No padding in this course" cite="L05C p3">
-          Members are laid out in declaration order with no gaps, so sizeof is the sum of the member sizes. A struct type takes no memory until a variable of it is declared (L05C p5).
-        </Callout>
-        {union ? (
-          <Callout kind="course" title="A union is one set of bytes" cite="R02 p32">
-            All members start at offset 0, so writing one member overwrites the others. sizeof is the largest member, not the sum.
-          </Callout>
+
+      <DetailTabs tabs={STRUCT_TABS} value={p.detail} onChange={p.setDetail}>
+        {(v) =>
+          v === 'members' ? (
+            parsed.members.length ? (
+              <DataTable compact columns={cols} rows={lay.members.map((m, i) => ({ ...m, i }))} />
+            ) : (
+              <p className="cm-muted">No members yet.</p>
+            )
+          ) : (
+            <div className="cm-callouts">
+              <Callout kind="course" title="No padding in this course" cite="L05C p3">
+                Members are laid out in declaration order with no gaps, so sizeof is the sum of the member sizes. A struct type takes no memory until a variable of it is declared (L05C p5).
+              </Callout>
+              <Callout kind="course" title="A union is one set of bytes" cite="R02 p32">
+                All members start at offset 0, so writing one member overwrites the others. sizeof is the largest member, not the sum.
+              </Callout>
+              <Callout kind="beyond" title="Alignment padding">
+                Real compilers usually start each member at a multiple of its own size and round the whole struct up to its largest member, which is why the slides' own printed addresses show gaps (L04B p5). Not examinable.
+              </Callout>
+            </div>
+          )
+        }
+      </DetailTabs>
+    </>
+  )
+}
+
+/** Members as blocks along the bytes: end to end for a struct, all from offset 0 for a union. */
+export function StructBar({
+  members,
+  size,
+  union,
+  padded,
+}: {
+  members: { name: string; size: number; offset: number }[]
+  size: number
+  union: boolean
+  padded?: { size: number; rows: { offset: number; gap: number }[] }
+}) {
+  const span = Math.max(size, padded?.size ?? 0, 1)
+  const bw = Math.max(6, Math.min(40, 640 / span))
+  const AX = 96
+  const RH = 34
+  const rows = union ? members.map((m) => [{ ...m, offset: 0 }]) : [members]
+  const height = (rows.length + (padded ? 1 : 0)) * (RH + 8) + 34
+  const width = AX + span * bw + 24
+  const axisY = height - 22
+  const ticks = [...new Set([0, size, ...members.map((m) => m.offset), ...(padded ? [padded.size] : [])])].sort((a, b) => a - b)
+  return (
+    <div className="cm-diagram">
+      <svg className="cm-svg" viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" aria-label={`${union ? 'Union' : 'Struct'} of ${size} bytes, ${members.length} members`}>
+        {rows.map((row, r) => {
+          const y = 6 + r * (RH + 8)
+          return (
+            <g key={r}>
+              {r === 0 || union ? (
+                <text className="cm-addr" x={AX - 8} y={y + RH / 2 + 4} textAnchor="end">
+                  {union ? row[0].name : 'members'}
+                </text>
+              ) : null}
+              {row.map((m) => (
+                <g key={m.name}>
+                  <title>{`${m.name}: ${m.size} byte${m.size === 1 ? '' : 's'} at offset ${m.offset}`}</title>
+                  <rect className="cm-box cm-ptr" x={AX + m.offset * bw} y={y} width={m.size * bw} height={RH} rx={2} />
+                  {m.size * bw > 26 ? (
+                    <text className="cm-val" x={AX + (m.offset + m.size / 2) * bw} y={y + RH / 2 + 4} textAnchor="middle">
+                      {m.size * bw > 7 * m.name.length + 8 ? m.name : m.name.slice(0, Math.max(1, Math.floor((m.size * bw - 8) / 7)))}
+                    </text>
+                  ) : null}
+                </g>
+              ))}
+            </g>
+          )
+        })}
+        {padded ? (
+          <g>
+            <text className="cm-addr" x={AX - 8} y={6 + rows.length * (RH + 8) + RH / 2 + 4} textAnchor="end">
+              padded
+            </text>
+            {members.map((m, i) => {
+              const y = 6 + rows.length * (RH + 8)
+              const o = padded.rows[i].offset
+              const g = padded.rows[i].gap
+              return (
+                <g key={m.name}>
+                  {g ? <rect className="cm-box cm-garbage" x={AX + (o - g) * bw} y={y} width={g * bw} height={RH} rx={2} /> : null}
+                  <rect className="cm-box" x={AX + o * bw} y={y} width={m.size * bw} height={RH} rx={2} />
+                </g>
+              )
+            })}
+          </g>
         ) : null}
-        {p.pad && !union ? (
-          <Callout kind="beyond" title="Beyond the course: alignment padding">
-            Real compilers usually start each member at a multiple of its own size and round the whole struct up to its largest member, which is why the slides' own printed addresses show gaps (L04B p5). Not examinable.
-          </Callout>
-        ) : null}
-      </div>
-    </Panel>
+        {ticks.map((t) => (
+          <g key={t}>
+            <line className="cm-tick" x1={AX + t * bw} x2={AX + t * bw} y1={axisY - 4} y2={axisY + 2} />
+            <text className="cm-idx" x={AX + t * bw} y={axisY + 14} textAnchor="middle">
+              {t}
+            </text>
+          </g>
+        ))}
+        <text className="cm-addr" x={AX - 8} y={axisY + 14} textAnchor="end">
+          offset
+        </text>
+        <line className="cm-axis" x1={AX} x2={AX + span * bw} y1={axisY} y2={axisY} />
+        {/* light runs from offset 0 to sizeof: the struct's bytes, measured end to end */}
+        <g className="flow-draw" key={`d${size}-${members.map((m) => m.size).join('.')}`} aria-hidden="true">
+          <path d={`M${AX},${axisY} H${AX + size * bw}`} pathLength={1} />
+        </g>
+        <g className="flow-packets" key={`p${size}-${members.map((m) => m.size).join('.')}`} aria-hidden="true">
+          <path d={`M${AX},${axisY} H${AX + size * bw}`} pathLength={1} />
+        </g>
+      </svg>
+    </div>
   )
 }
 
 /* ---------- byte order ---------- */
 
-function BytesPanel(p: { value: string; setValue: (v: string) => void; base: string; setBase: (v: string) => void; bytes: string; setBytes: (v: string) => void }) {
+type BytesDetail = 'tables' | 'read' | 'rules'
+const BYTES_TABS: { value: BytesDetail; label: string }[] = [
+  { value: 'tables', label: 'Byte tables' },
+  { value: 'read', label: 'Read bytes back' },
+  { value: 'rules', label: 'Rules' },
+]
+
+function BytesTool(p: { value: string; setValue: (v: string) => void; base: string; setBase: (v: string) => void; bytes: string; setBytes: (v: string) => void; detail: string; setDetail: (v: string) => void }) {
   const v = parseAddr(p.value)
   const base = parseAddr(p.base)
   const b = base !== undefined && Number.isFinite(base) ? base : undefined
@@ -450,83 +662,179 @@ function BytesPanel(p: { value: string; setValue: (v: string) => void; base: str
     return (
       <div>
         <h3 className="cm-h3">{endian === 'big' ? 'Big-endian' : 'Little-endian'}</h3>
-        <div className="table-wrap"><table className="dtable dtable-compact">
-          <thead>
-            <tr>
-              <th>Address</th>
-              <th>Byte</th>
-              <th>Bits</th>
-              <th>Which byte</th>
-            </tr>
-          </thead>
-          <tbody>
-            {cells.map((c, k) => (
-              <tr key={k}>
-                <td className="mono">{c.addressHex ?? `+${k}`}</td>
-                <td className="mono">{c.hex}</td>
-                <td className="mono">{c.bits}</td>
-                <td>{c.significance}</td>
+        <div className="table-wrap">
+          <table className="dtable dtable-compact">
+            <thead>
+              <tr>
+                <th>Address</th>
+                <th>Byte</th>
+                <th>Bits</th>
+                <th>Which byte</th>
               </tr>
-            ))}
-          </tbody>
-        </table></div>
+            </thead>
+            <tbody>
+              {cells.map((c, k) => (
+                <tr key={k}>
+                  <td className="mono">{c.addressHex ?? `+${k}`}</td>
+                  <td className="mono">{c.hex}</td>
+                  <td className="mono">{c.bits}</td>
+                  <td>{c.significance}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     )
   }
 
   return (
-    <Panel title="Byte order (endianness)">
-      <div className="cm-row">
-        <TextField label="32-bit value" value={p.value} onChange={p.setValue} placeholder="0xDEADBEEF" width="10em" />
-        <TextField label="Stored at address" value={p.base} onChange={p.setBase} placeholder="0" width="10em" />
-      </div>
-      {ok ? (
-        <div className="cm-calc-grid">
-          {table('big')}
-          {table('little')}
+    <>
+      <div className="cm-command">
+        <div className="cm-inline">
+          <TextField label="32-bit value" value={p.value} onChange={p.setValue} placeholder="0xDEADBEEF" width="10em" />
+          <TextField label="Stored at address" value={p.base} onChange={p.setBase} placeholder="0" width="10em" />
         </div>
-      ) : (
-        <p className="cm-err">Give a value from 0 to 0xffffffff.</p>
-      )}
-      <div className="cm-row">
-        <TextField label="Read bytes back (lowest address first)" value={p.bytes} onChange={p.setBytes} placeholder="43 61 74 73" width="12em" />
       </div>
-      {bytesOk ? (
-        <div className="table-wrap"><table className="dtable dtable-compact">
-          <thead>
-            <tr>
-              <th>Read as</th>
-              <th>Word in hex</th>
-              <th>Unsigned</th>
-              <th>Signed</th>
-              <th>Chars in address order</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(['big', 'little'] as const).map((e) => {
-              const w = wordFromBytes(list, e)
-              return (
-                <tr key={e}>
-                  <td>{e === 'big' ? 'Big-endian' : 'Little-endian'}</td>
-                  <td className="mono">
-                    <W e={w.explain}>{w.hex}</W>
-                  </td>
-                  <td className="mono">{w.unsigned}</td>
-                  <td className="mono">{w.signed}</td>
-                  <td className="mono">{w.chars}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table></div>
-      ) : (
-        <p className="cm-err">Give 1 to 4 bytes in hex, separated by spaces.</p>
-      )}
-      <div className="cm-callouts">
-        <Callout kind="trap" title="Chars read in address order never change" cite="L10 p17; AY21/22 S1 Final Q7">
-          Byte order only matters when several bytes are read as one number. Read one by one as chars, the bytes spell the same text either way.
-        </Callout>
+
+      <div className="cm-board canvas">
+        {ok ? <EndianPicture value={v as number} base={b} /> : <p className="cm-err cm-pad">Give a value from 0 to 0xffffffff.</p>}
       </div>
-    </Panel>
+
+      <DetailTabs tabs={BYTES_TABS} value={p.detail} onChange={p.setDetail}>
+        {(d) =>
+          d === 'tables' ? (
+            ok ? (
+              <div className="cm-calc-grid">
+                {table('big')}
+                {table('little')}
+              </div>
+            ) : (
+              <p className="cm-err">Give a value from 0 to 0xffffffff.</p>
+            )
+          ) : d === 'read' ? (
+            <>
+              <TextField label="Bytes, lowest address first" value={p.bytes} onChange={p.setBytes} placeholder="43 61 74 73" width="12em" />
+              {bytesOk ? (
+                <div className="table-wrap cm-row">
+                  <table className="dtable dtable-compact">
+                    <thead>
+                      <tr>
+                        <th>Read as</th>
+                        <th>Word in hex</th>
+                        <th>Unsigned</th>
+                        <th>Signed</th>
+                        <th>Chars in address order</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(['big', 'little'] as const).map((e) => {
+                        const w = wordFromBytes(list, e)
+                        return (
+                          <tr key={e}>
+                            <td>{e === 'big' ? 'Big-endian' : 'Little-endian'}</td>
+                            <td className="mono">
+                              <W e={w.explain}>{w.hex}</W>
+                            </td>
+                            <td className="mono">{w.unsigned}</td>
+                            <td className="mono">{w.signed}</td>
+                            <td className="mono">{w.chars}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="cm-err">Give 1 to 4 bytes in hex, separated by spaces.</p>
+              )}
+            </>
+          ) : (
+            <div className="cm-callouts">
+              <Callout kind="trap" title="Chars read in address order never change" cite="L10 p17; AY21/22 S1 Final Q7">
+                Byte order only matters when several bytes are read as one number. Read one by one as chars, the bytes spell the same text either way.
+              </Callout>
+            </div>
+          )
+        }
+      </DetailTabs>
+    </>
+  )
+}
+
+/** The value's bytes in the middle; lines carry each byte up to its big-endian slot and down to its little-endian slot. */
+export function EndianPicture({ value, base }: { value: number; base?: number }) {
+  const big = endianBytes(value, 'big', 4, base)
+  const little = endianBytes(value, 'little', 4, base)
+  const msb = big.map((c) => c.hex) // most significant first
+  const AX = 120
+  const CW = 64
+  const GAP = 14
+  const x = (k: number) => AX + k * (CW + GAP)
+  const cx = (k: number) => x(k) + CW / 2
+  const H = 30
+  const yBig = 24
+  const yVal = 104
+  const yLit = 184
+  const width = x(4) + 8
+  const height = yLit + H + 24
+  // big-endian keeps byte k at address +k; little-endian puts byte k at address +(3 - k)
+  const links = [0, 1, 2, 3].flatMap((k) => [`M${cx(k)},${yVal} L${cx(k)},${yBig + H}`, `M${cx(k)},${yVal + H} L${cx(3 - k)},${yLit}`])
+  const row = (cells: typeof big, y: number, label: string, addrAbove: boolean) => (
+    <g>
+      <text className="cm-frame-label" x={AX - 12} y={y + H / 2 + 4} textAnchor="end">
+        {label}
+      </text>
+      {cells.map((c, k) => (
+        <g key={k}>
+          <text className="cm-addr" x={cx(k)} y={addrAbove ? y - 6 : y + H + 14} textAnchor="middle">
+            {c.addressHex ?? `+${k}`}
+          </text>
+          <rect className="cm-box" x={x(k)} y={y} width={CW} height={H} rx={2} />
+          <text className="cm-val" x={cx(k)} y={y + H / 2 + 4} textAnchor="middle">
+            {c.hex}
+          </text>
+        </g>
+      ))}
+    </g>
+  )
+  return (
+    <div className="cm-diagram">
+      <svg className="cm-svg" viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" aria-label={`0x${msb.join('')} stored big-endian as ${big.map((c) => c.hex).join(' ')} and little-endian as ${little.map((c) => c.hex).join(' ')}`}>
+        <g className="cm-links" aria-hidden="true">
+          {links.map((d, k) => (
+            <path key={k} className="cm-link-line" d={d} />
+          ))}
+        </g>
+        {row(big, yBig, 'Big-endian', true)}
+        <g>
+          <text className="cm-frame-label" x={AX - 12} y={yVal + H / 2 + 4} textAnchor="end">
+            Value
+          </text>
+          {msb.map((h, k) => (
+            <g key={k}>
+              <rect className="cm-box cm-changed" x={x(k)} y={yVal} width={CW} height={H} rx={2} />
+              <text className="cm-val cm-val-strong" x={cx(k)} y={yVal + H / 2 + 4} textAnchor="middle">
+                {h}
+              </text>
+            </g>
+          ))}
+          <text className="cm-idx" x={AX - 12} y={yVal + H + 12} textAnchor="end">
+            high byte first
+          </text>
+        </g>
+        {row(little, yLit, 'Little-endian', false)}
+        <g className="flow-draw" key={`d${value}`} aria-hidden="true">
+          {links.map((d, k) => (
+            <path key={k} d={d} pathLength={1} />
+          ))}
+        </g>
+        <g className="flow-packets" key={`p${value}`} aria-hidden="true">
+          {links.map((d, k) => (
+            <path key={k} d={d} pathLength={1} style={{ animationDelay: `${0.7 + (k % 4) * 0.18}s` }} />
+          ))}
+        </g>
+      </svg>
+    </div>
   )
 }

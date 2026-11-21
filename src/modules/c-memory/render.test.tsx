@@ -17,13 +17,25 @@ const run = (id: string) => {
 describe('c-memory page renders', () => {
   it('both tabs render their default state', () => {
     const html = renderToString(<CMemoryPage />)
-    expect(html).toContain('Memory after step 1')
+    // picture first: the board with its step title and Play inside it, tables in one tab strip below
+    expect(html).toContain('cm-board canvas')
+    expect(html).toContain('Step 1')
+    expect(html).toContain('Run this program')
+    expect(html).toContain('Next step')
     expect(html).toContain('Memory strip')
     expect(html).toContain('Name, address, value')
+    expect(html.indexOf('cm-board canvas')).toBeLessThan(html.indexOf('role="tablist" aria-label="Tables"'))
     const calc = renderToString(<CalcTab intro={null} />)
     expect(calc).toContain('A0 + 36')
-    expect(calc).toContain('sizeof')
-    expect(calc).toContain('Big-endian')
+    expect(calc).toContain('flow-draw')
+    // one calculator at a time; the others are a click away
+    const struct = renderToString(<CalcTab intro={null} defaultTool="struct" />)
+    expect(struct).toContain('sizeof')
+    expect(struct).toContain('flow-draw')
+    const bytes = renderToString(<CalcTab intro={null} defaultTool="bytes" />)
+    expect(bytes).toContain('Big-endian')
+    expect(bytes).toContain('Little-endian')
+    expect(bytes).toContain('flow-packets')
   })
 
   it('every engine preset is offered once, with its source', () => {
@@ -190,6 +202,19 @@ describe('focus mode', () => {
     expect(count(some, 'cm-edge')).toBeLessThanOrEqual(count(all, 'cm-edge'))
     // the same layout either way, so boxes do not jump when the toggle flips
     expect(some.match(/viewBox="[^"]+"/)![0]).toBe(all.match(/viewBox="[^"]+"/)![0])
+  })
+})
+
+describe('travelling light', () => {
+  it('lights the arrow a step sets, and the one a write goes through', () => {
+    const t = run('CM02')
+    const svg = (f: (typeof t.frames)[number], line?: string) => renderToString(<MemoryDiagram frame={f} line={line} showAddr selected={null} onSelect={() => {}} />)
+    // a step that gives a pointer its value draws light along that pointer's arrow
+    const set = t.frames.find((f) => f.edges.some((e) => e.status === 'ok' && f.stack.some((s) => s.vars.some((v) => v.id === e.from && v.changed))))!
+    expect(svg(set)).toContain('flow-draw')
+    // a step that changes nothing lights nothing
+    const quiet = t.frames.find((f) => f.edges.length > 0 && ![...f.stack.flatMap((s) => s.vars), ...f.globals, ...f.heap].some((v) => v.changed))
+    if (quiet) expect(svg(quiet)).not.toContain('flow-draw')
   })
 })
 

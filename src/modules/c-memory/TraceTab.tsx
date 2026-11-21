@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, type ReactNode } from 'react'
 import { exprTreesByLine, traceC, type CMemConfig, type CTrace, type Endian, type ExprNode, type TraceFrame, type VarView } from '../../core/c-memory'
 import { useUrlState } from '../../lib/url-state'
-import { Button, Callout, Chip, CodeEditor, DataTable, Legend, Panel, Presets, Segmented, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Button, Callout, Chip, CodeEditor, DataTable, Legend, Presets, Segmented, Tabs, Toggle, Workspace, type Column } from '../../ui/kit'
 import { useStepper } from '../../ui/stepper'
 import { Transport } from '../../ui/Transport'
 import { ByteReading, ByteStrip } from './ByteStrip'
@@ -12,11 +12,23 @@ import { checkPrediction } from './predict'
 
 const stripLine = (m: string) => m.replace(/^line \d+: /, '')
 const frameChanges = (f: TraceFrame) => [...f.stack.flatMap((s) => s.vars), ...f.globals, ...f.heap, ...f.literals].some(touched)
+const kindName = (f: TraceFrame) => (f.kind === 'cond' ? 'condition' : f.kind === 'decl' ? 'declaration' : f.kind === 'expr' ? 'statement' : f.kind)
 
 export function useTrace(src: string, cfg: Partial<CMemConfig>): CTrace {
   const key = JSON.stringify(cfg)
   return useMemo(() => traceC(src, cfg), [src, key]) // eslint-disable-line react-hooks/exhaustive-deps
 }
+
+type DetailTab = 'output' | 'strip' | 'vars' | 'group' | 'traps' | 'conv'
+
+const DETAIL_TABS: { value: DetailTab; label: string }[] = [
+  { value: 'output', label: 'Output' },
+  { value: 'strip', label: 'Memory strip' },
+  { value: 'vars', label: 'Name, address, value' },
+  { value: 'group', label: 'Operator grouping' },
+  { value: 'traps', label: 'Traps' },
+  { value: 'conv', label: 'Conventions' },
+]
 
 export default function TraceTab({ intro }: { intro: ReactNode }) {
   const [src, setSrc] = useUrlState('src', DEFAULT_PRESET.code)
@@ -30,6 +42,8 @@ export default function TraceTab({ intro }: { intro: ReactNode }) {
   const [rawSel, setSel] = useUrlState<string | null>('sel', null)
   const [stepQ, setStepQ] = useUrlState('step', 0)
   const [rawGuess, setGuess] = useUrlState('guess', '')
+  const [rawDetail, setDetail] = useUrlState<DetailTab>('ct', 'output')
+  const detail = DETAIL_TABS.some((t) => t.value === rawDetail) ? rawDetail : 'output'
   const guess = typeof rawGuess === 'string' ? rawGuess : ''
 
   const code = useDeferredValue(typeof src === 'string' ? src : '')
@@ -93,7 +107,7 @@ export default function TraceTab({ intro }: { intro: ReactNode }) {
       </>
     ) : (
       <>
-        <Chip signal="hit">finished</Chip> main returned after {frames.length} steps.
+        <Chip signal="hit">finished</Chip> main returns after {frames.length} steps.
       </>
     )
 
@@ -107,84 +121,31 @@ export default function TraceTab({ intro }: { intro: ReactNode }) {
   const outTo = depth > 1 ? frames.findIndex((x, j) => j > i && x.stack.length < depth) : -1
 
   const transport =
-    frames.length > 0 ? (
-      <Transport
-        stepper={stepper}
-        label="Step"
-        marks={marks}
-        describe={f ? `line ${f.line}: ${f.description}` : undefined}
-      />
-    ) : undefined
+    frames.length > 0 ? <Transport stepper={stepper} label="Step" marks={marks} describe={f ? `line ${f.line}: ${f.description}` : undefined} /> : undefined
 
   const expected = preset?.expect.output
   const defaults = cfg.pointerSize === 4 && cfg.pointerFormat === 'slides' && topNow === presetTop
   const traps = useMemo(() => relevantTraps(code), [code])
 
+  const atEnd = i >= frames.length - 1
+  const playLabel = stepper.playing ? 'Pause' : atEnd ? 'Run it again' : i === 0 ? 'Run this program' : 'Play from here'
+
   return (
-    <Workspace
-      title="C memory and pointers"
-      lectures="L02 to L05, R01 to R02, T01"
-      intro={intro}
-      toolbar={<Presets presets={PRESET_LIST} onPick={pick} />}
-      transport={transport}
-      inspector={
-        <>
-          <StepPanel f={f} srcLines={srcLines} overTo={overTo} outTo={outTo} onJump={stepper.set} />
-          {f ? <GroupingPanel trees={trees.get(f.line) ?? []} line={f.line} /> : null}
-          <SelectedPanel f={f} found={found} sel={sel} endian={cfg.endian ?? 'big'} />
-          {f ? <VariablesPanel f={f} sel={sel} onSelect={setSel} /> : null}
-          <Panel title="Traps in this program">
-            <div className="cm-callouts">
-              {traps.length === 0 ? <p className="cm-muted">None of the listed traps apply to this program.</p> : null}
-              {traps.map((t) => (
-                <Callout key={t.id} kind="trap" title={t.title} cite={t.cite}>
-                  {t.body}
-                </Callout>
-              ))}
-              {traps.length < TRAPS.length ? (
-                <details className="cm-more">
-                  <summary>Other traps ({TRAPS.length - traps.length})</summary>
-                  <div className="cm-callouts">
-                    {TRAPS.filter((t) => !traps.includes(t)).map((t) => (
-                      <Callout key={t.id} kind="trap" title={t.title} cite={t.cite}>
-                        {t.body}
-                      </Callout>
-                    ))}
-                  </div>
-                </details>
-              ) : null}
-            </div>
-          </Panel>
-          <ConventionsPanel trace={trace} />
-        </>
-      }
-    >
-      <div className="cm-setup">
-        <Panel
-          title="Program"
-          actions={
-            preset ? (
-              <span className="cm-muted">
-                {preset.id}, {preset.source}, {preset.status === 'official' ? 'result from the source' : 'result worked out'}
-              </span>
-            ) : (
-              <span className="cm-muted">Your program</span>
-            )
-          }
-        >
-          <CodeEditor
-            label="C source"
-            value={typeof src === 'string' ? src : ''}
-            onChange={(v) => setSrc(v)}
-            rows={Math.min(26, Math.max(14, srcLines.length))}
-            marks={f ? { [f.line - 1]: 'path' } : undefined}
-            errors={Object.keys(parseErrors).length ? parseErrors : rte && rte.line > 0 && f?.error ? { [rte.line - 1]: stripLine(rte.message) } : undefined}
-          />
-          {usesInput ? (
-            <div className="cm-stdin">
-              <CodeEditor label="Keyboard input (what the user types, read by scanf, fgets and getchar)" value={cfg.stdin ?? ''} onChange={(v) => setStdin(v)} rows={2} />
-            </div>
-          ) : null}
+    <Workspace title="C memory and pointers" lectures="L02 to L05, R01 to R02, T01" intro={intro} toolbar={<Presets presets={PRESET_LIST} onPick={pick} />} transport={transport}>
+      <div className="cm-command">
+        <p className="cm-status">
+          <span className="cm-muted" title={preset ? (preset.status === 'official' ? 'Result from the source' : 'Result worked out, no answer key') : undefined}>
+            {preset ? `${preset.id}, ${preset.source}` : 'Your program'}
+          </span>{' '}
+          {status}
+        </p>
+        {trace.summary.warnings.map((w, k) => (
+          <Callout key={k} kind="note" title={`Compiler warning, line ${w.line}`}>
+            {stripLine(w.message)}
+          </Callout>
+        ))}
+        <details className="cm-options">
+          <summary>Pointer size, addresses and options</summary>
           <div className="cm-row">
             <Segmented
               label="Pointer size"
@@ -213,195 +174,302 @@ export default function TraceTab({ intro }: { intro: ReactNode }) {
               </Button>
             ) : null}
           </div>
-          <p className="cm-status">{status}</p>
-          {trace.summary.warnings.map((w, k) => (
-            <Callout key={k} kind="note" title={`Compiler warning, line ${w.line}`}>
-              {stripLine(w.message)}
-            </Callout>
-          ))}
           {cfg.pointerFormat === 'gcc' ? (
-            <Callout kind="beyond" title="Beyond the course: gcc's %p">
+            <Callout kind="beyond" title="gcc's %p">
               The slides print addresses as plain hex digits from the course's old Sun machines. gcc on Linux writes them with a 0x prefix, and NULL as (nil).
             </Callout>
           ) : null}
-        </Panel>
-        <Panel title="Output" className="cm-console-panel">
-          <pre className="cm-console mono" aria-live="polite">
-            {f ? (
-              <>
-                {f.output.slice(0, f.output.length - f.newOutput.length)}
-                {f.newOutput ? <mark className="cm-new-out">{f.newOutput}</mark> : null}
-              </>
-            ) : null}
-            {!f || !f.output ? <span className="cm-muted">Nothing printed yet.</span> : null}
-          </pre>
-          {expected !== undefined ? (
-            <div className="cm-expect">
-              <p className="control-label">Expected by {preset?.source}</p>
-              <pre className="cm-console mono">{expected}</pre>
-              <p className="cm-status">
-                {!defaults ? (
-                  <span className="cm-muted">The source assumes 4-byte pointers and %p as the slides print it.</span>
-                ) : trace.summary.output === expected ? (
-                  <>
-                    <Chip signal="hit">matches</Chip> The full run prints exactly this.
-                  </>
-                ) : (
-                  <>
-                    <Chip signal="miss">differs</Chip> The full run prints something else.
-                  </>
-                )}
-              </p>
-            </div>
-          ) : preset?.expect.errorKind ? (
-            <p className="cm-status">
-              <Chip signal="miss">expected error</Chip> The source shows this program going wrong: {preset.expect.errorKind}.
+        </details>
+      </div>
+
+      <div className="cm-stage">
+        <div className="cm-board canvas">
+          <div className="cm-board-bar">
+            <p className="cm-board-title">
+              {f ? (
+                <>
+                  <span className="cm-board-step">Step {i + 1}</span>
+                  <span className="cm-muted">of {frames.length}, line {f.line}</span>
+                </>
+              ) : (
+                'Cannot run'
+              )}
             </p>
-          ) : null}
-          <div className="cm-expect">
-            <CodeEditor label="Your prediction of the output (optional)" value={guess} onChange={(v) => setGuess(v)} rows={3} />
-            {check ? (
-              <p className="cm-status">
-                {check.match ? (
-                  <>
-                    <Chip signal="hit">matches</Chip> Your prediction is exactly what the full run prints.
-                  </>
-                ) : (
-                  <>
-                    <Chip signal="miss">differs</Chip> Output line {check.line}: you wrote <span className="mono">{check.want}</span>, the program prints{' '}
-                    <span className="mono">{check.got}</span>.
-                    <Button onClick={() => stepper.set(check.step)}>{`Go to step ${check.step + 1}`}</Button>
-                  </>
-                )}
-              </p>
+            {f ? (
+              <div className="cm-board-actions">
+                <Toggle label="Addresses" checked={showAddr !== false} onChange={(v) => setShowAddr(v)} hint="Turn off to see only boxes and arrows" />
+                <Toggle label="Show only what this step changes" checked={focus === true} onChange={(v) => setFocus(v)} hint="Hides every box this step leaves alone; the rest stay where they were" />
+              </div>
             ) : null}
           </div>
-        </Panel>
+          {f ? (
+            <>
+              {f.error ? (
+                <div className="cm-pad">
+                  <Callout kind="trap" title={`Stopped at line ${f.error.line}: ${f.error.kind}`} cite={f.error.cite}>
+                    {stripLine(f.error.message)}
+                  </Callout>
+                </div>
+              ) : null}
+              {focus === true && !frameChanges(f) ? <p className="cm-pad cm-muted">This step changes nothing in memory: it only reads values, tests a condition or prints.</p> : null}
+              <MemoryDiagram
+                frame={f}
+                line={srcLines[f.line - 1]}
+                showAddr={showAddr !== false}
+                focus={focus === true}
+                selected={sel}
+                onSelect={(id) => setSel(id === sel ? null : id)}
+              />
+              <div className="cm-board-play">
+                <button type="button" className="cm-play" onClick={stepper.toggle} data-playing={stepper.playing}>
+                  {stepper.playing ? (
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                      <path d="M4 3h3v10H4zM9 3h3v10H9z" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                      <path d="M4.5 2.8l9 5.2-9 5.2z" />
+                    </svg>
+                  )}
+                  {playLabel}
+                </button>
+                {!atEnd ? (
+                  <button type="button" className="cm-next" onClick={stepper.next}>
+                    Next step
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                      <path d="M3 8h10M9 4l4 4-4 4" />
+                    </svg>
+                  </button>
+                ) : null}
+                <button type="button" className="cm-quiet" onClick={() => stepper.set(overTo)} disabled={overTo < 0} title="Run any function this step calls, and stop at the next step in this function">
+                  Step over
+                </button>
+                <button type="button" className="cm-quiet" onClick={() => stepper.set(outTo)} disabled={outTo < 0} title="Run to the end of this function and stop back in the caller">
+                  Step out
+                </button>
+              </div>
+              <div className="cm-board-foot">
+                <Legend
+                  items={[
+                    { signal: 'path', label: 'changed this step' },
+                    { signal: 'data', label: 'pointer and its arrow' },
+                    { signal: 'dontcare', label: 'garbage (never given a value)' },
+                    { signal: 'miss', label: 'error or bad pointer' },
+                    { signal: 'control', label: 'call or return (timeline)' },
+                  ]}
+                />
+              </div>
+            </>
+          ) : (
+            <ul className="cm-errors cm-pad">
+              {trace.errors.map((e, k) => (
+                <li key={k}>{e.message}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <aside className="cm-story" aria-label="Program and the current step">
+          <CodeEditor
+            label="C source"
+            value={typeof src === 'string' ? src : ''}
+            onChange={(v) => setSrc(v)}
+            rows={Math.min(20, Math.max(10, srcLines.length))}
+            marks={f ? { [f.line - 1]: 'path' } : undefined}
+            errors={Object.keys(parseErrors).length ? parseErrors : rte && rte.line > 0 && f?.error ? { [rte.line - 1]: stripLine(rte.message) } : undefined}
+          />
+          {usesInput ? <CodeEditor label="Keyboard input (read by scanf, fgets and getchar)" value={cfg.stdin ?? ''} onChange={(v) => setStdin(v)} rows={2} /> : null}
+          {f ? <StepStory frames={frames} i={i} srcLines={srcLines} onJump={stepper.set} /> : null}
+          {f && found ? (
+            <SelectedBox f={f} found={found} endian={cfg.endian ?? 'big'} onClear={() => setSel(null)} />
+          ) : f ? (
+            <p className="cm-tip">{sel ? 'That variable is not in memory at this step. ' : ''}Click a box to see its address, size and bytes.</p>
+          ) : null}
+        </aside>
       </div>
 
       {f ? (
-        <Panel
-          flush
-          title={`Memory after step ${i + 1}, line ${f.line}`}
-          actions={
-            <>
-              <Toggle label="Addresses" checked={showAddr !== false} onChange={(v) => setShowAddr(v)} hint="Turn off to see only boxes and arrows" />
-              <Toggle label="Show only what this step changes" checked={focus === true} onChange={(v) => setFocus(v)} hint="Hides every box this step leaves alone; the rest stay where they were" />
-            </>
-          }
-        >
-          <div className="cm-legend">
-            <Legend
-              items={[
-                { signal: 'path', label: 'current line, value changed this step' },
-                { signal: 'data', label: 'pointer box and its arrow' },
-                { signal: 'dontcare', label: 'garbage (never given a value)' },
-                { signal: 'miss', label: 'error, dangling or bad pointer' },
-                { signal: 'control', label: 'call or return (timeline)' },
-              ]}
-            />
+        <section className="cm-details" aria-label="Tables for this step">
+          <Tabs label="Tables" value={detail} onChange={setDetail} tabs={DETAIL_TABS} />
+          <div className="cm-detail-body">
+            {detail === 'output' ? (
+              <OutputPane
+                f={f}
+                expected={expected}
+                source={preset?.source}
+                errorKind={preset?.expect.errorKind}
+                defaults={defaults}
+                fullOutput={trace.summary.output}
+                guess={guess}
+                setGuess={setGuess}
+                check={check}
+                onJump={stepper.set}
+              />
+            ) : null}
+            {detail === 'strip' ? (
+              <>
+                <div className="cm-row cm-row-top">
+                  <Segmented
+                    label="Byte order"
+                    value={cfg.endian ?? 'big'}
+                    onChange={(v) => setEndian(v)}
+                    options={[
+                      { value: 'big', label: 'Big-endian', title: 'Most significant byte at the lowest address' },
+                      { value: 'little', label: 'Little-endian', title: 'Least significant byte at the lowest address' },
+                    ]}
+                  />
+                </div>
+                <ByteStrip frame={f} endian={cfg.endian ?? 'big'} selected={sel} onSelect={setSel} />
+                <div className="cm-callouts">
+                  <Callout kind="course" title="Which byte order?" cite="R02 p8; L10 p17-18">
+                    Big-endian is the default because R02 labels our MIPS big-endian. L10 says MIPS byte order depends on the implementation, and the online interpreter is little-endian, so the order is always stated.
+                  </Callout>
+                  <Callout kind="trap" title="Endianness only reorders the bytes of one value" cite="L10 p17-18">
+                    A char array is stored in index order either way, and the bits inside a byte never move. Only an int, float, double or pointer has its bytes reversed.
+                  </Callout>
+                </div>
+              </>
+            ) : null}
+            {detail === 'vars' ? <VariablesTable f={f} sel={sel} onSelect={setSel} /> : null}
+            {detail === 'group' ? <Grouping trees={trees.get(f.line) ?? []} line={f.line} /> : null}
+            {detail === 'traps' ? <TrapList traps={traps} /> : null}
+            {detail === 'conv' ? <Conventions trace={trace} /> : null}
           </div>
-          {f.error ? (
-            <div className="cm-pad">
-              <Callout kind="trap" title={`Stopped at line ${f.error.line}: ${f.error.kind}`} cite={f.error.cite}>
-                {stripLine(f.error.message)}
-              </Callout>
-            </div>
-          ) : null}
-          {focus === true && !frameChanges(f) ? <p className="cm-pad cm-muted">This step changes nothing in memory: it only reads values, tests a condition or prints.</p> : null}
-          <MemoryDiagram frame={f} showAddr={showAddr !== false} focus={focus === true} selected={sel} onSelect={(id) => setSel(id === sel ? null : id)} />
-        </Panel>
-      ) : (
-        <Panel title="Cannot run">
-          <ul className="cm-errors">
-            {trace.errors.map((e, k) => (
-              <li key={k}>{e.message}</li>
-            ))}
-          </ul>
-        </Panel>
-      )}
-
-      {f ? (
-        <Panel
-          title="Memory strip"
-          actions={
-            <Segmented
-              label="Byte order"
-              value={cfg.endian ?? 'big'}
-              onChange={(v) => setEndian(v)}
-              options={[
-                { value: 'big', label: 'Big-endian', title: 'Most significant byte at the lowest address' },
-                { value: 'little', label: 'Little-endian', title: 'Least significant byte at the lowest address' },
-              ]}
-            />
-          }
-        >
-          <ByteStrip frame={f} endian={cfg.endian ?? 'big'} selected={sel} onSelect={setSel} />
-          <div className="cm-callouts">
-            <Callout kind="course" title="Which byte order?" cite="R02 p8; L10 p17-18">
-              Big-endian is the default because R02 labels our MIPS big-endian. L10 says MIPS byte order depends on the implementation, and the online interpreter is little-endian, so the order is always stated.
-            </Callout>
-            <Callout kind="trap" title="Endianness only reorders the bytes of one value" cite="L10 p17-18">
-              A char array is stored in index order either way, and the bits inside a byte never move. Only an int, float, double or pointer has its bytes reversed.
-            </Callout>
-          </div>
-        </Panel>
+        </section>
       ) : null}
     </Workspace>
   )
 }
 
-function StepPanel({ f, srcLines, overTo, outTo, onJump }: { f: TraceFrame | undefined; srcLines: string[]; overTo: number; outTo: number; onJump: (i: number) => void }) {
-  if (!f) return null
+/** The current step bright and opened; the steps either side as one clickable line. */
+function StepStory({ frames, i, srcLines, onJump }: { frames: TraceFrame[]; i: number; srcLines: string[]; onJump: (i: number) => void }) {
+  const items = [i - 1, i, i + 1].filter((k) => k >= 0 && k < frames.length)
   return (
-    <Panel title={`Step ${f.index + 1}`} actions={<span className="cm-muted">{f.kind === 'cond' ? 'condition' : f.kind === 'decl' ? 'declaration' : f.kind === 'expr' ? 'statement' : f.kind}</span>}>
-      <div className="cm-row cm-jumps">
-        <Button onClick={() => onJump(overTo)} disabled={overTo < 0} title="Run any function this step calls, and stop at the next step in this function">
-          Step over
-        </Button>
-        <Button onClick={() => onJump(outTo)} disabled={outTo < 0} title="Run to the end of this function and stop back in the caller">
-          Step out
-        </Button>
-      </div>
-      <p className="cm-codeline mono">
-        <span className="cm-muted">{f.line}</span> {srcLines[f.line - 1]?.trim()}
-      </p>
-      <p className="cm-line">{f.description}</p>
-      {f.whys.length ? (
-        <ul className="cm-whys">
-          {f.whys.map((w, k) => (
-            <li key={k}>
-              <span>{w.rule}</span>
-              {w.working ? <span className="why-working mono">{w.working}</span> : null}
-              {w.cite ? <span className="cm-cite">{w.cite}</span> : null}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {f.newOutput ? (
-        <p className="cm-line">
-          Prints <span className="mono cm-printed">{JSON.stringify(f.newOutput)}</span>
-        </p>
-      ) : null}
-    </Panel>
+    <ol className="cm-story-steps" aria-label="Steps around this one">
+      {items.map((k) => {
+        const x = frames[k]
+        const now = k === i
+        return (
+          <li key={k} className={now ? 'is-now' : k < i ? 'is-past' : 'is-next'}>
+            <button type="button" className="cm-story-btn" onClick={() => onJump(k)} aria-current={now ? 'step' : undefined}>
+              <span className="cm-story-dot" aria-hidden="true" />
+              <span className="cm-story-line">{now ? `Step ${k + 1}, ${kindName(x)}` : `Step ${k + 1}: ${x.description}`}</span>
+            </button>
+            {now ? (
+              <div className="cm-story-body">
+                <p className="cm-codeline mono">
+                  <span className="cm-muted">{x.line}</span> {srcLines[x.line - 1]?.trim()}
+                </p>
+                <p className="cm-does">{x.description}</p>
+                {x.newOutput ? (
+                  <p className="cm-line">
+                    Prints <span className="mono cm-printed">{JSON.stringify(x.newOutput)}</span>
+                  </p>
+                ) : null}
+                {x.whys.length ? (
+                  <details className="cm-why">
+                    <summary>How this step works</summary>
+                    <ul className="cm-whys">
+                      {x.whys.map((w, n) => (
+                        <li key={n}>
+                          <span>{w.rule}</span>
+                          {w.working ? <span className="why-working mono">{w.working}</span> : null}
+                          {w.cite ? <span className="cm-cite">{w.cite}</span> : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
+              </div>
+            ) : null}
+          </li>
+        )
+      })}
+    </ol>
   )
 }
 
-function SelectedPanel({ f, found, sel, endian }: { f: TraceFrame | undefined; found: ReturnType<typeof findCell>; sel: string | null; endian: Endian }) {
-  if (!f) return null
-  if (!found)
-    return (
-      <Panel title="Selected box">
-        <p className="cm-muted">
-          {sel ? 'That variable is not in memory at this step. ' : ''}Click a box in the diagram, or a name in a table, to see its address, size and bytes.
-        </p>
-      </Panel>
-    )
+function OutputPane(p: {
+  f: TraceFrame
+  expected: string | undefined
+  source: string | undefined
+  errorKind: string | undefined
+  defaults: boolean
+  fullOutput: string
+  guess: string
+  setGuess: (v: string) => void
+  check: ReturnType<typeof checkPrediction> | undefined
+  onJump: (i: number) => void
+}) {
+  const { f, check } = p
+  return (
+    <div className="cm-output">
+      <div>
+        <p className="control-label">Printed so far</p>
+        <pre className="cm-console mono" aria-live="polite">
+          {f.output.slice(0, f.output.length - f.newOutput.length)}
+          {f.newOutput ? <mark className="cm-new-out">{f.newOutput}</mark> : null}
+          {!f.output ? <span className="cm-muted">Nothing printed yet.</span> : null}
+        </pre>
+        {p.expected !== undefined ? (
+          <div className="cm-expect">
+            <p className="control-label">Expected by {p.source}</p>
+            <pre className="cm-console mono">{p.expected}</pre>
+            <p className="cm-status">
+              {!p.defaults ? (
+                <span className="cm-muted">The source assumes 4-byte pointers and %p as the slides print it.</span>
+              ) : p.fullOutput === p.expected ? (
+                <>
+                  <Chip signal="hit">matches</Chip> The full run prints exactly this.
+                </>
+              ) : (
+                <>
+                  <Chip signal="miss">differs</Chip> The full run prints something else.
+                </>
+              )}
+            </p>
+          </div>
+        ) : p.errorKind ? (
+          <p className="cm-status">
+            <Chip signal="miss">expected error</Chip> The source shows this program going wrong: {p.errorKind}.
+          </p>
+        ) : null}
+      </div>
+      <div>
+        <CodeEditor label="Your prediction of the output (optional)" value={p.guess} onChange={(v) => p.setGuess(v)} rows={3} />
+        {check ? (
+          <p className="cm-status">
+            {check.match ? (
+              <>
+                <Chip signal="hit">matches</Chip> Your prediction is exactly what the full run prints.
+              </>
+            ) : (
+              <>
+                <Chip signal="miss">differs</Chip> Output line {check.line}: you wrote <span className="mono">{check.want}</span>, the program prints <span className="mono">{check.got}</span>.
+                <Button onClick={() => p.onJump(check.step)}>{`Go to step ${check.step + 1}`}</Button>
+              </>
+            )}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function SelectedBox({ f, found, endian, onClear }: { f: TraceFrame; found: NonNullable<ReturnType<typeof findCell>>; endian: Endian; onClear: () => void }) {
   const { cell, top, where } = found
   const out = f.edges.find((e) => e.from === cell.id)
   const into = f.edges.filter((e) => e.toId === cell.id && e.status === 'ok')
   return (
-    <Panel title={`Selected: ${cell.name}`} actions={<span className="cm-muted">{where}</span>}>
+    <section className="cm-selected" aria-label={`Selected: ${cell.name}`}>
+      <div className="cm-selected-head">
+        <p className="cm-selected-title">
+          <span className="mono">{cell.name}</span> <span className="cm-muted">{where}</span>
+        </p>
+        <button type="button" className="btn" onClick={onClear}>
+          Clear
+        </button>
+      </div>
       <dl className="cm-facts">
         <dt>Type</dt>
         <dd className="mono">{cell.type}</dd>
@@ -453,13 +521,13 @@ function SelectedPanel({ f, found, sel, endian }: { f: TraceFrame | undefined; f
         </Callout>
       ) : null}
       <ByteReading cell={cell} top={top} endian={endian} />
-    </Panel>
+    </section>
   )
 }
 
 type VarRow = { v: VarView; where: string }
 
-function VariablesPanel({ f, sel, onSelect }: { f: TraceFrame; sel: string | null; onSelect: (id: string) => void }) {
+function VariablesTable({ f, sel, onSelect }: { f: TraceFrame; sel: string | null; onSelect: (id: string) => void }) {
   const rows: VarRow[] = [
     ...f.stack.flatMap((s) => s.vars.map((v) => ({ v, where: s.func }))),
     ...f.globals.map((v) => ({ v, where: v.staticIn ? `static (${v.staticIn})` : 'global' })),
@@ -479,16 +547,41 @@ function VariablesPanel({ f, sel, onSelect }: { f: TraceFrame; sel: string | nul
     { key: 'a', header: 'Address', mono: true, cell: (r) => <W e={r.v.addressWhy}>{r.v.addressHex}</W> },
     { key: 'v', header: 'Value', mono: true, cell: (r) => (r.v.value.length > 26 ? `${r.v.value.slice(0, 25)}…` : r.v.value) },
   ]
-  return (
-    <Panel flush title="Name, address, value" actions={<span className="cm-muted">L04A p11</span>}>
-      {rows.length ? <DataTable compact columns={cols} rows={rows} rowSignal={(r) => (r.v.changed ? 'path' : undefined)} /> : <p className="cm-pad cm-muted">No variables yet.</p>}
-    </Panel>
+  return rows.length ? (
+    <DataTable compact columns={cols} rows={rows} rowSignal={(r) => (r.v.changed ? 'path' : undefined)} caption="Every variable at this step (L04A p11)" />
+  ) : (
+    <p className="cm-muted">No variables yet.</p>
   )
 }
 
-function ConventionsPanel({ trace }: { trace: CTrace }) {
+function TrapList({ traps }: { traps: typeof TRAPS }) {
   return (
-    <Panel title="Conventions">
+    <div className="cm-callouts">
+      {traps.length === 0 ? <p className="cm-muted">None of the listed traps apply to this program.</p> : null}
+      {traps.map((t) => (
+        <Callout key={t.id} kind="trap" title={t.title} cite={t.cite}>
+          {t.body}
+        </Callout>
+      ))}
+      {traps.length < TRAPS.length ? (
+        <details className="cm-more">
+          <summary>Other traps ({TRAPS.length - traps.length})</summary>
+          <div className="cm-callouts">
+            {TRAPS.filter((t) => !traps.includes(t)).map((t) => (
+              <Callout key={t.id} kind="trap" title={t.title} cite={t.cite}>
+                {t.body}
+              </Callout>
+            ))}
+          </div>
+        </details>
+      ) : null}
+    </div>
+  )
+}
+
+function Conventions({ trace }: { trace: CTrace }) {
+  return (
+    <>
       <table className="dtable dtable-compact cm-sizes">
         <thead>
           <tr>
@@ -516,21 +609,21 @@ function ConventionsPanel({ trace }: { trace: CTrace }) {
           ))}
         </ul>
       </Callout>
-    </Panel>
+    </>
   )
 }
 
-function GroupingPanel({ trees, line }: { trees: ExprNode[]; line: number }) {
-  if (trees.length === 0) return null
+function Grouping({ trees, line }: { trees: ExprNode[]; line: number }) {
+  if (trees.length === 0) return <p className="cm-muted">Line {line} has no operators to group.</p>
   return (
-    <Panel title={`How line ${line} groups`} actions={<span className="cm-muted">L02C p9</span>}>
-      <p className="cm-muted">The operator lowest in the precedence table is applied last, so it sits at the top. Level 1 binds tightest.</p>
+    <>
+      <p className="cm-muted">How line {line} groups. The operator lowest in the precedence table is applied last, so it sits at the top. Level 1 binds tightest (L02C p9).</p>
       <ul className="cm-tree">
         {trees.map((t, k) => (
           <TreeNode key={k} n={t} />
         ))}
       </ul>
-    </Panel>
+    </>
   )
 }
 
