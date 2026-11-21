@@ -1,0 +1,54 @@
+.ref-section {
+  scroll-margin-top: var(--sp-4);
+}
+
+.ref-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.ref-refs,
+.ref-toc-refs {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+
+.ref-toc {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ref-toc li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+
+.ref-toc-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  font-size: var(--fs-sm);
+}
+
+.ref-toc-link:hover {
+  color: var(--sig-data);
+  text-decoration: underline;
+}
+
+@media (min-width: 1181px) {
+  .ws-inspector:has(.ref-toc) {
+    position: sticky;
+    top: var(--sp-4);
+    align-self: start;
+  }
+}
