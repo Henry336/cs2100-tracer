@@ -3,8 +3,8 @@ import { useMemo, type ReactNode } from 'react'
 import { parseMemInit, parseRegInit, type AsmError } from '../../core/mips'
 import { normalizeOptions, tracePipeline, type CycleFrame, type Explain, type PipelineOptions, type PipelineTrace, type StreamOptions } from '../../core/pipeline'
 import { useUrlState } from '../../lib/url-state'
-import { Callout, CodeEditor, NumberField, Presets, Segmented, Tabs, TextField, Toggle, Why } from '../../ui/kit'
-import type { Stepper } from '../../ui/stepper'
+import { Options } from '../../ui/board'
+import { Callout, CodeEditor, NumberField, Presets, Segmented, TextField, Toggle, Why } from '../../ui/kit'
 import { DEFAULT_PRESET, PRESETS, type FlatPreset, type RunSettings } from './presets'
 
 /** A value whose derivation is one engine Explain. */
@@ -254,82 +254,22 @@ export function Setup({ p, marks, only, extra }: { p: ProgramState; marks?: Reco
           ))}
         </ul>
       ) : null}
-      <details className="pl-machine">
-        <summary>
-          Code and options
-          <span className="pl-machine-note">
-            {plural(n, 'instruction')}
-            {opts ? `, ${opts}` : ''}
-          </span>
-        </summary>
-        <div className="pl-machine-body">
-          <ProgramFields p={p} marks={marks} />
-          <OptionsFields p={p} only={only} />
-          {extra}
-        </div>
-      </details>
+      <Options
+        summary={
+          <>
+            Code and options
+            <span className="pl-machine-note">
+              {plural(n, 'instruction')}
+              {opts ? `, ${opts}` : ''}
+            </span>
+          </>
+        }
+      >
+        <ProgramFields p={p} marks={marks} />
+        <OptionsFields p={p} only={only} />
+        {extra}
+      </Options>
     </div>
-  )
-}
-
-/** The dot-grid board the picture sits on, with the step name and quiet view controls in its top bar. */
-export function Board({ title, step, actions, children, play, foot, label }: { title: ReactNode; step?: ReactNode; actions?: ReactNode; children: ReactNode; play?: ReactNode; foot?: ReactNode; label?: string }) {
-  return (
-    <section className="pl-board canvas" aria-label={label}>
-      <div className="pl-board-bar">
-        <p className="pl-board-title">
-          <span>{title}</span>
-          {step !== undefined ? <span className="pl-board-step">{step}</span> : null}
-        </p>
-        {actions ? <div className="pl-board-actions">{actions}</div> : null}
-      </div>
-      <div className="pl-board-body">{children}</div>
-      {play}
-      {foot ? <div className="pl-board-foot">{foot}</div> : null}
-    </section>
-  )
-}
-
-/** The one primary action inside the board: a Play pill and a quiet Next, both driving the page stepper. */
-export function PlayBar({ stepper, start, next }: { stepper: Stepper; start: string; next: (i: number) => string }) {
-  if (stepper.count < 2) return null
-  const atEnd = stepper.index >= stepper.count - 1
-  const label = stepper.playing ? 'Pause' : atEnd ? 'Play it again' : stepper.index === 0 ? start : 'Play from here'
-  return (
-    <div className="pl-board-play">
-      <button type="button" className="pl-play" onClick={stepper.toggle} data-playing={stepper.playing}>
-        {stepper.playing ? (
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M4 3h3v10H4zM9 3h3v10H9z" />
-          </svg>
-        ) : (
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M4.5 2.8l9 5.2-9 5.2z" />
-          </svg>
-        )}
-        {label}
-      </button>
-      {!atEnd ? (
-        <button type="button" className="pl-next" onClick={stepper.next}>
-          {next(stepper.index + 1)}
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M3 8h10M9 4l4 4-4 4" />
-          </svg>
-        </button>
-      ) : null}
-    </div>
-  )
-}
-
-/** Secondary material under the board: one tab strip, one table visible at a time. The open tab lives in the URL. */
-export function Strip<T extends string>({ urlKey, label, tabs, children }: { urlKey: string; label: string; tabs: { value: T; label: string }[]; children: (cur: T) => ReactNode }) {
-  const [v, setV] = useUrlState<T>(urlKey, tabs[0].value)
-  const cur = tabs.some((x) => x.value === v) ? v : tabs[0].value
-  return (
-    <section className="pl-strip" aria-label={label}>
-      <Tabs label={label} value={cur} onChange={setV} tabs={tabs} />
-      <div className="pl-strip-body">{children(cur)}</div>
-    </section>
   )
 }
 

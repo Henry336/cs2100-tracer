@@ -3,7 +3,8 @@ import type { ReactNode } from 'react'
 import { regLabel, STAGES, type Dependency, type InstrResult, type PipelineTrace, type Stage } from '../../core/pipeline'
 import { useUrlState } from '../../lib/url-state'
 import { Button, Callout, DataTable, Legend, NumberField, Workspace, type Column } from '../../ui/kit'
-import { Board, Notes, PresetPicker, Setup, Strip, W, plural, type ProgramState } from './common'
+import { Board, Details } from '../../ui/board'
+import { Notes, PresetPicker, Setup, W, plural, type ProgramState } from './common'
 
 const KIND_TEXT: Record<Dependency['kind'], string> = {
   RAW: 'Read after write: a true dependency',
@@ -94,7 +95,7 @@ function Timeline({ t, d, shift }: { t: PipelineTrace; d: Dependency; shift: num
             .filter((m) => !m.ghost)
             .map((m, k) => {
               const y = 22 + m.row * (rh + 14) + 1
-              return <path key={k} d={`M${x(m.cycle) + 1} ${y}h${cw - 2}v${rh - 2}h${2 - cw}Z`} pathLength={1} className="pl-flow-data" />
+              return <path key={k} d={`M${x(m.cycle) + 1} ${y}h${cw - 2}v${rh - 2}h${2 - cw}Z`} pathLength={1} className="data" />
             })}
         </g>
       </svg>
@@ -202,11 +203,56 @@ export default function HazardsTab({ intro, p }: { intro: ReactNode; p: ProgramS
       ),
     },
   ]
+  const detail = (cur: Detail): ReactNode =>
+    cur === 'deps' ? (
+      deps.length ? (
+        <DataTable columns={cols} rows={deps} rowSignal={(x) => (x === d ? 'path' : undefined)} compact caption="Each register against its nearest earlier writer" />
+      ) : (
+        <p className="pl-muted">No dependencies.</p>
+      )
+    ) : cur === 'counts' ? (
+      <dl className="pl-facts">
+        <div>
+          <dt>RAW (can stall)</dt>
+          <dd className="mono">{count('RAW')}</dd>
+        </div>
+        <div>
+          <dt>WAR (never stalls here)</dt>
+          <dd className="mono">{count('WAR')}</dd>
+        </div>
+        <div>
+          <dt>WAW (never stalls here)</dt>
+          <dd className="mono">{count('WAW')}</dd>
+        </div>
+        <div>
+          <dt>Stall cycles in this trace</dt>
+          <dd className="mono">
+            <W e={t.totals.why.stallCycles}>{t.totals.stallCycles}</W>
+          </dd>
+        </div>
+      </dl>
+    ) : (
+      <div className="pl-notes">
+        <Callout kind="course" title="Only RAW stalls this pipeline" cite="L21 p13-14; R11 p9">
+          WAR and WAW cause no hazards in the 5-stage in-order pipeline. They matter only for out-of-order execution.
+        </Callout>
+        <Callout kind="course" title="The other two hazard types" cite="L21 p5, p7-11, p27">
+          Structural: none here, because instruction and data memory are separate and the register file writes in the first half of a cycle and reads in the second. Control: {plural(t.stream.items.filter((i) => i.cls === 'branch' || i.cls === 'jump').length, 'branch or jump', 'branches or jumps')} executed; the Branches tab shows what each one costs.
+        </Callout>
+        <Callout kind="trap" title="Exam MCQs still say WAW hazard" cite="AY25/26 Q4 key">
+          A snippet whose only dependency is WAW on $t2 is answered (E) WAW hazard, though it costs no stall.
+        </Callout>
+        <Callout kind="trap" title="WAR and WAW still limit reordering" cite="L21 p47; AY23/24 S1 Q12">
+          They cost no stall, but you cannot swap the two instructions, for example when filling a delay slot.
+        </Callout>
+        <Notes notes={t.notes} />
+      </div>
+    )
   return (
     <Workspace title="Pipeline" lectures="L20 to L21, T10, R11" intro={intro} toolbar={<PresetPicker p={p} />}>
       <Setup p={p} />
       <Board
-        label="Dependency timeline"
+        className="pl-board"
         title={d ? `${name(d.from)} to ${name(d.to)}` : 'Dependencies'}
         step={d ? `${d.kind} on ${rl(d.register)}` : undefined}
         foot={
@@ -263,54 +309,7 @@ export default function HazardsTab({ intro, p }: { intro: ReactNode; p: ProgramS
           </>
         )}
       </Board>
-      <Strip urlKey="pdh" label="Tables for this code" tabs={DETAILS}>
-        {(cur) =>
-          cur === 'deps' ? (
-            deps.length ? (
-              <DataTable columns={cols} rows={deps} rowSignal={(x) => (x === d ? 'path' : undefined)} compact caption="Each register against its nearest earlier writer" />
-            ) : (
-              <p className="pl-muted">No dependencies.</p>
-            )
-          ) : cur === 'counts' ? (
-            <dl className="pl-facts">
-              <div>
-                <dt>RAW (can stall)</dt>
-                <dd className="mono">{count('RAW')}</dd>
-              </div>
-              <div>
-                <dt>WAR (never stalls here)</dt>
-                <dd className="mono">{count('WAR')}</dd>
-              </div>
-              <div>
-                <dt>WAW (never stalls here)</dt>
-                <dd className="mono">{count('WAW')}</dd>
-              </div>
-              <div>
-                <dt>Stall cycles in this trace</dt>
-                <dd className="mono">
-                  <W e={t.totals.why.stallCycles}>{t.totals.stallCycles}</W>
-                </dd>
-              </div>
-            </dl>
-          ) : (
-            <div className="pl-notes">
-              <Callout kind="course" title="Only RAW stalls this pipeline" cite="L21 p13-14; R11 p9">
-                WAR and WAW cause no hazards in the 5-stage in-order pipeline. They matter only for out-of-order execution.
-              </Callout>
-              <Callout kind="course" title="The other two hazard types" cite="L21 p5, p7-11, p27">
-                Structural: none here, because instruction and data memory are separate and the register file writes in the first half of a cycle and reads in the second. Control: {plural(t.stream.items.filter((i) => i.cls === 'branch' || i.cls === 'jump').length, 'branch or jump', 'branches or jumps')} executed; the Branches tab shows what each one costs.
-              </Callout>
-              <Callout kind="trap" title="Exam MCQs still say WAW hazard" cite="AY25/26 Q4 key">
-                A snippet whose only dependency is WAW on $t2 is answered (E) WAW hazard, though it costs no stall.
-              </Callout>
-              <Callout kind="trap" title="WAR and WAW still limit reordering" cite="L21 p47; AY23/24 S1 Q12">
-                They cost no stall, but you cannot swap the two instructions, for example when filling a delay slot.
-              </Callout>
-              <Notes notes={t.notes} />
-            </div>
-          )
-        }
-      </Strip>
+      <Details urlKey="pdh" label="Tables for this code" tabs={DETAILS.map((x) => ({ ...x, body: detail(x.value) }))} />
     </Workspace>
   )
 }

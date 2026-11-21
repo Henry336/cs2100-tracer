@@ -5,7 +5,8 @@ import { useUrlState } from '../../lib/url-state'
 import { Button, Callout, Chip, Legend, Segmented, TextField, Toggle, Workspace } from '../../ui/kit'
 import { useStepper } from '../../ui/stepper'
 import { Transport } from '../../ui/Transport'
-import { Board, EventList, Notes, PlayBar, PresetPicker, Setup, Strip, W, describeFrame, frameMarks, lineMarks, plural, type ProgramState } from './common'
+import { Board, Details, PlayBar, Stage as Layout } from '../../ui/board'
+import { EventList, Notes, PresetPicker, Setup, W, describeFrame, frameMarks, lineMarks, plural, type ProgramState } from './common'
 import { PipelineGrid, type StageNames } from './Grid'
 
 export function useCycleStepper(trace: PipelineTrace) {
@@ -363,26 +364,17 @@ export function IdealCompare({ trace }: { trace: PipelineTrace }) {
   )
 }
 
-type Detail = 'totals' | 'check' | 'why' | 'rules'
-
-const DETAILS: { value: Detail; label: string }[] = [
-  { value: 'totals', label: 'Totals in exam terms' },
-  { value: 'check', label: 'Check my answer' },
-  { value: 'why', label: 'Why each instruction waits' },
-  { value: 'rules', label: 'Traps and conventions' },
-]
-
 /** The step story beside the board: only the current cycle, in the engine's words. */
 export function CycleStory({ t, frame, children }: { t: PipelineTrace; frame: CycleFrame | undefined; children?: ReactNode }) {
   if (!frame) return null
   const waiting = new Set(frame.waiting.map((w) => w.uid))
   return (
-    <aside className="pl-story" aria-label="What happens this cycle">
+    <aside className="story pl-story" aria-label="What happens this cycle">
       <p className="pl-story-head">
         <span className="pl-story-cycle">Cycle {frame.cycle}</span>
         <span className="pl-story-of">of {t.frames.length}</span>
       </p>
-      <div className="pl-story-body" key={frame.cycle}>
+      <div className="story-body" key={frame.cycle}>
         <EventList frame={frame} />
         {waiting.size ? (
           <div className="pl-story-why">
@@ -426,12 +418,17 @@ export default function DiagramTab({ intro, p }: { intro: ReactNode; p: ProgramS
       transport={<Transport stepper={stepper} label="Cycle" marks={marks} describe={describeFrame(t, frame)} />}
     >
       <Setup p={p} marks={lineMarks(t, frame)} extra={stageNames} />
-      <div className="pl-stage">
+      <Layout>
         <Board
-          label="Pipeline diagram"
+          className="pl-board"
           title="Pipeline diagram"
           step={frame && view !== 'ideal' ? `Cycle ${frame.cycle}` : view === 'ideal' ? 'Ideal' : undefined}
-          actions={
+          note={
+            t.ok && view === 'ideal'
+              ? `${t.totals.instructions} instructions with no stalls or flushes take ${t.totals.ideal} cycles (I + 4, L20 p32); the actual run takes ${t.totals.cycles}.`
+              : undefined
+          }
+          tools={
             <>
               <Segmented
                 label="Show"
@@ -446,18 +443,13 @@ export default function DiagramTab({ intro, p }: { intro: ReactNode; p: ProgramS
               <Toggle label="Forwarding" checked={t.options.forwarding} onChange={(v) => p.setOption('forwarding', v)} hint="L21 p18. The other hazard options are under Code and options." />
             </>
           }
-          play={t.ok ? <PlayBar stepper={stepper} start="Step through the cycles" next={(i) => `Next: cycle ${t.frames[i]?.cycle ?? i + 1}`} /> : null}
+          play={t.ok ? <PlayBar stepper={stepper} start="Step through the cycles" next={(i) => `cycle ${t.frames[i]?.cycle ?? i + 1}`} /> : null}
           foot={view === 'ideal' ? null : <GridLegend forwarding={t.options.forwarding} />}
         >
           {!t.ok ? (
             <p className="pl-pad pl-err">Fix the code to see the diagram.</p>
           ) : view === 'ideal' ? (
-            <>
-              <p className="pl-board-note">
-                {t.totals.instructions} instructions with no stalls or flushes take {t.totals.ideal} cycles (I + 4, L20 p32); the actual run takes {t.totals.cycles}.
-              </p>
-              <PipelineGrid trace={ideal} cycle={idealCycle} names={names} label="Ideal pipeline diagram" />
-            </>
+            <PipelineGrid trace={ideal} cycle={idealCycle} names={names} label="Ideal pipeline diagram" />
           ) : (
             <>
               {view === 'compare' ? <h3 className="pl-subhead">Actual: {t.totals.cycles} cycles</h3> : null}
@@ -478,31 +470,46 @@ export default function DiagramTab({ intro, p }: { intro: ReactNode; p: ProgramS
             <p className="pl-tip">Click a cycle number in the grid to jump there.</p>
           </CycleStory>
         ) : null}
-      </div>
-      <Strip urlKey="pdt" label="Tables for this trace" tabs={DETAILS}>
-        {(cur) =>
-          cur === 'totals' ? (
-            <>
-              <Totals trace={t} />
-              <KeyCheck p={p} />
-            </>
-          ) : cur === 'check' ? (
-            <AnswerCheck trace={t} />
-          ) : cur === 'why' ? (
-            <>
-              <p className="pl-muted pl-gap">
-                Each +n is the extra delay: WB minus (previous WB + 1), as the AY23/24 S2 Q17 key counts.
-              </p>
-              <Reasons trace={t} cycle={frame?.cycle} />
-            </>
-          ) : (
-            <div className="pl-notes">
-              <Notes notes={t.notes} />
-              <Traps trace={t} />
-            </div>
-          )
-        }
-      </Strip>
+      </Layout>
+      <Details
+        urlKey="pdt"
+        label="Tables for this trace"
+        tabs={[
+          {
+            value: 'totals',
+            label: 'Totals in exam terms',
+            body: (
+              <>
+                <Totals trace={t} />
+                <KeyCheck p={p} />
+              </>
+            ),
+          },
+          { value: 'check', label: 'Check my answer', body: <AnswerCheck trace={t} /> },
+          {
+            value: 'why',
+            label: 'Why each instruction waits',
+            body: (
+              <>
+                <p className="pl-muted pl-gap">
+                  Each +n is the extra delay: WB minus (previous WB + 1), as the AY23/24 S2 Q17 key counts.
+                </p>
+                <Reasons trace={t} cycle={frame?.cycle} />
+              </>
+            ),
+          },
+          {
+            value: 'rules',
+            label: 'Traps and conventions',
+            body: (
+              <div className="pl-notes">
+                <Notes notes={t.notes} />
+                <Traps trace={t} />
+              </div>
+            ),
+          },
+        ]}
+      />
     </Workspace>
   )
 }

@@ -3,7 +3,8 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { PIPELINE_PRESETS, tracePipeline, type Explain, type PipelineTrace } from '../../core/pipeline'
 import { useUrlState } from '../../lib/url-state'
 import { Button, Callout, Chip, DataTable, Select, TextField, Workspace, type Column } from '../../ui/kit'
-import { Board, Notes, PresetPicker, Setup, Strip, W, plural, type ProgramState } from './common'
+import { Board, Details, PrimaryPill } from '../../ui/board'
+import { Notes, PresetPicker, Setup, W, plural, type ProgramState } from './common'
 import { GridLegend, Reasons, cycleHint, stallHint } from './DiagramTab'
 import { PipelineGrid } from './Grid'
 
@@ -190,10 +191,75 @@ export default function ExamTab({ intro, p }: { intro: ReactNode; p: ProgramStat
   const g = settings[Math.min(grid, settings.length - 1)]
   const later = <p className="pl-muted">Shown after you check your answers.</p>
 
+  const detail = (cur: Detail): ReactNode =>
+    cur === 'rules' ? (
+      <div className="pl-notes">
+        <Callout kind="trap" title="Stall cycles, not stall events" cite="AY24/25 Q19 key; AY25/26 Q19 key">
+          AY24/25 words its answer as 2 stalls of 2 cycles; AY25/26 as 5 stalls of 1 cycle. Both mean stall cycles, so give the cycle count.
+        </Callout>
+        <Callout kind="course" title="Same five questions every year" cite="R11 Addendum p3-8">
+          Read one grid without forwarding and one with it, and you have (a) to (d). Part (e) changes one instruction, which can add or remove a dependency.
+        </Callout>
+        <Notes notes={t.f.notes} />
+      </div>
+    ) : !ok || !shown ? (
+      later
+    ) : cur === 'nops' ? (
+      <>
+        <pre className="pl-code mono">{nopListing(p.src, t.f)}</pre>
+        <p className="pl-muted">
+          <W e={t.f.totals.why.nops}>{nopCount(t.f) ? plural(nopCount(t.f), 'nop') : 'No nops'}</W> with forwarding and no hazard detection unit.
+        </p>
+      </>
+    ) : cur === 'delay' ? (
+      <>
+        <DataTable columns={delayCols} rows={t.f.instructions.map((_, i) => i)} compact />
+        <p className="pl-muted pl-gap-top">Each +n is WB minus (previous WB + 1), as in the AY23/24 S2 Q17 key.</p>
+      </>
+    ) : (
+      <div className="pl-exam-grid">
+        <div className="pl-row">
+          <Select label="Setting" value={String(settings.indexOf(g))} options={settings.map((s, k) => ({ value: String(k), label: `${s.label}: ${plural(s.tr.totals.cycles, 'cycle')}` }))} onChange={(v) => setGrid(Number(v))} />
+        </div>
+        <GridLegend forwarding />
+        <PipelineGrid trace={g.tr} compact label={`${g.label} pipeline diagram`} />
+        <details className="pl-details pl-gap-top">
+          <summary>Why each instruction waits</summary>
+          <Reasons trace={g.tr} />
+        </details>
+      </div>
+    )
   return (
     <Workspace title="Pipeline" lectures="AY24/25 Q19, AY25/26 Q19, R11 Addendum" intro={intro} toolbar={<PresetPicker p={p} />}>
       <Setup p={p} only={['branchStage', 'prediction', 'delayedBranch', 'jumpStage', 'storeData']} />
-      <Board label="The five exam parts" title="Your answers" step={shown ? 'Checked' : undefined}>
+      <Board
+        className="pl-board"
+        title="Your answers"
+        step={shown ? 'Checked' : undefined}
+        play={
+          <div className="board-play">
+            <PrimaryPill onClick={() => setShown(true)} disabled={!ok}>
+              Check my answers
+            </PrimaryPill>
+            {shown ? (
+              <button type="button" className="next-pill" onClick={() => setShown(false)}>
+                Hide answers
+              </button>
+            ) : null}
+          </div>
+        }
+        foot={
+          ok && shown ? (
+            <div className="pl-exam-results">
+              <DataTable columns={cols} rows={PARTS} compact />
+              <p className="pl-board-note">
+                Ideal is I + 4 = <W e={t.f.totals.why.ideal}>{t.f.totals.ideal}</W> for {plural(t.f.totals.instructions, 'instruction')}. Without forwarding, {plural(t.nf.totals.stallEvents, 'instruction')} wait, for {plural(t.nf.totals.stallCycles, 'stall cycle')} in all.
+                {paper && !paper.intact ? ` The code differs from ${paper.cite}, so the key is hidden.` : ''}
+              </p>
+            </div>
+          ) : null
+        }
+      >
         <div className="pl-exam">
           <p className="pl-board-note">Work each part on paper first.</p>
           <div className="pl-exam-fields">
@@ -218,67 +284,8 @@ export default function ExamTab({ intro, p }: { intro: ReactNode; p: ProgramStat
           {t.e && !t.e.ok ? <p className="pl-err">The changed line does not assemble: {t.e.errors.map((e) => e.message).join('; ')}</p> : null}
           {!ok ? <p className="pl-err">Fix the code to run the template.</p> : null}
         </div>
-        <div className="pl-board-play">
-          <button type="button" className="pl-play" onClick={() => setShown(true)} disabled={!ok}>
-            Check my answers
-          </button>
-          {shown ? (
-            <button type="button" className="pl-next" onClick={() => setShown(false)}>
-              Hide answers
-            </button>
-          ) : null}
-        </div>
-        {ok && shown ? (
-          <div className="pl-exam-results">
-            <DataTable columns={cols} rows={PARTS} compact />
-            <p className="pl-board-note">
-              Ideal is I + 4 = <W e={t.f.totals.why.ideal}>{t.f.totals.ideal}</W> for {plural(t.f.totals.instructions, 'instruction')}. Without forwarding, {plural(t.nf.totals.stallEvents, 'instruction')} wait, for {plural(t.nf.totals.stallCycles, 'stall cycle')} in all.
-              {paper && !paper.intact ? ` The code differs from ${paper.cite}, so the key is hidden.` : ''}
-            </p>
-          </div>
-        ) : null}
       </Board>
-      <Strip urlKey="pde" label="Worked material" tabs={DETAILS}>
-        {(cur) =>
-          cur === 'rules' ? (
-            <div className="pl-notes">
-              <Callout kind="trap" title="Stall cycles, not stall events" cite="AY24/25 Q19 key; AY25/26 Q19 key">
-                AY24/25 words its answer as 2 stalls of 2 cycles; AY25/26 as 5 stalls of 1 cycle. Both mean stall cycles, so give the cycle count.
-              </Callout>
-              <Callout kind="course" title="Same five questions every year" cite="R11 Addendum p3-8">
-                Read one grid without forwarding and one with it, and you have (a) to (d). Part (e) changes one instruction, which can add or remove a dependency.
-              </Callout>
-              <Notes notes={t.f.notes} />
-            </div>
-          ) : !ok || !shown ? (
-            later
-          ) : cur === 'nops' ? (
-            <>
-              <pre className="pl-code mono">{nopListing(p.src, t.f)}</pre>
-              <p className="pl-muted">
-                <W e={t.f.totals.why.nops}>{nopCount(t.f) ? plural(nopCount(t.f), 'nop') : 'No nops'}</W> with forwarding and no hazard detection unit.
-              </p>
-            </>
-          ) : cur === 'delay' ? (
-            <>
-              <DataTable columns={delayCols} rows={t.f.instructions.map((_, i) => i)} compact />
-              <p className="pl-muted pl-gap-top">Each +n is WB minus (previous WB + 1), as in the AY23/24 S2 Q17 key.</p>
-            </>
-          ) : (
-            <div className="pl-exam-grid">
-              <div className="pl-row">
-                <Select label="Setting" value={String(settings.indexOf(g))} options={settings.map((s, k) => ({ value: String(k), label: `${s.label}: ${plural(s.tr.totals.cycles, 'cycle')}` }))} onChange={(v) => setGrid(Number(v))} />
-              </div>
-              <GridLegend forwarding />
-              <PipelineGrid trace={g.tr} compact label={`${g.label} pipeline diagram`} />
-              <details className="pl-details pl-gap-top">
-                <summary>Why each instruction waits</summary>
-                <Reasons trace={g.tr} />
-              </details>
-            </div>
-          )
-        }
-      </Strip>
+      <Details urlKey="pde" label="Worked material" tabs={DETAILS.map((x) => ({ ...x, body: detail(x.value) }))} />
     </Workspace>
   )
 }

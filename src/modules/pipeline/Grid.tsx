@@ -1,5 +1,6 @@
 // The pipeline diagram: rows are dynamic instructions, columns are cycles (L21 p6 notation).
 import { useEffect, useId, useMemo, useRef } from 'react'
+import { Flow } from '../../ui/board'
 import { STAGES, type Forward, type InstrResult, type PipelineTrace, type Row, type Stage, type StallKind } from '../../core/pipeline'
 
 export type StageNames = 'long' | 'short' | 'units'
@@ -211,20 +212,8 @@ export function PipelineGrid({
               return f.from === 'register file' ? <path key={i} d={d} className={`pl-split${live}`} /> : <path key={i} d={d} className={`pl-fwd${live}`} markerEnd={`url(#${markId})`} />
             })}
             {/* Light along the values passed this cycle: the arrow draws in from the producer, then packets keep flowing. */}
-            {liveFwd.length ? (
-              <>
-                <g className="flow-draw" key={`d${cycle}`}>
-                  {liveFwd.map((f, i) => (
-                    <path key={i} d={fwdPath(f)} pathLength={1} className={f.from === 'register file' ? 'pl-flow-data' : 'pl-flow-fwd'} />
-                  ))}
-                </g>
-                <g className="flow-packets" key={`p${cycle}`}>
-                  {liveFwd.map((f, i) => (
-                    <path key={i} d={fwdPath(f)} pathLength={1} className={f.from === 'register file' ? 'pl-flow-data' : 'pl-flow-fwd'} style={{ animationDelay: `${0.7 + i * 0.18}s` }} />
-                  ))}
-                </g>
-              </>
-            ) : null}
+            <Flow id={`d${cycle}`} paths={liveFwd.filter((f) => f.from === 'register file').map((f) => fwdPath(f)!)} tone="data" />
+            <Flow id={`f${cycle}`} paths={liveFwd.filter((f) => f.from !== 'register file').map((f) => fwdPath(f)!)} tone="fwd" />
           </svg>
         </div>
       </div>

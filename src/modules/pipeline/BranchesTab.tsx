@@ -3,7 +3,8 @@ import { useMemo, type ReactNode } from 'react'
 import { delaySlotCandidates, tracePipeline, type Explain, type PipelineOptions, type PipelineTrace } from '../../core/pipeline'
 import { useUrlState } from '../../lib/url-state'
 import { Callout, Chip, DataTable, Toggle, Workspace, type Column } from '../../ui/kit'
-import { Board, Notes, PresetPicker, Setup, Strip, W, plural, type ProgramState } from './common'
+import { Board, Details } from '../../ui/board'
+import { Notes, PresetPicker, Setup, W, plural, type ProgramState } from './common'
 import { GridLegend } from './DiagramTab'
 import { PipelineGrid } from './Grid'
 
@@ -87,14 +88,59 @@ export default function BranchesTab({ intro, p }: { intro: ReactNode; p: Program
     { value: 'run', label: 'This run' },
     { value: 'rules', label: 'Course rules' },
   ]
+  const detail = (tab: Detail): ReactNode =>
+    tab === 'score' ? (
+      ok ? (
+        <>
+          <DataTable columns={cols} rows={traces} compact />
+          <p className="pl-muted pl-gap-top">Every row uses the same code, run settings and forwarding choice.</p>
+        </>
+      ) : (
+        <p className="pl-err">Fix the code to compare strategies.</p>
+      )
+    ) : tab === 'slot' ? (
+      ok ? <SlotCandidates t={traces.find((x) => x.s.id === 'delay')!.t} /> : null
+    ) : tab === 'run' ? (
+      <dl className="pl-facts">
+        <div>
+          <dt>Branches executed</dt>
+          <dd className="mono">{branches.length}</dd>
+        </div>
+        <div>
+          <dt>Taken / not taken</dt>
+          <dd className="mono">
+            {taken} / {branches.length - taken}
+          </dd>
+        </div>
+        <div>
+          <dt>Instructions (I), ideal I + 4</dt>
+          <dd className="mono">
+            {p.trace.totals.instructions}, <W e={p.trace.totals.why.ideal}>{p.trace.totals.ideal}</W>
+          </dd>
+        </div>
+      </dl>
+    ) : (
+      <div className="pl-notes">
+        <Callout kind="trap" title="No branch handling is not predict not taken" cite="L21 p31, p40-42; AY23/24 S1 Q5 key D">
+          With no handling, wrong-path instructions would run and give wrong results. Predict not taken flushes them when the branch is taken.
+        </Callout>
+        <Callout kind="trap" title="The early branch needs its operands early" cite="L21 p37-39">
+          After an ALU instruction right before the branch, add 1 stall (ALU to ID). After a lw right before it, add 2 (MEM to ID): 3 in total with no prediction, no better than deciding in MEM.
+        </Callout>
+        <Callout kind="course" title="Delay slot size" cite="L21 p46">
+          The course uses one delay slot with the early branch. The slot runs whatever the outcome.
+        </Callout>
+        <Notes notes={p.trace.notes} />
+      </div>
+    )
   return (
     <Workspace title="Pipeline" lectures="L20 to L21, T10, R11" intro={intro} toolbar={<PresetPicker p={p} />}>
       <Setup p={p} only={['forwarding', 'jumpStage', 'storeData']} />
       <Board
-        label="One code, each way of handling branches"
+        className="pl-board"
         title="Branch handling"
         step={ok ? plural(cur.t.totals.cycles, 'cycle') : undefined}
-        actions={<Toggle label="Add predict taken (beyond the course)" checked={withTaken} onChange={setWithTaken} />}
+        tools={<Toggle label="Add predict taken (beyond the course)" checked={withTaken} onChange={setWithTaken} />}
         foot={ok ? <GridLegend forwarding={cur.t.options.forwarding} /> : null}
       >
         {ok ? (
@@ -117,54 +163,7 @@ export default function BranchesTab({ intro, p }: { intro: ReactNode; p: Program
           <p className="pl-pad pl-err">Fix the code to compare strategies.</p>
         )}
       </Board>
-      <Strip urlKey="pdb" label="Tables for this code" tabs={details}>
-        {(tab) =>
-          tab === 'score' ? (
-            ok ? (
-              <>
-                <DataTable columns={cols} rows={traces} compact />
-                <p className="pl-muted pl-gap-top">Every row uses the same code, run settings and forwarding choice.</p>
-              </>
-            ) : (
-              <p className="pl-err">Fix the code to compare strategies.</p>
-            )
-          ) : tab === 'slot' ? (
-            ok ? <SlotCandidates t={traces.find((x) => x.s.id === 'delay')!.t} /> : null
-          ) : tab === 'run' ? (
-            <dl className="pl-facts">
-              <div>
-                <dt>Branches executed</dt>
-                <dd className="mono">{branches.length}</dd>
-              </div>
-              <div>
-                <dt>Taken / not taken</dt>
-                <dd className="mono">
-                  {taken} / {branches.length - taken}
-                </dd>
-              </div>
-              <div>
-                <dt>Instructions (I), ideal I + 4</dt>
-                <dd className="mono">
-                  {p.trace.totals.instructions}, <W e={p.trace.totals.why.ideal}>{p.trace.totals.ideal}</W>
-                </dd>
-              </div>
-            </dl>
-          ) : (
-            <div className="pl-notes">
-              <Callout kind="trap" title="No branch handling is not predict not taken" cite="L21 p31, p40-42; AY23/24 S1 Q5 key D">
-                With no handling, wrong-path instructions would run and give wrong results. Predict not taken flushes them when the branch is taken.
-              </Callout>
-              <Callout kind="trap" title="The early branch needs its operands early" cite="L21 p37-39">
-                After an ALU instruction right before the branch, add 1 stall (ALU to ID). After a lw right before it, add 2 (MEM to ID): 3 in total with no prediction, no better than deciding in MEM.
-              </Callout>
-              <Callout kind="course" title="Delay slot size" cite="L21 p46">
-                The course uses one delay slot with the early branch. The slot runs whatever the outcome.
-              </Callout>
-              <Notes notes={p.trace.notes} />
-            </div>
-          )
-        }
-      </Strip>
+      <Details urlKey="pdb" label="Tables for this code" tabs={details.map((x) => ({ ...x, body: detail(x.value) }))} />
     </Workspace>
   )
 }

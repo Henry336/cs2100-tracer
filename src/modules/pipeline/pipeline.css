@@ -970,7 +970,7 @@
   }
 }
 
-/* ---------- Calm layout (docs/design.md): command row, board with Play inside, step story, one tab strip ---------- */
+/* ---------- Calm layout: the shared kit (src/ui/board.tsx) plus what only this module needs ---------- */
 
 .pl-command {
   display: flex;
@@ -982,34 +982,11 @@
   margin: 0;
 }
 
-.pl-machine > summary {
-  cursor: pointer;
-  width: max-content;
-  max-width: 100%;
-  padding: 4px 6px;
-  color: var(--ink-2);
-  font-size: var(--fs-sm);
-}
-
+/* One-line state of the folded options, after the summary text. */
 .pl-machine-note {
   margin-left: var(--sp-3);
   color: var(--ink-3);
   font-size: var(--fs-xs);
-}
-
-.pl-machine[open] > summary {
-  margin-bottom: var(--sp-3);
-  color: var(--ink);
-}
-
-.pl-machine-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-4);
-  padding: var(--sp-3) var(--sp-4);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-panel);
-  background: var(--panel);
 }
 
 .pl-optbox {
@@ -1026,58 +1003,11 @@
   color: var(--ink-2);
 }
 
-.pl-stage {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: var(--sp-4);
-  align-items: start;
-}
-
-.pl-board {
-  position: relative;
-  min-width: 0;
-  border: 1px solid var(--rule);
-  border-radius: var(--r-panel);
-  overflow: hidden;
-}
-
-.pl-board-bar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--sp-2) var(--sp-4);
-  padding: 12px 16px 8px;
-}
-
-.pl-board-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--sp-3);
-  font-size: var(--fs-sm);
-  color: var(--ink-2);
-}
-
-.pl-board-step {
-  font-family: var(--font-display);
-  font-size: var(--fs-xl);
-  color: var(--sig-path);
-}
-
-.pl-board-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: var(--sp-2) var(--sp-4);
-}
-
-.pl-board-body {
+/* A board here holds several blocks (picker, note, grid, subheads), stacked. */
+.pl-board .board-scroll {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  min-width: 0;
-  padding: 0 16px 12px;
 }
 
 /* Tables and grids sit on paper so the dot grid never runs behind text. */
@@ -1093,6 +1023,7 @@
   padding: 4px 8px;
 }
 
+/* Text inside the board body (the shared .board-note is the line under the board bar). */
 .pl-board-note,
 .pl-board-sub {
   font-size: var(--fs-sm);
@@ -1109,109 +1040,12 @@
   max-width: 80ch;
 }
 
-.pl-board-play {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  padding: 0 16px 14px;
-}
-
-.pl-board-foot {
-  padding: 8px 16px;
-  border-top: 1px solid var(--grid);
-  background: color-mix(in srgb, var(--panel) 70%, transparent);
-}
-
-/* Same look as the datapath board's Play pill: the one primary action on the page. */
-.pl-play,
-.pl-next {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 40px;
-  padding: 0 18px;
-  border-radius: var(--r-pill);
-  font: 600 var(--fs-sm) / 1 var(--font-sans);
-  cursor: pointer;
-  transition: transform 0.25s var(--ease-spring), background-color 0.15s var(--ease);
-}
-
-.pl-play {
-  position: relative;
-  border: 0;
-  background: var(--primary);
-  color: var(--primary-ink);
-}
-
-.pl-play:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.pl-play svg {
-  width: 14px;
-  height: 14px;
-  fill: currentColor;
-}
-
-.pl-play:hover:not(:disabled) {
-  transform: scale(1.03);
-}
-
-.pl-play[data-playing="true"]::before {
-  content: "";
-  position: absolute;
-  inset: -3px;
-  border-radius: inherit;
-  padding: 2px;
-  background: var(--glow);
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box exclude,
-    linear-gradient(#000 0 0);
-  animation: glow-spin 2.4s linear infinite;
-}
-
-.pl-next {
-  border: 1px solid var(--rule);
-  background: var(--panel);
-  color: var(--ink);
-}
-
-.pl-next svg {
-  width: 14px;
-  height: 14px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.pl-next:hover {
-  border-color: var(--ink-3);
-}
-
-.pl-play:focus-visible,
-.pl-next:focus-visible,
 .pl-pick:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
-/* The step story: only the current cycle. */
-.pl-story {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  position: sticky;
-  top: var(--sp-4);
-  min-width: 0;
-}
-
+/* The cycle story: only the current cycle (shared .story and .story-body). */
 .pl-story-head {
   display: flex;
   align-items: baseline;
@@ -1229,13 +1063,6 @@
   color: var(--ink-3);
 }
 
-.pl-story-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  animation: rise 0.35s var(--ease) both;
-}
-
 .pl-story-sub {
   margin-bottom: 4px;
   font-size: var(--fs-xs);
@@ -1250,23 +1077,6 @@
 .pl-tip {
   font-size: var(--fs-xs);
   color: var(--ink-3);
-}
-
-/* Secondary material: one tab strip under the board. */
-.pl-strip {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  min-width: 0;
-}
-
-.pl-strip-body {
-  border: 1px solid var(--rule);
-  border-radius: var(--r-panel);
-  background: var(--panel);
-  padding: var(--sp-3);
-  overflow-x: auto;
-  min-width: 0;
 }
 
 .pl-notes {
@@ -1331,13 +1141,7 @@
   gap: var(--sp-3);
 }
 
-.pl-exam-results {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  padding: 0 16px 14px;
-}
-
+.pl-exam-results,
 .pl-exam-grid,
 .pl-timing {
   display: flex;
@@ -1355,68 +1159,19 @@
   fill: none;
 }
 
-/* Travelling light in this module's own colours: forwarded values and register-file reads or writes. */
-.pl-root .flow-draw path.pl-flow-fwd {
-  stroke: var(--sig-forward);
-  stroke-width: 2.6;
-}
-
-.pl-root .flow-packets path.pl-flow-fwd {
-  stroke: color-mix(in srgb, #fff 75%, var(--sig-forward));
-  filter: drop-shadow(0 0 3px var(--sig-forward));
-}
-
-.pl-root .flow-draw path.pl-flow-data {
-  stroke: var(--sig-data);
-  stroke-width: 2.4;
-}
-
-.pl-root .flow-packets path.pl-flow-data {
-  stroke: color-mix(in srgb, #fff 75%, var(--sig-data));
-  filter: drop-shadow(0 0 3px var(--sig-data));
-}
-
-@media (max-width: 1180px) {
-  .pl-stage {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .pl-story {
-    position: static;
-  }
-}
-
 @media (max-width: 600px) {
-  .pl-board-bar,
-  .pl-board-body,
-  .pl-board-play,
-  .pl-board-foot,
-  .pl-exam-results {
-    padding-left: 10px;
-    padding-right: 10px;
-  }
   .pl-machine-note {
     display: block;
     margin-left: 0;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .pl-story-body,
-  .pl-play[data-playing="true"]::before {
-    animation: none;
-  }
-}
-
 @media print {
-  .pl-board-play,
-  .pl-machine > summary,
   .pl-picks .pl-pick:not([aria-pressed="true"]) {
     display: none;
   }
-  .pl-stage {
+  /* One column on paper so the grid gets the full page width printZoom assumes. */
+  .pl-root .stage {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .pl-story {
-    position: static;
   }
 }
