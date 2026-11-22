@@ -69,6 +69,12 @@ function Ask() {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
               go(active)
+            } else if (e.key === 'Tab' && !e.shiftKey && results[active]?.complete) {
+              // Fill the picked row's word, then keep that row picked in the new results.
+              e.preventDefault()
+              const next = results[active].complete!
+              setText(next)
+              setActive(Math.max(0, routeInput(next).findIndex((r) => r.where === results[active].where)))
             } else if (e.key === 'ArrowDown' && results.length) {
               e.preventDefault()
               setActive((a) => (a + 1) % results.length)
@@ -89,7 +95,10 @@ function Ask() {
               <li key={r.href} role="option" aria-selected={i === active}>
                 <a href={r.href} className={i === active ? 'is-active' : undefined} onMouseEnter={() => setActive(i)}>
                   <span>{r.label}</span>
-                  <span className="ask-where">{r.where}</span>
+                  <span className="ask-where">
+                    {i === active && r.complete ? <kbd className="ask-tab">Tab</kbd> : null}
+                    {r.where}
+                  </span>
                 </a>
               </li>
             ))}

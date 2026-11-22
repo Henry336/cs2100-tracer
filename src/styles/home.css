@@ -175,6 +175,10 @@
   align-self: center;
 }
 
+.ask-tab {
+  margin-right: 8px;
+}
+
 .ask-empty {
   color: var(--ink-3);
   font-size: var(--fs-sm);

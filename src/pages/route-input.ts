@@ -8,6 +8,8 @@ export interface Suggestion {
   /** Which tool, shown quietly beside the label. */
   where: string
   href: string
+  /** What Tab fills into the box when this row is picked, for plain-word matches. */
+  complete?: string
 }
 
 const MNEMONICS =
@@ -46,7 +48,12 @@ function topicMatches(text: string): Suggestion[] {
   })
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score)
-  return scored.map(({ m }) => ({ label: `Open ${m.where}`, where: m.where, href: linkWithState(m.path) }))
+  return scored.map(({ m }) => {
+    // Finish the word being typed ("pip" -> "pipeline"); otherwise fill the module's own name.
+    const longer = m.words.includes(t) ? undefined : m.words.filter((w) => w.startsWith(t)).sort((a, b) => a.length - b.length)[0]
+    const complete = longer ?? m.where.toLowerCase()
+    return { label: `Open ${m.where}`, where: m.where, href: linkWithState(m.path), complete: complete === t ? undefined : complete }
+  })
 }
 
 export function routeInput(raw: string): Suggestion[] {

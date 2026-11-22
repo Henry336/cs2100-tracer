@@ -36,4 +36,10 @@ describe('home input routing', () => {
     expect(routeInput('flip-flop')[0].where).toBe('Sequential')
     expect(routeInput('')).toEqual([])
   })
+  it('Tab completes plain words from the picked row', () => {
+    expect(routeInput('pipel')[0].complete).toBe('pipeline')
+    expect(routeInput('hazard')[0].complete).toBe('pipeline')
+    expect(routeInput('pipeline')[0].complete).toBeUndefined()
+    expect(routeInput('lw $t0, 8($s1)')[0].complete).toBeUndefined()
+  })
 })
