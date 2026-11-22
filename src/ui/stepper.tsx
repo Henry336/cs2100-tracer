@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 /**
  * Step-through state shared by every tracer. `count` is the number of steps (frames);
@@ -16,10 +16,54 @@ export interface Stepper {
   toggle: () => void
 }
 
+/** Playback speeds, slowest to fastest; one setting shared by every tracer and kept between visits. */
+export const SPEEDS = [0.5, 0.75, 1, 1.5, 2]
+const SPEED_KEY = 'cs2100-speed'
+const listeners = new Set<() => void>()
+let speed = readSpeed()
+
+function readSpeed(): number {
+  try {
+    const v = Number(localStorage.getItem(SPEED_KEY))
+    return SPEEDS.includes(v) ? v : 1
+  } catch {
+    return 1
+  }
+}
+
+export function setSpeed(v: number) {
+  if (!SPEEDS.includes(v)) return
+  speed = v
+  try {
+    localStorage.setItem(SPEED_KEY, String(v))
+  } catch {
+    /* storage blocked: the speed holds for this visit */
+  }
+  listeners.forEach((l) => l())
+}
+
+/** One notch slower (-1) or faster (+1), stopping at the ends of the list. */
+export function stepSpeed(dir: -1 | 1) {
+  const i = SPEEDS.indexOf(speed) + dir
+  if (i >= 0 && i < SPEEDS.length) setSpeed(SPEEDS[i])
+}
+
+export function useSpeed(): number {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l)
+      return () => listeners.delete(l)
+    },
+    () => speed,
+    () => 1,
+  )
+}
+
 export function useStepper(count: number, opts: { intervalMs?: number; initial?: number } = {}): Stepper {
   const { intervalMs = 900, initial = 0 } = opts
   const [index, setIndex] = useState(initial)
   const [playing, setPlaying] = useState(false)
+  const rate = useSpeed()
   const clamp = useCallback((i: number) => Math.max(0, Math.min(Math.max(count - 1, 0), i)), [count])
 
   // Keep the index valid when the trace length changes.
@@ -37,9 +81,9 @@ export function useStepper(count: number, opts: { intervalMs?: number; initial?:
         }
         return i + 1
       })
-    }, intervalMs)
+    }, intervalMs / rate)
     return () => window.clearInterval(t)
-  }, [playing, count, intervalMs])
+  }, [playing, count, intervalMs, rate])
 
   return {
     index,

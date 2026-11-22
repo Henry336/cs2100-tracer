@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
-import { useStepperKeys, type Stepper } from './stepper'
+import { SPEEDS, stepSpeed, useSpeed, useStepperKeys, type Stepper } from './stepper'
 
 const SEEN_KEY = 'cs2100-played'
 
@@ -31,6 +31,8 @@ export function Transport({
   describe?: ReactNode
 }) {
   useStepperKeys(stepper)
+  const speed = useSpeed()
+  const at = SPEEDS.indexOf(speed)
   const { index, count, playing } = stepper
   const empty = count === 0
   const atEnd = count > 1 && index >= count - 1
@@ -88,6 +90,15 @@ export function Transport({
         <button type="button" className="tbtn" onClick={step(stepper.last)} disabled={empty || index >= count - 1} aria-label="Last step" title="Last (End)">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 3v10M3 3l7 5-7 5z" /></svg>
         </button>
+        <span className="speed" role="group" aria-label="Playback speed">
+          <button type="button" className="speed-btn" onClick={() => stepSpeed(-1)} disabled={at <= 0} aria-label="Slower" title="Slower">
+            −
+          </button>
+          <span className="speed-val mono" aria-live="polite">{`${speed}×`}</span>
+          <button type="button" className="speed-btn" onClick={() => stepSpeed(1)} disabled={at >= SPEEDS.length - 1} aria-label="Faster" title="Faster">
+            +
+          </button>
+        </span>
         {!seen && !empty ? (
           <span className="transport-hint" role="note">
             Press Play to watch it run, or step with <kbd>←</kbd> <kbd>→</kbd>

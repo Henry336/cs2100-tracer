@@ -33,7 +33,7 @@ export function ExplainText({ e }: { e: Explain }) {
 /** A stepper whose index lives in the URL, so a shared link opens at the same step. */
 export function useUrlStepper(count: number, key: string, initial: number) {
   const [stepQ, setStepQ] = useUrlState(key, initial)
-  const stepper = useStepper(count, { initial: stepQ, intervalMs: 1400 })
+  const stepper = useStepper(count, { initial: stepQ, intervalMs: 2200 })
   const i = stepper.index
   useEffect(() => {
     if (i !== stepQ) setStepQ(i)

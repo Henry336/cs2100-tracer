@@ -1,12 +1,13 @@
 # Handoff
 
-## Current state (22 Nov 2026, 16:20)
-- Live: https://henry336.github.io/cs2100-tracer/ (GitHub Pages, `.github/workflows/deploy.yml` on push to `main`). 64 test files, 1068 tests pass; `npm run typecheck` and `npm run build` clean.
+## Current state (22 Nov 2026, 16:30)
+- Live: https://henry336.github.io/cs2100-tracer/ (GitHub Pages, `.github/workflows/deploy.yml` on push to `main`). 65 test files, 1071 tests pass; `npm run typecheck` and `npm run build` clean.
 - 10 modules: C memory, MIPS, datapath (all four tabs on boards), pipeline, cache (with Check my answers mode, URL keys cm/ck), Boolean, MSI, sequential, reference, past papers (/papers: 89 questions from 14 papers, errata, exam mode).
 - Calm design: brief docs/design.md; shared layout kit src/ui/board.tsx (Board, PlayBar, Story, Stage, Options, Details, CommandBar, Flow, PrimaryPill) with styles in src/styles/shell.css. Modules use the kit, no local copies.
 - Home input routing: src/pages/route-input.ts (Tab completes the typed word from the picked row, 22 Nov 14:12).
 - Stale tabs after a deploy (22 Nov 14:19): lazy page files are renamed on each build and Pages caches index.html 10 min, so an old tab asked for deleted files and went black. src/lib/reload.ts reloads once; PageBoundary in App.tsx shows a Reload message if a page still fails.
 - Export PDF downloads a file directly (22 Nov 16:20, Henry asked): src/lib/export-pdf.ts fires beforeprint, turns on every @media print rule, inlines SVG paint, snapshots .app with html-to-image, slices A4 landscape pages at blank gaps, saves with jsPDF (both lazy-loaded). Falls back to window.print() on error or a page over ~15k px. PDF is images, so text is not selectable.
+- Playback speed (22 Nov 16:30, Henry asked): one shared setting, 0.5x to 2x, - / + on the bottom player, kept in localStorage cs2100-speed (src/ui/stepper.tsx SPEEDS, stepSpeed). Datapath default slowed from 1.4 s to 2.2 s per stage.
 - Judgement calls and every course ambiguity: DECISIONS.md. Build contract: docs/architecture.md. Course rules and fixtures: docs/spec/.
 - Laptop has 7.2 GB RAM: run one code agent at a time (two froze the desktop app on 22 Nov).
 

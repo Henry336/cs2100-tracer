@@ -359,6 +359,41 @@ details.callout-beyond {
   gap: 4px;
 }
 
+.speed {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-pill);
+}
+
+.speed-btn {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-2);
+  font: 600 var(--fs-sm) / 1 var(--font-sans);
+  cursor: pointer;
+}
+
+.speed-btn:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.speed-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.speed-val {
+  min-width: 3.2em;
+  text-align: center;
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+}
+
 .tbtn {
   border-radius: 50%;
   color: var(--ink-2);
