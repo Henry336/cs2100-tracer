@@ -125,7 +125,8 @@ export function PlayBar({ stepper, start, next }: { stepper: Stepper; start: str
   if (stepper.count < 2) return null
   const atEnd = stepper.index >= stepper.count - 1
   const label = stepper.playing ? 'Pause' : atEnd ? 'Play it again' : stepper.index === 0 ? start : 'Play from here'
-  const nextLabel = typeof next === 'function' ? next(stepper.index + 1) : next
+  // Only name the next step when there is one: callers index arrays with it.
+  const nextLabel = atEnd ? undefined : typeof next === 'function' ? next(stepper.index + 1) : next
   const play = () => {
     if (!stepper.playing && atEnd) stepper.first()
     stepper.toggle()

@@ -8,6 +8,7 @@ import { Transport } from '../../ui/Transport'
 import { Board, Details, PlayBar, Stage as Layout } from '../../ui/board'
 import { EventList, Notes, PresetPicker, Setup, W, describeFrame, frameMarks, lineMarks, plural, type ProgramState } from './common'
 import { PipelineGrid, type StageNames } from './Grid'
+import CheckGrid from './CheckGrid'
 
 export function useCycleStepper(trace: PipelineTrace) {
   const [stepQ, setStepQ] = useUrlState('step', 0)
@@ -394,6 +395,8 @@ export default function DiagramTab({ intro, p }: { intro: ReactNode; p: ProgramS
   const frame = t.frames[stepper.index]
   const [names, setNames] = useUrlState<StageNames>('names', 'long')
   const [view, setView] = useUrlState<View>('view', 'actual')
+  const [mode, setMode] = useUrlState<'run' | 'check'>('pm', 'run')
+  const checking = mode === 'check'
   const ideal = useMemo(() => idealTrace(t), [t])
   const idealCycle = frame && frame.cycle <= t.totals.ideal ? frame.cycle : undefined
   const marks = useMemo(() => frameMarks(t.frames), [t.frames])
@@ -415,9 +418,21 @@ export default function DiagramTab({ intro, p }: { intro: ReactNode; p: ProgramS
       lectures="L20 to L21, T10, R11"
       intro={intro}
       toolbar={<PresetPicker p={p} />}
-      transport={<Transport stepper={stepper} label="Cycle" marks={marks} describe={describeFrame(t, frame)} />}
+      transport={checking ? undefined : <Transport stepper={stepper} label="Cycle" marks={marks} describe={describeFrame(t, frame)} />}
     >
       <Setup p={p} marks={lineMarks(t, frame)} extra={stageNames} />
+      <Segmented
+        label="Mode"
+        value={checking ? 'check' : 'run'}
+        options={[
+          { value: 'run', label: 'Step through it' },
+          { value: 'check', label: 'Check my answers', title: 'Type the delay and WB cycle, then mark them before seeing the diagram' },
+        ]}
+        onChange={setMode}
+      />
+      {checking ? (
+        <CheckGrid trace={t} onReveal={() => setMode('run')} />
+      ) : (
       <Layout>
         <Board
           className="pl-board"
@@ -471,6 +486,7 @@ export default function DiagramTab({ intro, p }: { intro: ReactNode; p: ProgramS
           </CycleStory>
         ) : null}
       </Layout>
+      )}
       <Details
         urlKey="pdt"
         label="Tables for this trace"
@@ -485,7 +501,6 @@ export default function DiagramTab({ intro, p }: { intro: ReactNode; p: ProgramS
               </>
             ),
           },
-          { value: 'check', label: 'Check my answer', body: <AnswerCheck trace={t} /> },
           {
             value: 'why',
             label: 'Why each instruction waits',

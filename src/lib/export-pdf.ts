@@ -6,20 +6,32 @@ const PAGE_PX = 1047
 /** Browsers refuse canvases much taller than about 32k pixels. */
 const MAX_CANVAS = 30000
 
-/** Where to cut a tall snapshot into pages: just above a blank row near each page end, if one is close. */
-export function pageCuts(height: number, pageH: number, isBlank: (y: number) => boolean): number[] {
+/**
+ * Where to cut a tall snapshot into pages. Each cut is the lowest-cost row near the page end, preferring, in order:
+ * outside every keep-together range and on a blank row; outside every range; a blank row; the page end itself.
+ * keep lists [top, bottom] ranges (diagrams, table rows) that should not be split; only ranges shorter than a page count.
+ */
+export function pageCuts(height: number, pageH: number, isBlank: (y: number) => boolean, keep: [number, number][] = []): number[] {
   const cuts = [0]
   const step = Math.floor(pageH)
+  const ranges = keep.filter(([a, b]) => b - a < step)
+  const inside = (y: number) => ranges.some(([a, b]) => y > a && y < b)
   while (height - cuts[cuts.length - 1] > step) {
     const target = cuts[cuts.length - 1] + step
-    const lowest = target - Math.floor(step / 4)
-    let y = target
-    while (y > lowest && !isBlank(y)) y--
-    cuts.push(isBlank(y) ? y : target)
+    // Up to 60% of a page may be left blank to keep a diagram whole.
+    const lowest = target - Math.floor(step * 0.6)
+    const pick = (ok: (y: number) => boolean) => {
+      for (let y = target; y > lowest; y--) if (ok(y)) return y
+      return null
+    }
+    cuts.push(pick((y) => !inside(y) && isBlank(y)) ?? pick((y) => !inside(y)) ?? pick(isBlank) ?? target)
   }
   cuts.push(height)
   return cuts
 }
+
+/** Elements that read badly when split across two pages. */
+const KEEP_WHOLE = 'svg, img, canvas, tr, figure, pre, .board, .callout, .panel, .k-map, .kmap, .ca-explain, .story, .grid-wrap'
 
 /** The inside of every @media print block, so the screen can use them while the snapshot is taken. */
 function printRules(): string {
@@ -72,6 +84,7 @@ export async function downloadPdf(): Promise<void> {
   style.textContent = `${printRules()}\n.app { width: ${PAGE_PX}px !important; }\n*, *::before, *::after { transition: none !important; }`
   document.body.append(cover)
   let canvas: HTMLCanvasElement
+  let keep: [number, number][] = []
   let restorePaint = () => {}
   try {
     // The app's own print hooks switch to the light theme and open folded notes.
@@ -83,6 +96,11 @@ export async function downloadPdf(): Promise<void> {
     const height = root.scrollHeight
     const scale = Math.min(2, MAX_CANVAS / height)
     if (scale < 1) throw new Error('Page too long to snapshot')
+    const top = root.getBoundingClientRect().top
+    keep = Array.from(root.querySelectorAll(KEEP_WHOLE)).map((el) => {
+      const r = el.getBoundingClientRect()
+      return [(r.top - top) * scale, (r.bottom - top) * scale] as [number, number]
+    })
     canvas = await toCanvas(root, {
       pixelRatio: scale,
       width: PAGE_PX,
@@ -116,7 +134,7 @@ export async function downloadPdf(): Promise<void> {
     return true
   }
   const pxPerMm = canvas.width / PAGE_MM.w
-  const cuts = pageCuts(canvas.height, PAGE_MM.h * pxPerMm, isBlank)
+  const cuts = pageCuts(canvas.height, PAGE_MM.h * pxPerMm, isBlank, keep)
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
   const slice = document.createElement('canvas')
   slice.width = canvas.width

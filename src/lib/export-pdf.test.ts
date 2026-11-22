@@ -14,6 +14,15 @@ describe('Export PDF', () => {
   it('ignores a blank row too far above the page end', () => {
     expect(pageCuts(150, 100, (y) => y === 40)).toEqual([0, 100, 150])
   })
+  it('moves a cut above a diagram that would be split', () => {
+    expect(pageCuts(250, 100, () => false, [[80, 130]])).toEqual([0, 80, 180, 250])
+  })
+  it('prefers a blank row outside a diagram over one inside it', () => {
+    expect(pageCuts(150, 100, (y) => y === 95 || y === 70, [[85, 120]])).toEqual([0, 70, 150])
+  })
+  it('splits a diagram taller than a page where it must', () => {
+    expect(pageCuts(250, 100, () => false, [[20, 230]])).toEqual([0, 100, 200, 250])
+  })
   it('names the file after the page', () => {
     expect(pdfName('Pipeline | CS2100 Tracer')).toBe('Pipeline - CS2100 Tracer.pdf')
     expect(pdfName('')).toBe('CS2100 Tracer.pdf')

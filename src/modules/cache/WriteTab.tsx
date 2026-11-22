@@ -39,7 +39,7 @@ export default function WriteTab({ intro, input }: { intro: ReactNode; input: In
     return { ok: true as const, runs: out }
   }, [input.cfg, input.accesses])
   const n = runs.ok ? runs.runs[0].trace.frames.length : 0
-  const stepper = useStepper(n)
+  const stepper = useStepper(n, { intervalMs: 3000 })
   const i = stepper.index
   const first = runs.ok ? runs.runs[0].trace.frames[i] : undefined
   const marks = useMemo(() => (runs.ok ? runs.runs[0].trace.frames.map((f) => (f.access.kind === 'write' ? 'dirty' : undefined)) : []), [runs])

@@ -1,12 +1,13 @@
-import { useMemo, useRef, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { fmtBytes, type Frame, type MissType, type Trace } from '../../core/cache'
 import { useUrlState } from '../../lib/url-state'
-import { Board, Details, PlayBar, Stage, Story } from '../../ui/board'
-import { Callout, Chip, DataTable, Legend, Panel, Segmented, Toggle, Workspace, type Column } from '../../ui/kit'
+import { Board, Details, PlayBar } from '../../ui/board'
+import { Callout, Chip, Legend, Panel, Segmented, Toggle, Workspace } from '../../ui/kit'
 import { Transport } from '../../ui/Transport'
 import { useStepper } from '../../ui/stepper'
 import { parseAnswer, typeOf, type LabelView } from './check'
 import CheckMode from './CheckMode'
+import { evictedBy, lastStay, stays, type Stay } from './history'
 import {
   AddressBar,
   BoardWires,
@@ -54,8 +55,6 @@ export function ResultChip({ f }: { f: Frame }) {
   )
 }
 
-const WINDOW = 40
-
 export default function SimulatorTab({ intro, input }: { intro: ReactNode; input: Input }) {
   const sim = useSim(input)
   const [tf, setTf] = useUrlState<TagFmt>('tf', 'dec')
@@ -65,8 +64,11 @@ export default function SimulatorTab({ intro, input }: { intro: ReactNode; input
   const checking = rawMode === 'check'
   const trace = sim.ok ? sim.value : null
   const frames = trace?.frames ?? []
-  const stepper = useStepper(frames.length)
+  // Slow enough to read each step: misses (more to take in) stay longer than hits.
+  const stepper = useStepper(frames.length, { intervalMs: 2400, durationOf: (i) => (frames[i]?.hit ? 2200 : 3400) })
   const f = frames[stepper.index] as Frame | undefined
+  const allStays = useMemo(() => (trace ? stays(trace) : []), [trace])
+  const held = useMemo(() => evictedBy(allStays, f ? f.index : -1), [allStays, f])
   const board = useRef<HTMLDivElement>(null)
 
   const marks = useMemo(() => frames.map((x) => (x.hit ? 'hit' : 'miss')), [frames])
@@ -130,7 +132,8 @@ export default function SimulatorTab({ intro, input }: { intro: ReactNode; input
         />
       ) : trace ? (
         <>
-          <Stage>
+          <div className="stage ca-stage">
+            <div className="ca-left">
             <Board
               title={f ? <span className="mono">{accessText(f.access)}</span> : 'The trace has no accesses'}
               step={f ? <span className={f.hit ? 'ca-step-hit' : 'ca-step-miss'}>{f.hit ? 'Hit' : `Miss${type ? `, ${type}` : ''}`}</span> : undefined}
@@ -186,6 +189,7 @@ export default function SimulatorTab({ intro, input }: { intro: ReactNode; input
                   byAddr={byAddr === true}
                   dirty={trace.geometry.config.writeHit === 'write-back'}
                   caption={f ? `Cache contents after access ${f.index + 1}.` : 'Cache contents before the first access.'}
+                  history={held}
                 />
                 <BoardWires
                   board={board}
@@ -196,14 +200,22 @@ export default function SimulatorTab({ intro, input }: { intro: ReactNode; input
                 />
               </div>
             </Board>
-            {f ? <AccessList trace={trace} index={stepper.index} go={stepper.set} lv={lv} tf={tagFmt} /> : null}
-          </Stage>
+            {f ? (
+              <section className="ca-explain" aria-label="What happens at this access">
+                <h3 className="ca-h">
+                  Access {f.index + 1} of {frames.length}: <span className="mono">{accessText(f.access)}</span>
+                </h3>
+                <AccessStory trace={trace} f={f} lv={lv} tf={tagFmt} all={allStays} />
+              </section>
+            ) : null}
+            </div>
+            <AccessLog trace={trace} index={stepper.index} go={stepper.set} lv={lv} tf={tagFmt} all={allStays} />
+          </div>
 
           <Details
             urlKey="st"
             label="Tables for this trace"
             tabs={[
-              { value: 'access', label: 'Every access', body: <Results trace={trace} index={stepper.index} go={stepper.set} lv={lv} tf={tagFmt} /> },
               { value: 'totals', label: 'Tallies', body: <Tallies trace={trace} f={f} lv={lv} index={stepper.index} /> },
               { value: 'notes', label: 'Rules and traps', body: <Notes trace={trace} /> },
             ]}
@@ -254,39 +266,77 @@ function Geo({ trace }: { trace: Trace }) {
   )
 }
 
-/* ---------- The story: nearby accesses in order, only the current one narrated ---------- */
+/* ---------- The access log: the table students draw on paper, later results hidden ---------- */
 
-function AccessList({ trace, index, go, lv, tf }: { trace: Trace; index: number; go: (i: number) => void; lv: LabelView; tf: TagFmt }) {
+const LOG_WINDOW = 80
+
+function AccessLog({ trace, index, go, lv, tf, all }: { trace: Trace; index: number; go: (i: number) => void; lv: LabelView; tf: TagFmt; all: Stay[] }) {
   const frames = trace.frames
-  const from = Math.max(0, Math.min(index - 2, frames.length - 5))
-  const shown = frames.slice(from, from + 5)
+  const g = trace.geometry
+  const box = useRef<HTMLDivElement>(null)
+  const start = frames.length <= LOG_WINDOW ? 0 : Math.max(0, Math.min(frames.length - LOG_WINDOW, index - LOG_WINDOW / 2))
+  const rows = frames.slice(start, start + LOG_WINDOW)
+  const evictAt = useMemo(() => new Map(all.filter((x) => x.evictedAt !== null).map((x) => [x.evictedAt as number, x.block])), [all])
+  useEffect(() => {
+    // Keep the current row in view inside the log only; scrollIntoView would also scroll the page.
+    const el = box.current
+    const row = el?.querySelector<HTMLElement>('tr.is-now')
+    if (!el || !row) return
+    el.scrollTo({ top: Math.max(0, row.offsetTop - el.clientHeight / 2 + row.offsetHeight / 2), behavior: 'smooth' })
+  }, [index])
   return (
-    <Story
-      label="What happens at each access"
-      titles={shown.map((x) => (
-        <span className="mono">
-          {x.index + 1}. {accessText(x.access)}
-        </span>
-      ))}
-      index={index - from}
-      onPick={(k) => go(from + k)}
-      // Later results stay hidden so the student can predict them.
-      aside={(k) => (from + k <= index ? <ResultChip f={shown[k]} /> : null)}
-      body={
-        <>
-          <AccessStory trace={trace} f={frames[index]} lv={lv} tf={tf} />
-          {frames.length > 5 ? (
-            <p className="ca-muted">
-              Access {index + 1} of {frames.length}
-            </p>
-          ) : null}
-        </>
-      }
-    />
+    <aside className="ca-log" aria-label="Access log">
+      <h3 className="ca-h">Access log</h3>
+      <div className="ca-log-scroll" ref={box}>
+        <table className="dtable dtable-compact">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Access</th>
+              <th title="Block number = address / block size">Block</th>
+              <th>{g.mapping === 'direct' ? 'Index' : 'Set'}</th>
+              <th>Tag</th>
+              <th>Result</th>
+              <th title="Block this access evicted">Evicts</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((x) => {
+              const done = x.index <= index
+              const type = typeOf(x, lv)
+              return (
+                <tr key={x.index} className={x.index === index ? 'is-now' : done ? 'is-past' : 'is-next'} onClick={() => go(x.index)}>
+                  <td className="mono">
+                    <button type="button" className="ca-jump mono" onClick={() => go(x.index)} aria-label={`Go to access ${x.index + 1}`}>
+                      {x.index + 1}
+                    </button>
+                  </td>
+                  <td className="mono">{accessText(x.access)}</td>
+                  <td className="mono">{done ? x.split.block : ''}</td>
+                  <td className="mono">{done ? x.set : ''}</td>
+                  <td className="mono">{done ? fmtTag(x.split.tag.value, g.tagBits, tf) : ''}</td>
+                  <td>{done ? x.hit ? <Chip signal="hit">H</Chip> : <Chip signal="miss">{type ? `M ${type}` : 'M'}</Chip> : ''}</td>
+                  <td className="mono">{done && evictAt.has(x.index) ? <s>{evictAt.get(x.index)}</s> : ''}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="ca-muted">
+        {frames.length > LOG_WINDOW ? `Showing accesses ${start + 1} to ${start + rows.length} of ${frames.length}. ` : ''}
+        Later results stay blank so you can predict them. Click a row to jump.
+      </p>
+      {index === frames.length - 1 ? (
+        <p className="ca-muted">
+          Result string: <span className="mono">{frames.length <= 200 ? trace.summary.resultString : `${trace.summary.resultString.slice(0, 400)} ...`}</span>
+        </p>
+      ) : null}
+    </aside>
   )
 }
 
-function AccessStory({ trace, f, lv, tf }: { trace: Trace; f: Frame; lv: LabelView; tf: TagFmt }) {
+function AccessStory({ trace, f, lv, tf, all }: { trace: Trace; f: Frame; lv: LabelView; tf: TagFmt; all: Stay[] }) {
   const g = trace.geometry
   const sp = f.split
   const why = f.why
@@ -296,6 +346,7 @@ function AccessStory({ trace, f, lv, tf }: { trace: Trace; f: Frame; lv: LabelVi
   const isWrite = f.access.kind === 'write'
   const validLines = stateAfter(trace, f).reduce((n, s) => n + s.lines.filter((l) => l.valid).length, 0)
   const notFull = !f.hit && f.missType === 'conflict' && validLines < g.blocks
+  const before = !f.hit ? lastStay(all, sp.block, f.index) : null
   const coldValid = !f.hit && f.missType === 'cold' && f.compares.some((c) => c.valid)
   const outcome = f.hit
     ? !isWrite
@@ -366,7 +417,15 @@ function AccessStory({ trace, f, lv, tf }: { trace: Trace; f: Frame; lv: LabelVi
         </li>
         {!f.hit ? (
           <li>
-            <span className="ca-step-name">Name the miss.</span> <W e={typeWhy}>{type ? `${type} miss` : 'miss'}</W>
+            <span className="ca-step-name">Name the miss.</span>{' '}
+            {before ? (
+              <>
+                Block {sp.block} was in the cache before: loaded at access {before.loadedAt + 1}, evicted at access {(before.evictedAt ?? 0) + 1} by block {before.evictedBy}. Seen before, so not cold:{' '}
+              </>
+            ) : (
+              <>Block {sp.block} has never been in the cache, so: </>
+            )}
+            <W e={typeWhy}>{type ? `${type} miss` : 'miss'}</W>
             {f.missType !== f.missType3C ? (
               <span className="ca-muted">
                 {' '}
@@ -394,58 +453,6 @@ function AccessStory({ trace, f, lv, tf }: { trace: Trace; f: Frame; lv: LabelVi
         </Callout>
       ) : null}
     </>
-  )
-}
-
-/* ---------- Every access, and check my answer ---------- */
-
-function Results({
-  trace,
-  index,
-  go,
-  lv,
-  tf,
-}: {
-  trace: Trace
-  index: number
-  go: (i: number) => void
-  lv: LabelView
-  tf: TagFmt
-}) {
-  const frames = trace.frames
-  const g = trace.geometry
-  const start = frames.length <= WINDOW ? 0 : Math.max(0, Math.min(frames.length - WINDOW, index - WINDOW / 2))
-  const rows = frames.slice(start, start + WINDOW)
-
-  const columns: Column<Frame>[] = [
-    {
-      key: 'n',
-      header: '#',
-      align: 'right',
-      cell: (x) => (
-        <button type="button" className="ca-jump mono" onClick={() => go(x.index)} aria-label={`Go to access ${x.index + 1}`}>
-          {x.index + 1}
-        </button>
-      ),
-    },
-    { key: 'a', header: 'Access', mono: true, cell: (x) => accessText(x.access) },
-    { key: 'addr', header: 'Address', mono: true, align: 'right', cell: (x) => fmtAddr(x.access.address) },
-    { key: 'blk', header: 'Block', mono: true, align: 'right', cell: (x) => x.split.block },
-    { key: 'tag', header: 'Tag', mono: true, align: 'right', cell: (x) => fmtTag(x.split.tag.value, g.tagBits, tf) },
-    { key: 'set', header: g.mapping === 'direct' ? 'Index' : 'Set', mono: true, align: 'right', cell: (x) => x.set },
-    { key: 'r', header: 'Result', align: 'center', cell: (x) => <ResultChip f={x} /> },
-    { key: 't', header: 'Miss type', cell: (x) => <TypeChip type={typeOf(x, lv)} /> },
-  ]
-
-  return (
-    <div className="ca-results">
-      <DataTable compact columns={columns} rows={rows} rowSignal={(x) => (x.index === index ? 'path' : undefined)} />
-      <p className="ca-muted">
-        {frames.length > WINDOW ? `Accesses ${start + 1} to ${start + rows.length} of ${frames.length}; the table follows the current step. ` : ''}
-        Result string:{' '}
-        <span className="mono">{frames.length <= 200 ? trace.summary.resultString : `${trace.summary.resultString.slice(0, 400)} ...`}</span>
-      </p>
-    </div>
   )
 }
 

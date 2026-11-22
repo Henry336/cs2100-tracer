@@ -42,7 +42,7 @@ export default function CompareTab({ intro, input }: { intro: ReactNode; input: 
     return r.ok ? r.value.summary.misses : null
   }, [blocks, cache, input.cfg, input.accesses])
   const n = runs.ok ? runs.runs[0].trace.frames.length : 0
-  const stepper = useStepper(n)
+  const stepper = useStepper(n, { intervalMs: 3000 })
   const i = stepper.index
   const first = runs.ok ? runs.runs[0].trace.frames[i] : undefined
 

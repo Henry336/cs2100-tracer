@@ -995,3 +995,84 @@
   gap: 4px;
   font-size: var(--fs-sm);
 }
+
+/* ---------- Simulator layout: board and explanation on the left, access log on the right ---------- */
+
+.ca-stage {
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 400px);
+}
+
+.ca-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.ca-explain {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--panel);
+}
+
+.ca-log {
+  position: sticky;
+  top: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.ca-log-scroll {
+  max-height: min(70vh, 620px);
+  overflow: auto;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
+}
+
+.ca-log-scroll thead th {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  z-index: 1;
+}
+
+.ca-log tbody tr {
+  cursor: pointer;
+}
+
+.ca-log tbody tr.is-now td {
+  background: var(--tint-path);
+  font-weight: 600;
+}
+
+.ca-log tbody tr.is-next td {
+  color: var(--ink-3);
+}
+
+.ca-held-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var(--fs-xs);
+}
+
+.ca-held-list s {
+  color: var(--ink-2);
+}
+
+.ca-held-when {
+  color: var(--sig-miss);
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .ca-stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ca-log {
+    position: static;
+  }
+}

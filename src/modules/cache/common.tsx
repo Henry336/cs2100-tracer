@@ -21,6 +21,7 @@ import {
 import { useUrlState } from '../../lib/url-state'
 import { Button, Callout, CodeEditor, NumberField, Presets, Segmented, Select, TextField, Toggle, Why } from '../../ui/kit'
 import { Flow, Options } from '../../ui/board'
+import { lineKey, type Stay } from './history'
 import { DEFAULT_LOOP, collisions, loopTrace, normLoop, type LoopForm, type LoopRun } from './loop'
 import { DEFAULT_CFG, PRESET_BY_ID, TRACE_PRESETS, normCfg, toConfig, toText, type Cfg, type TracePreset } from './presets'
 
@@ -572,7 +573,7 @@ export function AddressBar({ g, split, compact = false }: { g: Geometry; split?:
     <div className="ca-addr">
       <div className="ca-addr-bar" role="group" aria-label="Address fields">
         {parts.map((p) => (
-          <div key={p.key} className={`ca-seg ca-seg-${p.key}`} data-wire={p.key === src ? 'src' : undefined} style={{ flexGrow: p.width, minWidth: `calc(${p.width}ch + 14px)` }}>
+          <div key={p.key} className={`ca-seg ca-seg-${p.key}`} data-wire={p.key === src ? 'src' : undefined} style={{ flexGrow: p.width, minWidth: `calc(${Math.max(Math.min(p.width, 8), 9)}ch + 14px)` }}>
             <div className="ca-seg-head">
               <span>{p.name}</span>
               <span className="mono">{p.range?.text}</span>
@@ -632,6 +633,7 @@ export function CacheTable({
   byAddr,
   dirty,
   caption,
+  history,
 }: {
   g: Geometry
   sets: SetSnapshot[]
@@ -640,6 +642,8 @@ export function CacheTable({
   byAddr: boolean
   dirty: boolean
   caption?: ReactNode
+  /** Blocks each line held and lost so far (history.ts), shown in a last column. */
+  history?: Map<string, Stay[]>
 }) {
   const words = g.wordsPerBlock
   const wordCols = words <= 4 ? words : 1
@@ -686,6 +690,7 @@ export function CacheTable({
                 </th>
               ))}
               <th rowSpan={2}>{orderName} (blocks)</th>
+              {history ? <th rowSpan={2}>Held before (evicted)</th> : null}
             </tr>
           ) : null}
           <tr>
@@ -693,12 +698,13 @@ export function CacheTable({
             {positions.map((p) => (
               <GroupHead key={p} dirty={dirty} words={words} />
             ))}
+            {!assoc && history ? <th>Held before (evicted)</th> : null}
           </tr>
         </thead>
         <tbody>
           {ordered.length === 0 ? (
             <tr>
-              <td colSpan={1 + positions.length * groupCols + (assoc ? 1 : 0)} className="ca-muted">
+              <td colSpan={1 + positions.length * groupCols + (assoc ? 1 : 0) + (history ? 1 : 0)} className="ca-muted">
                 Every valid bit is 0: the cache starts empty (L22 p32).
               </td>
             </tr>
@@ -721,12 +727,38 @@ export function CacheTable({
                   />
                 ))}
                 {assoc ? <td className="mono ca-order">{orderText(s)}</td> : null}
+                {history ? (
+                  <td className="ca-held">
+                    <HeldBefore g={g} lists={positions.map((p) => ({ way: lines[p]?.way ?? p, list: history.get(lineKey(s.index, lines[p]?.way ?? p)) ?? [] }))} assoc={assoc} />
+                  </td>
+                ) : null}
               </tr>
             )
           })}
         </tbody>
       </table>
     </div>
+  )
+}
+
+/** Earlier occupants of a line, struck through, with the access that evicted them. */
+function HeldBefore({ g, lists, assoc }: { g: Geometry; lists: { way: number; list: Stay[] }[]; assoc: boolean }) {
+  const shown = lists.filter((l) => l.list.length)
+  if (!shown.length) return <span className="ca-muted">-</span>
+  const B = g.config.blockBytes
+  const range = (b: number) => (B <= g.config.wordBytes ? mem(b * B) : `${mem(b * B)}-${mem(b * B + B - g.config.wordBytes)}`)
+  return (
+    <ul className="ca-held-list">
+      {shown.flatMap(({ way, list }) =>
+        list.map((st) => (
+          <li key={`${way}-${st.loadedAt}`}>
+            {assoc ? <span className="ca-muted">{g.mapping === 'full' ? 'slot' : 'way'} {way}: </span> : null}
+            <s className="mono">block {st.block}</s> <span className="mono ca-muted">{range(st.block)}</span>{' '}
+            <span className="ca-held-when">out at #{(st.evictedAt ?? 0) + 1} (block {st.evictedBy})</span>
+          </li>
+        )),
+      )}
+    </ul>
   )
 }
 
