@@ -1,6 +1,6 @@
 # Handoff
 
-## Current state (22 Nov 2026, 22:15)
+## Current state (22 Nov 2026, 22:14)
 - Live: https://henry336.github.io/cs2100-tracer/ (GitHub Pages, `.github/workflows/deploy.yml` on push to `main`). 68 test files, 1088 tests pass; `npm run typecheck` and `npm run build` clean.
 - 10 modules: C memory, MIPS, datapath (all four tabs on boards), pipeline, cache (with Check my answers mode, URL keys cm/ck), Boolean, MSI, sequential, reference, past papers (/papers: 89 questions from 14 papers, errata, exam mode).
 - Calm design: brief docs/design.md; shared layout kit src/ui/board.tsx (Board, PlayBar, Story, Stage, Options, Details, CommandBar, Flow, PrimaryPill) with styles in src/styles/shell.css. Modules use the kit, no local copies.
@@ -12,7 +12,7 @@
 - Judgement calls and every course ambiguity: DECISIONS.md. Build contract: docs/architecture.md. Course rules and fixtures: docs/spec/.
 - Laptop has 7.2 GB RAM: run one code agent at a time (two froze the desktop app on 22 Nov).
 
-- Cache + pipeline + PDF (22 Nov 22:15, commit 6dff43a, Henry asked): crash at the last step fixed in PlayBar (next label past the end). Cache playback slowed (hits 2.2 s, misses 3.4 s; Compare/Write 3 s). history.ts: each line's evicted blocks ("Held before" column in CacheTable) and miss explanation says if the block was cached before. Simulator layout: board + explanation left, access log right (later results blank). Pipeline Diagram tab has a "Check my answers" mode (CheckGrid.tsx: +n delay and WB per instruction, totals, binding stall reason). Export PDF cuts avoid splitting svg/table rows/boards/callouts shorter than a page (pageCuts keep ranges).
+- Cache + pipeline + PDF (22 Nov 22:14, commit 6dff43a, Henry asked): crash at the last step fixed in PlayBar (next label past the end). Cache playback slowed (hits 2.2 s, misses 3.4 s; Compare/Write 3 s). history.ts: each line's evicted blocks ("Held before" column in CacheTable) and miss explanation says if the block was cached before. Simulator layout: board + explanation left, access log right (later results blank). Pipeline Diagram tab has a "Check my answers" mode (CheckGrid.tsx: +n delay and WB per instruction, totals, binding stall reason). Export PDF cuts avoid splitting svg/table rows/boards/callouts shorter than a page (pageCuts keep ranges).
 ## Open (small)
 - Preset menus still show "Choose" after a link lands in mips, boolean, msi, sequential and the calculators (Presets takes isCurrent; wired in pipeline, cache, c-memory trace, datapath trace).
 - Calculator presets (cache CalcTab, c-memory CalcTab) are not exported, so the launcher only opens the tool for those 12 rows.
