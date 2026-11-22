@@ -968,6 +968,17 @@
   border-radius: 3px;
 }
 
+/* Covers the page while Export PDF briefly lays it out for print. */
+.pdf-cover {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: var(--paper);
+  color: var(--ink-2);
+}
+
 /* ---------- Print / Export PDF ---------- */
 
 @media print {

@@ -1,11 +1,12 @@
 # Handoff
 
-## Current state (22 Nov 2026, 08:00)
-- Live: https://henry336.github.io/cs2100-tracer/ (GitHub Pages, `.github/workflows/deploy.yml` on push to `main`). 62 test files, 1060 tests pass; `npm run typecheck` and `npm run build` clean.
+## Current state (22 Nov 2026, 16:20)
+- Live: https://henry336.github.io/cs2100-tracer/ (GitHub Pages, `.github/workflows/deploy.yml` on push to `main`). 64 test files, 1068 tests pass; `npm run typecheck` and `npm run build` clean.
 - 10 modules: C memory, MIPS, datapath (all four tabs on boards), pipeline, cache (with Check my answers mode, URL keys cm/ck), Boolean, MSI, sequential, reference, past papers (/papers: 89 questions from 14 papers, errata, exam mode).
 - Calm design: brief docs/design.md; shared layout kit src/ui/board.tsx (Board, PlayBar, Story, Stage, Options, Details, CommandBar, Flow, PrimaryPill) with styles in src/styles/shell.css. Modules use the kit, no local copies.
 - Home input routing: src/pages/route-input.ts (Tab completes the typed word from the picked row, 22 Nov 14:12).
 - Stale tabs after a deploy (22 Nov 14:19): lazy page files are renamed on each build and Pages caches index.html 10 min, so an old tab asked for deleted files and went black. src/lib/reload.ts reloads once; PageBoundary in App.tsx shows a Reload message if a page still fails.
+- Export PDF downloads a file directly (22 Nov 16:20, Henry asked): src/lib/export-pdf.ts fires beforeprint, turns on every @media print rule, inlines SVG paint, snapshots .app with html-to-image, slices A4 landscape pages at blank gaps, saves with jsPDF (both lazy-loaded). Falls back to window.print() on error or a page over ~15k px. PDF is images, so text is not selectable.
 - Judgement calls and every course ambiguity: DECISIONS.md. Build contract: docs/architecture.md. Course rules and fixtures: docs/spec/.
 - Laptop has 7.2 GB RAM: run one code agent at a time (two froze the desktop app on 22 Nov).
 
@@ -20,11 +21,10 @@
 - C memory: node-by-node expression evaluation, step into/over/out polish.
 - Cache: table-diff check mode, four sub-steps per access, pipeline x cache MEM stretch.
 - Cross-cutting: past-paper launcher with errata; fill-in-the-blank format linters beyond Boolean.
-- Not checked in a real print dialog: Export PDF output (print CSS only read and unit-tested).
 
 ## Rules for changes
 - Agents edit only `src/core/<id>` and `src/modules/<id>`; shared kit, styles, router, registry are integrator-owned.
-- No em dashes, colours only via tokens, no new npm dependencies, no slide text (numbers and short sequences with a source only).
+- No em dashes, colours only via tokens, no new npm dependencies (exceptions: html-to-image, jspdf for Export PDF), no slide text (numbers and short sequences with a source only).
 - Laptop has 7.2 GB RAM: at most 2 agents at once, vitest capped at 2 workers, no dev server while agents run.
 
 ## Commands

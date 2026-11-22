@@ -61,14 +61,25 @@ export function Workspace({
 }
 
 /**
- * Export the current view as a PDF through the browser's print dialog ("Save as PDF").
- * Print styles (ui.css) drop the navigation and controls and keep the diagrams, tables
- * and explanations exactly as they are on screen at the current step.
+ * Download the current view as a PDF, laid out by the print styles (no navigation or controls,
+ * diagrams and explanations as they are at the current step). Falls back to the print dialog.
  */
 export function ExportPdfButton({ label = 'Export PDF' }: { label?: string }) {
+  const [busy, setBusy] = useState(false)
+  const run = async () => {
+    setBusy(true)
+    try {
+      const { downloadPdf } = await import('../lib/export-pdf')
+      await downloadPdf()
+    } catch {
+      window.print()
+    } finally {
+      setBusy(false)
+    }
+  }
   return (
-    <button type="button" className="btn export-pdf" onClick={() => window.print()} title="Opens the print dialog; choose Save as PDF">
-      {label}
+    <button type="button" className="btn export-pdf" onClick={run} disabled={busy} title="Downloads this view as a PDF">
+      {busy ? 'Making PDF' : label}
     </button>
   )
 }
