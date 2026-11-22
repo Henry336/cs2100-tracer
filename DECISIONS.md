@@ -113,6 +113,21 @@ The student found the first version wordy and could not find the Play button. Th
 | Primary buttons are inverted ink, never a signal colour. Titles use Instrument Serif (OFL, new dependency). | Signal colours keep their fixed meanings. |
 | A text pass cut repeats and plain-worded the rest in every module; trap titles like "2 stalls, not 3" stay. | Those titles name the exam trap itself. |
 
+## Overnight build (22 Nov): shared kit, datapath tabs, past papers, cache check
+
+| Decision | Reason |
+|---|---|
+| One shared layout kit (src/ui/board.tsx) based on the MSI module's version; every module moved onto it and its local copies deleted. | Seven modules had copied the same board, Play and story code under different prefixes. MSI's API was the cleanest of the copies. |
+| "Exam question mode" read as the past-paper launcher, with the cache check mode added after it. | The launcher was the mode recommended earlier as most useful for timed past-paper practice; the student was asleep, so no confirmation was possible. |
+| Agents ran one at a time after two at once froze the laptop (0.5 GB free). | Stability over speed; the desktop being idle does not free memory. |
+| Launcher rows are one per question; extra presets for the same question fold under "more presets". | Questions often have one preset per part; one row per preset would repeat the question. |
+| Exam mode hides links, preset names and errata until "I have tried it"; the unlocked state is not saved in the link. | Some preset names give the answer away, and a shared exam link should not arrive unlocked. |
+| Errata cite course sources only, labelled "key slip" or "sources disagree", worded so they do not give the answer. | Repo paths mean nothing to a student; the attempt-first flow should not leak answers. |
+| AY24/25 Q28 is listed under the AY24/25 midterm, not the final. | R06 p39 heads that section as midterm questions; the earlier label was wrong. |
+| Cache check is a mode inside the simulator, marks only right or wrong, and points to the first wrong access. | The jump button needs the simulator's stepper; showing the right value would let a student copy instead of retry. |
+| Cache check accepts M[address] for unnamed stores and marks ways in a fixed order with a way-order hint. | The AY23/24 S1 Q20 key writes stores that way and is graded on way order. |
+| Datapath Control, Quiz and Critical path tabs have no Play: Quiz's main action is Check my answers. | None of them steps; Play only where a view steps. |
+
 ## Appendix: every decision the module agents recorded
 
 Format: `[stage:module] decision || reason`.
