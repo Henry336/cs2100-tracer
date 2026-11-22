@@ -11,6 +11,12 @@ import './styles/ui.css'
 import './styles/shell.css'
 import './styles/home.css'
 import App from './App.tsx'
+import { reloadForNewVersion } from './lib/reload'
+
+// Vite fires this when a page's file is missing after a deploy.
+window.addEventListener('vite:preloadError', (e) => {
+  if (reloadForNewVersion()) e.preventDefault()
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

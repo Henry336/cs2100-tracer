@@ -1,4 +1,5 @@
-import { Suspense, useEffect, useState } from 'react'
+import { Component, Suspense, useEffect, useState, type ReactNode } from 'react'
+import { STALE_FILE, reloadForNewVersion } from './lib/reload'
 import { href, useLocation } from './lib/router'
 import { GROUPS, MODULES } from './modules/registry'
 import { Home } from './pages/Home'
@@ -64,6 +65,31 @@ function Loader({ what }: { what: string }) {
       <span>Loading {what}</span>
     </div>
   )
+}
+
+/** Keeps a page that fails to load from blanking the whole app. */
+class PageBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  componentDidCatch(error: unknown) {
+    if (STALE_FILE.test(String(error))) reloadForNewVersion()
+  }
+  render() {
+    if (!this.state.failed) return this.props.children
+    return (
+      <div className="workspace">
+        <h1>This page did not load</h1>
+        <p>The site was probably updated while it was open. Reloading fetches the new version.</p>
+        <p>
+          <button type="button" className="btn" onClick={() => window.location.reload()}>
+            Reload
+          </button>
+        </p>
+      </div>
+    )
+  }
 }
 
 export function BrandMark() {
@@ -144,11 +170,13 @@ export default function App() {
       </nav>
       <main className="app-main" id="main">
         {Page ? (
-          <Suspense fallback={<Loader what={mod.title} />}>
-            <div className="page-enter" key={path}>
-              <Page />
-            </div>
-          </Suspense>
+          <PageBoundary key={path}>
+            <Suspense fallback={<Loader what={mod.title} />}>
+              <div className="page-enter">
+                <Page />
+              </div>
+            </Suspense>
+          </PageBoundary>
         ) : path === '/' ? (
           <div className="page-enter">
             <Home />
