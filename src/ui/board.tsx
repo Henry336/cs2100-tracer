@@ -165,6 +165,7 @@ export function Story({
   body,
   label,
   aside,
+  children,
 }: {
   titles: ReactNode[]
   index: number
@@ -173,7 +174,9 @@ export function Story({
   label: string
   /** Extra lines under a step title, e.g. "idle". */
   aside?: (i: number) => ReactNode
-  }) {
+  /** Anything under the steps, e.g. the working for a clicked wire. */
+  children?: ReactNode
+}) {
   return (
     <aside className="story" aria-label={label}>
       <ol className="story-steps">
@@ -188,6 +191,7 @@ export function Story({
           </li>
         ))}
       </ol>
+      {children}
     </aside>
   )
 }

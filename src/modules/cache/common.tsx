@@ -415,6 +415,7 @@ export function TracePresets({ input, onPick }: { input: Input; onPick?: () => v
     <Presets
       label="Load example"
       presets={TRACE_PRESETS.map((p) => ({ name: p.name, source: p.source, value: p }))}
+      isCurrent={(p) => p.id === input.loaded?.id}
       onPick={(p) => {
         input.load(p)
         onPick?.()

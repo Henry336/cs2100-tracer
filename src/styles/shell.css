@@ -1058,6 +1058,11 @@ details.callout-beyond {
   .story {
     position: static;
   }
+  /* A scrolling board would cut wide diagrams on paper; every module board prints in full. */
+  .board,
+  .board-scroll {
+    overflow: visible;
+  }
 }
 
 @media (max-width: 600px) {

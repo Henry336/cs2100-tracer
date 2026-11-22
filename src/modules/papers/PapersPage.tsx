@@ -134,7 +134,7 @@ export default function PapersPage() {
   )
 
   return (
-    <Workspace title="Past papers" lectures="Finals AY15/16 to AY25/26, AY25/26 midterm" intro={intro}>
+    <Workspace title="Past papers" lectures="Finals AY15/16 to AY25/26, AY24/25 and AY25/26 midterms" intro={intro}>
       <CommandBar id="pp-find" label="Find" value={findText} onChange={setFind} placeholder="Q19, stall, K-map, decoder" mono={false} aside={`${shown} of ${INDEX.questions.length}`} />
       <Board
         title="Questions"

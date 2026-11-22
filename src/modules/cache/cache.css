@@ -295,22 +295,6 @@
 
 /* ---------- Results and checking ---------- */
 
-.ca-check {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2) var(--sp-4);
-  align-items: end;
-  border-bottom: 1px solid var(--rule);
-}
-
-.ca-check .field {
-  width: min(24em, 100%);
-}
-
-.ca-check .field-box {
-  width: 100%;
-}
-
 .ca-drill {
   display: inline-flex;
   gap: 6px;
@@ -321,10 +305,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-2);
-}
-
-.ca-score {
-  font-size: var(--fs-sm);
 }
 
 .ca-outcome {
@@ -762,10 +742,6 @@
   gap: var(--sp-3);
 }
 
-.ca-results .ca-check {
-  padding-bottom: var(--sp-3);
-}
-
 .ca-cols {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -900,10 +876,6 @@
 @media print {
   .ca-wires {
     display: none;
-  }
-  .ca-root .board,
-  .ca-root .board-scroll {
-    overflow: visible;
   }
 }
 

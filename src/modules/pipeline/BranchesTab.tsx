@@ -138,6 +138,7 @@ export default function BranchesTab({ intro, p }: { intro: ReactNode; p: Program
       <Setup p={p} only={['forwarding', 'jumpStage', 'storeData']} />
       <Board
         className="pl-board"
+        label="One code, each way of handling branches"
         title="Branch handling"
         step={ok ? plural(cur.t.totals.cycles, 'cycle') : undefined}
         tools={<Toggle label="Add predict taken (beyond the course)" checked={withTaken} onChange={setWithTaken} />}

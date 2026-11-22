@@ -169,6 +169,9 @@ function tagSlip(t: number, line: LineSnapshot, set: number, g: Geometry): Slip 
   return null
 }
 
+/** The simulator's name for a store with no value given ("W" + access number). The keys write such a word by its address, M[0xa048] (AY23/24 S1 Q20). */
+const UNNAMED = /^W\d+$/
+
 const byteWordSlip = (a: number, want: number, base: number, i: number, wb: number) =>
   a !== want && ((want % wb === 0 && a === want / wb) || a === base + i || (wb !== 4 && a === base + 4 * i))
 
@@ -204,6 +207,8 @@ function markTable(trace: Trace, typed: Record<string, string>, tf: TagFmt, byAd
   const cell = (k: string) => typed[k] ?? ''
   finalLines(trace, byAddr).forEach((lines, s) => {
     let setOk = true
+    // Slips seen in this set; dropped when the set is only in the other way order, since every cell then looks wrong.
+    const local = new Set<Slip>()
     const mark = (k: string, good: boolean) => {
       cells[k] = good
       total++
@@ -218,10 +223,10 @@ function markTable(trace: Trace, typed: Record<string, string>, tf: TagFmt, byAd
       const t = parseTag(cell(cellKey(s, p, 't')), tf)
       mark(cellKey(s, p, 't'), t === line.tag)
       const slip = t !== null && t !== line.tag ? tagSlip(t, line, s, g) : null
-      if (slip) slips.add(slip)
+      if (slip) local.add(slip)
       const base = (line.block ?? 0) * g.config.blockBytes
       const words = line.words.map((_, i) => parseWord(cell(cellKey(s, p, `w${i}`))))
-      if (words.some((w) => w === null) && words.some((w) => w !== null)) slips.add('whole-block')
+      if (words.some((w) => w === null) && words.some((w) => w !== null)) local.add('whole-block')
       line.words.forEach((w, i) => {
         const e = words[i]
         const good =
@@ -230,15 +235,16 @@ function markTable(trace: Trace, typed: Record<string, string>, tf: TagFmt, byAd
             ? 'address' in e && e.address === w.address
             : 'label' in e
               ? e.label.toLowerCase() === w.data.toLowerCase()
-              : String(e.address) === w.data)
+              : String(e.address) === w.data || (UNNAMED.test(w.data) && e.address === w.address))
         mark(cellKey(s, p, `w${i}`), good)
-        if (!good && e && 'address' in e && w.data === null && byteWordSlip(e.address, w.address, base, i, wb)) slips.add('byte-word')
+        if (!good && e && 'address' in e && w.data === null && byteWordSlip(e.address, w.address, base, i, wb)) local.add('byte-word')
       })
     })
     if (setOk) return
     const want = lines.map((l) => (l?.valid ? l.tag : null))
     const sorted = (xs: (number | null)[]) => JSON.stringify([...xs].sort())
     if (g.ways > 1 && JSON.stringify(givenTags) !== JSON.stringify(want) && sorted(givenTags) === sorted(want)) slips.add('way-order')
+    else for (const x of local) slips.add(x)
     const alt = fifoSets?.[s].map((l) => (l?.valid ? l.tag : null))
     if (alt && JSON.stringify(alt) !== JSON.stringify(want) && JSON.stringify(alt) === JSON.stringify(givenTags)) slips.add('lru-hit')
   })

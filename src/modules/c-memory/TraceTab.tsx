@@ -116,7 +116,7 @@ export default function TraceTab({ intro }: { intro: ReactNode }) {
   const traps = useMemo(() => relevantTraps(code), [code])
 
   return (
-    <Workspace title="C memory and pointers" lectures="L02 to L05, R01 to R02, T01" intro={intro} toolbar={<Presets presets={PRESET_LIST} onPick={pick} />} transport={transport}>
+    <Workspace title="C memory and pointers" lectures="L02 to L05, R01 to R02, T01" intro={intro} toolbar={<Presets presets={PRESET_LIST} onPick={pick} isCurrent={(v) => v === preset} />} transport={transport}>
       <div className="cm-command">
         <p className="cm-status">
           <span className="cm-muted" title={preset ? (preset.status === 'official' ? 'Result from the source' : 'Result worked out, no answer key') : undefined}>

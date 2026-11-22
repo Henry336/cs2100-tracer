@@ -364,7 +364,7 @@ These are the fixtures FX1-FX3 in the TEST FIXTURES section.
 - SignExt(0xC822) = 0xFFFFC822 (unused).
 - Control: 1 0 0 1 0 0 0, ALUop 10, ALUcontrol 0110.
 
-**FX4. R06 p43-44 (AY24/25 S1 Q28)**
+**FX4. R06 p43-44 (AY24/25 midterm Q28)**
 - 0x10000103 = beq $0,$0,0x0103; PC = 0x491.
 - RR1 $0, WR $0, Opr1 [$0] (= 0), WD = [$0]−[$0] or MEM(...) (random).
 - Taken; next PC = 0x491 + 4 + 0x103×4 = **0x8A1**.

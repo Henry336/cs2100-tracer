@@ -117,7 +117,7 @@ export function lineMarks(trace: PipelineTrace, frame: CycleFrame | undefined): 
 
 /** The preset picker, for the Workspace toolbar (as on the datapath page). */
 export function PresetPicker({ p }: { p: ProgramState }) {
-  return <Presets presets={PRESETS.map((x) => ({ name: x.name, source: x.cite, value: x }))} onPick={(v) => p.load(v)} />
+  return <Presets presets={PRESETS.map((x) => ({ name: x.name, source: x.cite, value: x }))} onPick={(v) => p.load(v)} isCurrent={(v) => p.presetIntact && v.key === p.preset?.key} />
 }
 
 /** Code editor and run settings (initial values, branch outcomes, where to stop). */

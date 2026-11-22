@@ -748,8 +748,4 @@
   .cm-why > summary {
     display: none;
   }
-  .cm-root .board,
-  .cm-root .board-scroll {
-    overflow: visible;
-  }
 }

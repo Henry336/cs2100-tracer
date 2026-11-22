@@ -15,7 +15,7 @@ export const DATAPATH_PRESETS: DatapathPreset[] = [
   { id: 'FX1', title: 'beq $1, $3, 12', source: 'T04 Q3(a), T04 Answers p3', official: true, input: { source: 'beq $1, $3, 12' } },
   { id: 'FX2', title: 'lw $24, 0($15)', source: 'T04 Q3(b), T04 Answers p3', official: true, input: { source: 'lw $24, 0($15)' } },
   { id: 'FX3', title: 'sub $25, $20, $5', source: 'T04 Q3(c), T04 Answers p3', official: true, input: { source: 'sub $25, $20, $5' } },
-  { id: 'FX4', title: '0x10000103 at PC 0x491', source: 'R06 p43-44 (AY24/25 S1 Q28)', official: true, input: { source: '0x10000103', pc: 0x491 } },
+  { id: 'FX4', title: '0x10000103 at PC 0x491', source: 'R06 p43-44 (AY24/25 midterm Q28)', official: true, input: { source: '0x10000103', pc: 0x491 } },
   { id: 'FX5', title: 'beq $9, $0, End at 0x1080', source: 'R05 Q8 p45-48', official: true, input: { source: '0x11200004', pc: 0x1080, regs: { 9: 0 } } },
   { id: 'FX6', title: 'add $t4, $v0, $s1', source: 'AY25/26 midterm Q20-25', official: true, input: { source: 'add $t4, $v0, $s1', regs: { 12: 0x100, 2: 0x200, 17: 0x300 } } },
   { id: 'AY2526Q7', title: '0x02898820', source: 'AY25/26 S1 Q7', official: true, input: { source: '0x02898820' } },

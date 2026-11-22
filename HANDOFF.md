@@ -1,13 +1,18 @@
 # Handoff
 
-## Current state (22 Nov 2026, 05:59)
-- Calm redesign live: design brief docs/design.md, shared layer src/styles/shell.css, home input routing src/pages/route-input.ts. 1035 tests pass.
-- Shared requests still open: promote the copied board/Play/story styles (dp-, pl-, ca-, cm-, mp-, bo-, seq- copies) into shell.css plus a BoardPlay component; Tabs with ReactNode labels; print all tab panels.
-- Datapath Control unit, Control quiz and Critical path tabs were not moved onto boards.
-- All 9 modules built and live: https://henry336.github.io/cs2100-tracer/ (GitHub Pages, deployed by `.github/workflows/deploy.yml` on push to `main`).
-- 60 test files, 1035 tests pass; `npm run typecheck` and `npm run build` clean.
-- Browser-checked at desktop and 375 px, light and dark: no console errors, no page-level horizontal scroll.
-- Judgement calls and every course ambiguity: `DECISIONS.md`. Build contract: `docs/architecture.md`. Course rules and fixtures: `docs/spec/`.
+## Current state (22 Nov 2026, 08:00)
+- Live: https://henry336.github.io/cs2100-tracer/ (GitHub Pages, `.github/workflows/deploy.yml` on push to `main`). 62 test files, 1060 tests pass; `npm run typecheck` and `npm run build` clean.
+- 10 modules: C memory, MIPS, datapath (all four tabs on boards), pipeline, cache (with Check my answers mode, URL keys cm/ck), Boolean, MSI, sequential, reference, past papers (/papers: 89 questions from 14 papers, errata, exam mode).
+- Calm design: brief docs/design.md; shared layout kit src/ui/board.tsx (Board, PlayBar, Story, Stage, Options, Details, CommandBar, Flow, PrimaryPill) with styles in src/styles/shell.css. Modules use the kit, no local copies.
+- Home input routing: src/pages/route-input.ts.
+- Judgement calls and every course ambiguity: DECISIONS.md. Build contract: docs/architecture.md. Course rules and fixtures: docs/spec/.
+- Laptop has 7.2 GB RAM: run one code agent at a time (two froze the desktop app on 22 Nov).
+
+## Open (small)
+- Preset menus still show "Choose" after a link lands in mips, boolean, msi, sequential and the calculators (Presets takes isCurrent; wired in pipeline, cache, c-memory trace, datapath trace).
+- Calculator presets (cache CalcTab, c-memory CalcTab) are not exported, so the launcher only opens the tool for those 12 rows.
+- Print shows only the open tab of a Details strip.
+- Cache check: dirty bit not marked; "miss cold" written as words drops the type (M(cold) works).
 
 ## Not built yet (from the final review; see DECISIONS.md "Final review")
 - MIPS: C to MIPS pattern translator, bit lab, run-to-line / breakpoints / C mirror, li expansion, EA and alignment visualizer.

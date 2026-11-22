@@ -10,6 +10,7 @@ import { DEFAULT_CFG, TRACE_PRESETS as CACHE_PRESETS } from '../cache/presets'
 import { TRACE_PRESETS as DATAPATH_PRESETS } from '../datapath/presets'
 import { ENCODE_PRESETS, OPCODE_PRESETS, RUN_PRESETS } from '../mips/presets'
 import { CMP_PRESETS, DEC_PRESETS, ENC_PRESETS, MUX_PRESETS, WB_PRESETS } from '../msi/presets'
+import { PIPELINE_PRESETS as PIPELINE_CORE } from '../../core/pipeline'
 import { LOOP_PRESETS, PRESETS as PIPELINE_PRESETS, TIMING_PRESETS } from '../pipeline/presets'
 import { ANALYSIS_PRESETS, CHECK_PRESETS, DESIGN_PRESETS } from '../sequential/presets'
 
@@ -85,7 +86,8 @@ export const PAPERS: { id: string; key: boolean }[] = [
   { id: 'AY23/24 S2', key: true },
   { id: 'AY24/25 S1', key: true },
   { id: 'AY25/26 S1', key: true },
-  // No answer file for the midterm; its presets are computed (docs/spec/features/mips-isa.md, c-memory.md).
+  // Midterms: no answer file. AY24/25 Q28 is worked in R06 p42-44; the AY25/26 presets are computed.
+  { id: 'AY24/25 midterm', key: false },
   { id: 'AY25/26 midterm', key: false },
 ]
 
@@ -159,9 +161,17 @@ function sources(): Source[] {
   for (const p of DATAPATH_PRESETS) dp(p.name, p.source, { tab: 'trace', src: p.src, pc: p.pc, regs: p.regs, mem: p.mem, fault: p.fault, step: 0 })
 
   // pipeline useProgram().load(): src, opt, run, pre, step. TimingTab: tm and loop.
+  // The (a)-(e) papers (a part (d) with a nop key, as ExamTab's paperKey needs) open the Exam tab first,
+  // with part (a) loaded so the code is still the paper's and the key column shows.
   const pl = at('pipeline', 'Pipeline diagram')
+  const ple = at('pipeline', 'Exam (a) to (e)')
   const plt = at('pipeline', 'Timing')
-  for (const p of PIPELINE_PRESETS) pl(p.name, p.cite, { src: p.code, opt: p.options, run: p.run, pre: p.key, step: 0 })
+  const examIds = new Set(PIPELINE_PRESETS.filter((p) => p.expect.nops).map((p) => p.id))
+  for (const p of PIPELINE_PRESETS) {
+    const state = { src: p.code, opt: p.options, run: p.run, pre: p.key, step: 0 }
+    if (examIds.has(p.id) && p.key === `${p.id}.0`) ple(`${p.id} ${PIPELINE_CORE.find((c) => c.id === p.id)?.title ?? ''}`.trim(), p.cite, { tab: 'exam', ...state })
+    pl(p.name, p.cite, state)
+  }
   for (const p of TIMING_PRESETS) plt(p.name, p.source, { tab: 'timing', tm: p.value })
   for (const p of LOOP_PRESETS) plt(p.name, p.source, { tab: 'timing', loop: p.value })
 
@@ -314,7 +324,6 @@ export const TASKS: Record<string, string> = {
   'AY24/25 S1 Q18': 'Trace a MIPS loop over two arrays and encode a store.',
   'AY24/25 S1 Q19': 'Count stalls and cycles with and without forwarding.',
   'AY24/25 S1 Q20': 'Work out the miss penalty and cycles for a pipeline with caches.',
-  'AY24/25 S1 Q28': 'Trace a branch word through the datapath and find the next PC.',
   'AY25/26 S1 Q1': 'Count the EPIs of a 4-variable K-map.',
   'AY25/26 S1 Q2': 'Count ideal pipeline cycles for a countdown loop.',
   'AY25/26 S1 Q4': 'Name the dependency in a short instruction sequence.',
@@ -333,6 +342,7 @@ export const TASKS: Record<string, string> = {
   'AY25/26 S1 Q18': 'Fill in the control signals for bne on an extended datapath.',
   'AY25/26 S1 Q19': 'Count stalls and cycles with and without forwarding.',
   'AY25/26 S1 Q20': 'Work out the miss penalty and cycles for a pipeline with caches.',
+  'AY24/25 midterm Q28': 'Trace a branch word through the datapath and find the next PC.',
   'AY25/26 midterm Q9': 'Predict what a for loop that also increments i prints.',
   'AY25/26 midterm Q10': 'Predict what a do-while loop with two decrements prints.',
   'AY25/26 midterm Q11': 'Trace a pointer to pointer through a postfix increment.',
@@ -343,43 +353,44 @@ export const TASKS: Record<string, string> = {
   'AY25/26 midterm Q27': 'Count instructions for two lengths sharing one opcode space.',
 }
 
-/* ---------- Hand-kept: errata, from docs/spec, DECISIONS.md and the presets' notes ---------- */
+/* ---------- Hand-kept: errata, checked against the answer files, slides and recitations ---------- */
 
-const PC_SPEC = 'docs/spec/pipeline-cache.md, ambiguities'
-
-/** Known problems with an official key, or places where course sources disagree. Paraphrased, with the source. */
+/**
+ * Known problems with an official key, or places where course sources disagree. Paraphrased.
+ * `source` is shown to students, so it names course material only (papers, keys, slides), never repo files.
+ */
 export const ERRATA: Record<string, Erratum[]> = {
   'AY24/25 S1 Q19': [
-    { kind: 'sources disagree', note: 'This key counts stall events of 2 cycles each; the AY25/26 key counts single stall cycles. The tracer reports stall cycles.', source: `AY24/25 Ans; AY25/26 Ans; R11 Addendum; ${PC_SPEC} 1` },
-    { kind: 'key slip', note: 'The (c) answer text names the wrong pair as the one that forwards.', source: 'docs/spec/features/datapath-pipeline.md, gaps' },
+    { kind: 'sources disagree', note: 'This key counts stall events of 2 cycles each; the AY25/26 key counts single stall cycles. The tracer reports stall cycles.', source: 'AY24/25 Ans p17; AY25/26 Ans; R11 Addendum p3-8' },
+    { kind: 'key slip', note: 'The (c) answer text names the wrong pair as the one that forwards.', source: 'AY24/25 Ans p17' },
   ],
-  'AY25/26 S1 Q19': [{ kind: 'sources disagree', note: 'The R11 Addendum calls this question Q20; the paper numbers it Q19.', source: `R11 Addendum p5-8; ${PC_SPEC} 12` }],
-  'AY25/26 S1 Q4': [{ kind: 'sources disagree', note: 'The key (marked Draft) treats a WAW pair as a hazard, but L21 p14 and R11 p9 say WAW causes none in this pipeline.', source: `AY25/26 Ans; L21 p14; R11 p9; ${PC_SPEC} 5` }],
-  'AY23/24 S2 Q17': [{ kind: 'sources disagree', note: 'This paper resolves j in ID; T10 Additional resolves it in MEM. The pipeline toolbar has a switch for it.', source: `AY23/24 S2 Q17; T10 Additional; ${PC_SPEC} 3` }],
-  'AY24/25 S1 Q13': [{ kind: 'sources disagree', note: 'The key counts bne with an immediate as one instruction, though the assembler would expand it.', source: 'docs/spec/features/datapath-pipeline.md, gaps' }],
-  'AY25/26 S1 Q2': [{ kind: 'sources disagree', note: 'The key counts bne with an immediate as one instruction, though the assembler would expand it.', source: 'docs/spec/features/datapath-pipeline.md, gaps' }],
+  'AY25/26 S1 Q19': [{ kind: 'sources disagree', note: 'The R11 Addendum calls this question Q20; the paper numbers it Q19.', source: 'R11 Addendum p5-8; AY25/26 paper' }],
+  'AY25/26 S1 Q4': [{ kind: 'sources disagree', note: 'The key (marked Draft) treats a WAW pair as a hazard, but L21 p14 and R11 p9 say WAW causes none in this pipeline.', source: 'AY25/26 Ans; L21 p14; R11 p9' }],
+  'AY23/24 S2 Q17': [{ kind: 'sources disagree', note: 'This paper resolves j in ID; T10 Additional resolves it in MEM. The pipeline toolbar has a switch for it.', source: 'AY23/24 S2 Q17; T10 Additional' }],
+  'AY24/25 S1 Q13': [{ kind: 'sources disagree', note: 'The key counts bne with an immediate as one instruction, though the assembler would expand it.', source: 'AY24/25 Ans' }],
+  'AY25/26 S1 Q2': [{ kind: 'sources disagree', note: 'The key counts bne with an immediate as one instruction, though the assembler would expand it.', source: 'AY25/26 Ans' }],
   'AY23/24 S2 Q18': [
-    { kind: 'key slip', note: 'The (c) working slips on the offset width and the set number; its miss count is still right.', source: `AY23/24 S2 Ans; ${PC_SPEC} 12` },
-    { kind: 'sources disagree', note: 'The question mixes the L22 write policy terms (allocate on a miss, write-back on a hit).', source: 'L22 p53; docs/spec/features/cache.md, gaps' },
+    { kind: 'key slip', note: 'The (c) working slips on the offset width and the set number; its miss count is still right.', source: 'AY23/24 S2 Ans p17-18' },
+    { kind: 'sources disagree', note: 'The question applies write-back to write misses. In L22, write misses use allocate or around, and write hits use write-back or write-through.', source: 'AY23/24 S2 Q18; L22 p69-70' },
   ],
-  'AY23/24 S1 Q20': [{ kind: 'sources disagree', note: 'The paper never says whether sw uses the cache. The key assumes sw allocates and also accepts ignoring sw.', source: `AY23/24 S1 Ans p17-18; ${PC_SPEC} 11` }],
+  'AY23/24 S1 Q20': [{ kind: 'sources disagree', note: 'The paper never says whether sw uses the cache. The key assumes sw allocates and also accepts ignoring sw.', source: 'AY23/24 S1 Ans p17-18' }],
   'AY24/25 S1 Q20': [
-    { kind: 'sources disagree', note: 'This key leaves the restart cycle out of the miss penalty and accepts either; AY25/26 counts it in.', source: `AY24/25 Ans; AY25/26 Ans; ${PC_SPEC} 9` },
-    { kind: 'key slip', note: 'The (d) key also accepts a total that no working gives.', source: 'docs/spec/features/past-finals.md, gaps' },
+    { kind: 'sources disagree', note: 'This key leaves the restart cycle out of the miss penalty and accepts either; AY25/26 counts it in.', source: 'AY24/25 Ans p17; AY25/26 Ans; R12 p44-48' },
+    { kind: 'key slip', note: 'The (d) key also accepts a total that no working gives.', source: 'AY24/25 Ans p17' },
   ],
-  'AY25/26 S1 Q20': [{ kind: 'key slip', note: 'The (e) reason is about search time, which is hit time. The miss penalty does not depend on associativity (L22 p20).', source: 'AY25/26 Ans; L22 p20; docs/spec/features/cache.md, gaps' }],
-  'AY23/24 S1 Q16': [{ kind: 'key slip', note: 'The worked answer and the summary page write the (a) register in different forms; the question asks for the number only.', source: 'AY23/24 S1 Ans; docs/spec/features/past-finals.md, gaps' }],
-  'AY23/24 S1 Q17': [{ kind: 'key slip', note: 'The worked answers and the summary page disagree on (d). The course guides follow the worked answers.', source: 'AY23/24 S1 Ans; docs/spec/logic.md, section 7 item 4' }],
+  'AY25/26 S1 Q20': [{ kind: 'sources disagree', note: 'The (e) key says False because search time, which is hit time, goes up; L22 p20 counts hit time inside the miss penalty. The (a) penalty, 4 × 5 + 1, has no associativity term, which also gives False.', source: 'AY25/26 Ans; R12 p48; L22 p20' }],
+  'AY23/24 S1 Q16': [{ kind: 'key slip', note: 'The worked answer and the summary page write the (a) register in different forms; the question asks for the number only.', source: 'AY23/24 S1 Ans p8-9, p19' }],
+  'AY23/24 S1 Q17': [{ kind: 'key slip', note: 'The worked answers and the summary page disagree on (d). The worked answers are right.', source: 'AY23/24 S1 Ans p10-11, p19' }],
   'AY23/24 S1 Q18': [
-    { kind: 'key slip', note: 'The worked answers and the summary page give different KB equations and gate counts. The guides follow the worked answers.', source: 'AY23/24 S1 Ans; docs/spec/logic.md, section 7 item 4' },
-    { kind: 'sources disagree', note: 'The key calls the circuit self-correcting although one unused state can stay put for one input. R10 only asks that some path leaves it.', source: 'AY23/24 S1 Ans; R10 p40-43; docs/spec/features/comb-seq.md, gaps' },
+    { kind: 'key slip', note: 'The worked answers and the summary page give different KB equations and gate counts. The worked answers are right, and the tracer follows them.', source: 'AY23/24 S1 Ans p12-13, p19' },
+    { kind: 'sources disagree', note: 'The key calls the circuit self-correcting although one unused state can stay put for one input. R10 only asks that some path leaves it.', source: 'AY23/24 S1 Ans p12-13; R10 p40-43' },
   ],
-  'AY23/24 S2 Q19': [{ kind: 'key slip', note: 'The (d) key strings leave out the AND dots that the question asks students to write.', source: 'AY23/24 S2 Ans p19; docs/spec/features/past-finals.md, gaps' }],
-  'AY23/24 S2 Q20': [{ kind: 'sources disagree', note: 'The (e) key accepts two gate types for KB; one of them needs a complemented external input, which the course does not give for free.', source: 'AY23/24 S2 Ans p17; docs/spec/logic.md, section 7 item 5; DECISIONS.md' }],
-  'AY24/25 S1 Q17': [{ kind: 'sources disagree', note: 'The priority encoder here has no V output; the L18 version has one.', source: 'L18 p32; T08 Q5; docs/spec/logic.md, section 7 item 7' }],
-  'AY24/25 S1 Q18': [{ kind: 'sources disagree', note: 'The key addresses need code to start at 0x00400024 (Lab 3); Lab 5 starts at 0x00400000. The preset uses 0x00400024.', source: 'DECISIONS.md, MIPS text base' }],
-  'AY24/25 S1 Q28': [{ kind: 'key slip', note: 'R06, which works this question, prints the word with nine hex digits, and the PC it uses is not word aligned.', source: 'R06 p43; docs/spec/datapath-control.md, ambiguity 8' }],
-  'AY25/26 S1 Q12': [{ kind: 'key slip', note: 'The key reaches its answer but the working has typos.', source: 'AY25/26 Ans; docs/spec/features/past-finals.md, gaps' }],
+  'AY23/24 S2 Q19': [{ kind: 'key slip', note: 'The (d) key strings leave out the AND dots that the question asks students to write.', source: 'AY23/24 S2 Ans p19' }],
+  'AY23/24 S2 Q20': [{ kind: 'sources disagree', note: 'The (e) key accepts two gate types for KB; one of them needs a complemented external input, which the course does not give for free.', source: 'AY23/24 S2 Ans p19; T06 p2; T07 p2; R08 p34' }],
+  'AY24/25 S1 Q17': [{ kind: 'sources disagree', note: 'The priority encoder here has no V output; the L18 version has one.', source: 'L18 p32; T08 Q5; AY24/25 Q17' }],
+  'AY24/25 S1 Q18': [{ kind: 'sources disagree', note: 'The key addresses need code to start at 0x00400024 (Lab 3); Lab 5 starts at 0x00400000. The preset uses 0x00400024.', source: 'AY24/25 Ans; Lab 3 p5; Lab 5' }],
+  'AY24/25 midterm Q28': [{ kind: 'key slip', note: 'R06, which works this question, prints the word with nine hex digits, and the PC it uses is not word aligned.', source: 'R06 p43' }],
+  'AY25/26 S1 Q12': [{ kind: 'key slip', note: 'The key reaches its answer but the working has typos.', source: 'AY25/26 Ans' }],
 }
 
 /* ---------- Build ---------- */

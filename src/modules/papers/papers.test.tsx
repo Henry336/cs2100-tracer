@@ -1,5 +1,6 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import { PIPELINE_PRESETS as PIPELINE_CORE } from '../../core/pipeline'
 import { __test } from '../../lib/url-state'
 import { PRESET_BY_ID, normCfg } from '../cache/presets'
 import { TRACE_PRESETS as DATAPATH_PRESETS } from '../datapath/presets'
@@ -7,6 +8,7 @@ import { PRESETS as PIPELINE_PRESETS } from '../pipeline/presets'
 import { MODULES } from '../registry'
 import { ERRATA, INDEX, PAPERS, TASKS, parseCites } from './data'
 import PapersPage, { Row } from './PapersPage'
+import { Presets } from '../../ui/kit'
 
 /** Tab values each page accepts (its `type Tab`), read from the page files. */
 const TABS: Record<string, string[]> = {
@@ -108,6 +110,30 @@ describe('past paper index', () => {
     }
   })
 
+  it('opens the (a)-(e) papers in the Exam tab with the paper code loaded, then each part in the diagram', () => {
+    for (const [id, pre] of [['AY24/25 S1 Q19', 'P10'], ['AY25/26 S1 Q19', 'P11']]) {
+      const q = INDEX.questions.find((x) => x.id === id)!
+      const [first, ...rest] = q.links
+      const { state } = decodeHref(first.href)
+      expect(first.tool, id).toBe('Exam (a) to (e)')
+      expect(state.tab).toBe('exam')
+      expect(state.pre).toBe(`${pre}.0`)
+      // ExamTab shows the key only while the code is the paper's own (paperKey intact).
+      expect(state.src).toBe(PIPELINE_CORE.find((x) => x.id === pre)!.source.replace(/^\n/, ''))
+      expect(rest.length).toBe(5)
+      for (const l of rest) expect(decodeHref(l.href).state.tab, l.preset).toBeUndefined()
+    }
+    // Other lettered presets (per-instruction delays, loops) are not the five-part template.
+    for (const { l, state } of links) if (state.tab === 'exam') expect(['P10.0', 'P11.0'], l.preset).toContain(state.pre)
+  })
+
+  it('errata name course sources only, never repo files', () => {
+    for (const e of Object.values(ERRATA).flat()) expect(e.source).not.toMatch(/docs\/|\.md\b|DECISIONS|spec|ambiguit|gaps/i)
+    // R06 p39 heads its Q28 pages "midterm questions": they are not finals questions.
+    expect(INDEX.questions.some((x) => x.id === 'AY24/25 S1 Q28')).toBe(false)
+    expect(INDEX.questions.find((x) => x.id === 'AY24/25 midterm Q28')?.links[0].path).toBe('/datapath')
+  })
+
   it('marks a key only on the four finals with an answer file', () => {
     expect(PAPERS.filter((p) => p.key).map((p) => p.id)).toEqual(['AY23/24 S1', 'AY23/24 S2', 'AY24/25 S1', 'AY25/26 S1'])
     for (const q of INDEX.questions) expect(q.key).toBe(PAPERS.find((p) => p.id === q.paper)!.key)
@@ -131,5 +157,18 @@ describe('past papers page', () => {
     const open = renderToString(<Row q={q} exam tried onTried={() => {}} />)
     expect(open).toContain('href="#/pipeline?')
     expect(open).toContain(q.errata[0].note)
+  })
+})
+
+describe('landing on a module', () => {
+  it('the preset menu shows the preset the link loaded, and Choose otherwise', () => {
+    const list = [
+      { name: 'First', value: 1 },
+      { name: 'Second', value: 2 },
+    ]
+    const shown = renderToString(<Presets presets={list} onPick={() => {}} isCurrent={(v) => v === 2} />)
+    expect(shown).toMatch(/<option value="1" selected="">Second/)
+    const none = renderToString(<Presets presets={list} onPick={() => {}} isCurrent={() => false} />)
+    expect(none).toMatch(/<option value="" disabled="" selected="">/)
   })
 })

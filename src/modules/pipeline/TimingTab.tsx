@@ -272,6 +272,7 @@ export default function TimingTab({ intro }: { intro: ReactNode }) {
       </div>
       <Board
         className="pl-board"
+        label="Stage times and total time"
         title="Total time for the workload"
         step={fastest ? `Fastest: ${fastest[0].replace(' (ideal)', '').toLowerCase()}` : undefined}
         foot={

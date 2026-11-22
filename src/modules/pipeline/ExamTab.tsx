@@ -234,6 +234,7 @@ export default function ExamTab({ intro, p }: { intro: ReactNode; p: ProgramStat
       <Setup p={p} only={['branchStage', 'prediction', 'delayedBranch', 'jumpStage', 'storeData']} />
       <Board
         className="pl-board"
+        label="The five exam parts"
         title="Your answers"
         step={shown ? 'Checked' : undefined}
         play={

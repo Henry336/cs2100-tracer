@@ -360,19 +360,23 @@ export function Presets<T>({
   presets,
   onPick,
   label = 'Load example',
+  isCurrent,
 }: {
   presets: { name: string; source?: string; value: T }[]
   onPick: (value: T, name: string) => void
   label?: string
+  /** True for the preset the page holds now (e.g. after a past-paper link), so the menu shows it. */
+  isCurrent?: (value: T) => boolean
 }) {
   const id = useId()
+  const cur = isCurrent ? presets.findIndex((p) => isCurrent(p.value)) : -1
   return (
     <label className="field presets" htmlFor={id}>
       <span className="control-label">{label}</span>
       <span className="field-box">
         <select
           id={id}
-          value=""
+          value={cur >= 0 ? String(cur) : ''}
           onChange={(e) => {
             const p = presets[Number(e.target.value)]
             if (p) onPick(p.value, p.name)

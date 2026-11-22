@@ -253,6 +253,7 @@ export default function HazardsTab({ intro, p }: { intro: ReactNode; p: ProgramS
       <Setup p={p} />
       <Board
         className="pl-board"
+        label="Dependency timeline"
         title={d ? `${name(d.from)} to ${name(d.to)}` : 'Dependencies'}
         step={d ? `${d.kind} on ${rl(d.register)}` : undefined}
         foot={

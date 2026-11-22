@@ -156,7 +156,7 @@ export default function CheckMode({
           </li>
           <li>
             Words: <span className="mono">M[24]</span>, <span className="mono">M[0x1020]</span> or a plain byte address <span className="mono">24</span>. A stored value by its
-            name, like <span className="mono">X</span>.
+            name, like <span className="mono">X</span>; a store the trace gives no name can also be written by its address, as the AY23/24 S1 Q20 key does.
           </li>
           {g.ways > 1 ? <li>Ways are marked in the order the options pick: first free way, or Way 0 holds the lower address.</li> : null}
         </ul>

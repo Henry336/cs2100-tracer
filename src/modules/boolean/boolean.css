@@ -786,9 +786,6 @@
 }
 
 @media print {
-  .bo-root .board {
-    overflow: visible;
-  }
   .bo-chain .is-next .bo-chain-line,
   .bo-chain .is-next .bo-link {
     opacity: 1;

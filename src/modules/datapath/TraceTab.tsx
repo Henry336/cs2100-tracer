@@ -380,6 +380,7 @@ export default function TraceTab({ intro, x }: { intro: ReactNode; x: TraceInput
       toolbar={
         <Presets
           presets={TRACE_PRESETS.map((p) => ({ name: p.name, source: p.source, value: p }))}
+          isCurrent={(p) => p.src === x.src && p.pc === x.pc && p.regs === x.regs && p.mem === x.mem && JSON.stringify(p.fault ?? null) === JSON.stringify(x.fault ?? null)}
           onPick={(p) => {
             x.load(p)
             stepper.set(0)
@@ -414,17 +415,16 @@ export default function TraceTab({ intro, x }: { intro: ReactNode; x: TraceInput
         </Board>
 
         {t ? (
-          <div className="story">
-            <Story
-              label="What happens at each step"
-              titles={STEP_TITLES}
-              index={k}
-              onPick={stepper.set}
-              body={<StagePanel t={t} k={k} num={num} />}
-              aside={(i) => (i < WHOLE && t.frames[i].idle ? <span className="dp-step-idle">idle</span> : null)}
-            />
+          <Story
+            label="What happens at each step"
+            titles={STEP_TITLES}
+            index={k}
+            onPick={stepper.set}
+            body={<StagePanel t={t} k={k} num={num} />}
+            aside={(i) => (i < WHOLE && t.frames[i].idle ? <span className="dp-step-idle">idle</span> : null)}
+          >
             {sel ? <SelectedPanel t={t} sel={sel} num={num} onClear={() => setSel(null)} /> : <p className="dp-tip">Click a wire or unit for its working.</p>}
-          </div>
+          </Story>
         ) : null}
       </Stage>
 
