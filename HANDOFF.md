@@ -4,7 +4,8 @@
 - Live: https://henry336.github.io/cs2100-tracer/ (GitHub Pages, `.github/workflows/deploy.yml` on push to `main`). 62 test files, 1060 tests pass; `npm run typecheck` and `npm run build` clean.
 - 10 modules: C memory, MIPS, datapath (all four tabs on boards), pipeline, cache (with Check my answers mode, URL keys cm/ck), Boolean, MSI, sequential, reference, past papers (/papers: 89 questions from 14 papers, errata, exam mode).
 - Calm design: brief docs/design.md; shared layout kit src/ui/board.tsx (Board, PlayBar, Story, Stage, Options, Details, CommandBar, Flow, PrimaryPill) with styles in src/styles/shell.css. Modules use the kit, no local copies.
-- Home input routing: src/pages/route-input.ts.
+- Home input routing: src/pages/route-input.ts (Tab completes the typed word from the picked row, 22 Nov 14:12).
+- Stale tabs after a deploy (22 Nov 14:30): lazy page files are renamed on each build and Pages caches index.html 10 min, so an old tab asked for deleted files and went black. src/lib/reload.ts reloads once; PageBoundary in App.tsx shows a Reload message if a page still fails.
 - Judgement calls and every course ambiguity: DECISIONS.md. Build contract: docs/architecture.md. Course rules and fixtures: docs/spec/.
 - Laptop has 7.2 GB RAM: run one code agent at a time (two froze the desktop app on 22 Nov).
 
