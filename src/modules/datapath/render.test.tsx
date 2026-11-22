@@ -22,6 +22,8 @@ describe('datapath page', () => {
     expect(html).toContain('T04 Q3 table')
     expect(html).toContain('dp-svg')
     expect(html).toContain('Main control table')
+    expect(html).toContain('Paths this instruction takes')
+    expect(html).toContain('dp-crit-tag')
   })
 
   it('every wire and unit of the engine has geometry, and every label names real wires', () => {

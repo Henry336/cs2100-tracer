@@ -1,7 +1,8 @@
-import type { KeyboardEvent } from 'react'
+import { useEffect, useRef, type KeyboardEvent } from 'react'
 import type { UnitId } from '../../core/datapath'
 import { Flow } from '../../ui/board'
 import { BUS_PATH, CONTROL_LABELS, JUNCTIONS, LABELS, MUXES, MUX_W, UNIT_GEOM, UNIT_ORDER, VIEW, WIRE_PATH, type MuxId } from './geometry'
+import { pathPoints, type Run } from './model'
 
 /**
  * now: used and happening in the current step. path: on the critical path (timing view).
@@ -36,6 +37,9 @@ export function Diagram({
   label,
   step,
   flow = ['now'],
+  run,
+  rate = 1,
+  highlight,
 }: {
   model: DiagramModel
   selected?: string | null
@@ -45,6 +49,12 @@ export function Diagram({
   step?: number | string
   /** Which wire tones get travelling light. */
   flow?: Tone[]
+  /** During playback: dots timed by unit delays, in place of the decorative light. */
+  run?: Run
+  /** Playback speed; divides every time in `run`. */
+  rate?: number
+  /** Wires of one path, drawn wide underneath; `crit` uses the critical-path colour. */
+  highlight?: { wires: string[]; crit: boolean }
 }) {
   const wireIds = Object.keys(WIRE_PATH).filter((id) => model.wires[id] && model.wires[id].tone !== 'hidden' && (id !== 'c-branchne' || model.bne))
   const order = [...wireIds].sort((a, b) => RANK[model.wires[a].tone] - RANK[model.wires[b].tone])
@@ -57,6 +67,9 @@ export function Diagram({
     <svg className="dp-svg" viewBox={`0 0 ${VIEW.w} ${VIEW.h}`} role="group" aria-label={label}>
       {/* Wires, least active first so active ones paint on top of shared trunks. */}
       <g className="dp-wires">
+        {highlight?.wires.map((id) => (
+          <path key={`hl-${id}`} d={WIRE_PATH[id]} className={`dp-hl${highlight.crit ? ' crit' : ''}`} />
+        ))}
         {busTone !== 'hidden' ? <path d={BUS_PATH} className={`dp-w t-${busTone}`} /> : null}
         {order.map((id) => {
           const w = model.wires[id]
@@ -71,7 +84,7 @@ export function Diagram({
       </g>
 
       {/* Light along the wires that carry a value in this step: each draws in from its source, then packets keep flowing (decorative). */}
-      {step !== undefined ? (
+      {step !== undefined && !run ? (
         <>
           <Flow id={step} paths={flowing.filter((id) => !model.wires[id].control).map((id) => WIRE_PATH[id])} />
           <Flow id={step} paths={flowing.filter((id) => model.wires[id].control).map((id) => WIRE_PATH[id])} tone="ctl" />
@@ -116,6 +129,31 @@ export function Diagram({
           )
         })}
       </g>
+
+      {/* Playback: each unit's ring draws round it for its delay, and a dot leaves once the ring closes. */}
+      {run ? (
+        <g className="dp-run" key={`run-${step}`} aria-hidden="true">
+          {run.work.map((w) => {
+            const b = UNIT_GEOM[w.unit].box
+            return (
+              <rect
+                key={`${w.unit}-${w.start}`}
+                x={b.x - 4}
+                y={b.y - 4}
+                width={b.w + 8}
+                height={b.h + 8}
+                rx={6}
+                pathLength={1}
+                className={`dp-work${UNIT_GEOM[w.unit].control ? ' ctl' : ''}`}
+                style={{ animationDuration: `${w.dur / rate}ms`, animationDelay: `${w.start / rate}ms` }}
+              />
+            )
+          })}
+          {run.dots.map((d) => (
+            <RunDot key={d.id} wire={d.id} start={d.start / rate} dur={d.dur / rate} control={!!model.wires[d.id]?.control} />
+          ))}
+        </g>
+      ) : null}
 
       {/* Value labels */}
       <g className="dp-labels">
@@ -204,6 +242,26 @@ export function Diagram({
       ) : null}
     </svg>
   )
+}
+
+/** A dot that waits `start` ms, then runs along a wire's corners in `dur` ms and stays where it lands. */
+function RunDot({ wire, start, dur, control }: { wire: string; start: number; dur: number; control: boolean }) {
+  const ref = useRef<SVGCircleElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el?.animate) return
+    const pts = pathPoints(WIRE_PATH[wire])
+    const seg = pts.slice(1).map((q, i) => Math.abs(q.x - pts[i].x) + Math.abs(q.y - pts[i].y))
+    const total = seg.reduce((a, b) => a + b, 0) || 1
+    let run = 0
+    const frames = pts.map((p, i) => {
+      if (i) run += seg[i - 1]
+      return { transform: `translate(${p.x}px, ${p.y}px)`, opacity: 1, offset: run / total }
+    })
+    const a = el.animate(frames, { duration: dur, delay: start, easing: 'ease-in-out', fill: 'forwards' })
+    return () => a.cancel()
+  }, [wire, start, dur])
+  return <circle ref={ref} r={4.5} className={`dp-run-dot${control ? ' ctl' : ''}`} />
 }
 
 /** A mux with its input numbers and a line showing which input passes. */

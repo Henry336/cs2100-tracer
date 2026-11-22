@@ -731,3 +731,99 @@
   display: grid;
   gap: var(--sp-3);
 }
+
+/* ---------- Playback dots (timed by unit delays) ---------- */
+.dp-run-dot {
+  fill: color-mix(in srgb, #fff 80%, var(--sig-path));
+  stroke: var(--sig-path);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 4px var(--sig-path));
+  opacity: 0;
+}
+.dp-run-dot.ctl {
+  fill: color-mix(in srgb, #fff 80%, var(--sig-control));
+  stroke: var(--sig-control);
+  filter: drop-shadow(0 0 4px var(--sig-control));
+}
+/* A ring draws round a unit while it works; it stays closed once done. */
+.dp-work {
+  fill: none;
+  stroke: var(--sig-path);
+  stroke-width: 2;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation-name: dp-work;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+.dp-work.ctl { stroke: var(--sig-control); }
+@keyframes dp-work {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dp-run-dot { display: none; }
+  .dp-work {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+  }
+}
+
+/* One path drawn wide under the wires; the critical path in its own colour. */
+.dp-hl {
+  fill: none;
+  stroke: color-mix(in srgb, var(--ink) 22%, transparent);
+  stroke-width: 11;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.dp-hl.crit { stroke: color-mix(in srgb, var(--sig-crit) 60%, transparent); }
+
+/* ---------- Paths box ---------- */
+.dp-paths {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dp-path {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: 6px 10px;
+  border-radius: var(--r-control);
+  border-left: 3px solid transparent;
+  cursor: default;
+}
+.dp-path:hover,
+.dp-path:focus-visible,
+.dp-path.is-on {
+  background: var(--sunken);
+  outline: none;
+}
+.dp-path.crit {
+  border-left-color: var(--sig-crit);
+  background: color-mix(in srgb, var(--sig-crit) 9%, transparent);
+}
+.dp-path-chain {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  color: var(--ink);
+}
+.dp-path-sep { color: var(--ink-3); }
+.dp-path-d { color: var(--ink-3); font-size: var(--fs-xs); }
+.dp-path-total { white-space: nowrap; color: var(--ink-2); }
+.dp-path.crit .dp-path-total { color: var(--sig-crit); font-weight: 600; }
+.dp-crit-tag {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  background: var(--sig-crit);
+  color: #fff;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}

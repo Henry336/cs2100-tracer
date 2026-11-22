@@ -27,6 +27,7 @@
   --sig-hit: #2e7d4f;       /* cache hit, true, 1, valid */
   --sig-miss: #c8323c;      /* cache miss, false-but-bad */
   --sig-dirty: #b7791f;     /* dirty bit, pending write, write traffic */
+  --sig-crit: #b5179e;      /* critical path (longest delay) */
   --sig-dontcare: #a4adb2;  /* X / don't care */
 
   /* Tints used as backgrounds behind the signal colours. */
@@ -109,6 +110,7 @@
     --sig-hit: #5cc48a;
     --sig-miss: #ef6b73;
     --sig-dirty: #e3a84a;
+    --sig-crit: #e879f9;
     --sig-dontcare: #5d6a72;
     --tint-path: #35221a;
     --tint-data: #1a263a;
@@ -147,6 +149,7 @@
   --sig-hit: #5cc48a;
   --sig-miss: #ef6b73;
   --sig-dirty: #e3a84a;
+  --sig-crit: #e879f9;
   --sig-dontcare: #5d6a72;
   --tint-path: #35221a;
   --tint-data: #1a263a;

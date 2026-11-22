@@ -1,19 +1,21 @@
 // Tab 1: one instruction through the L12 p30 datapath, stage by stage (L11 p7-46, L12 p4-34).
 import { useMemo, useState, type ReactNode } from 'react'
 import {
-  PIPELINE_GROUP, SIGNAL_MEANINGS, SIGNAL_ORDER, SINGLE_CYCLE_STAGE, traceDatapath,
+  PIPELINE_GROUP, SIGNAL_MEANINGS, SIGNAL_ORDER, SINGLE_CYCLE_STAGE, allPaths, timingClassOf, traceDatapath,
   type ControlRow, type DatapathResult, type DatapathTrace, type SupportInfo,
 } from '../../core/datapath'
 import { hex, parseMemInit, parseRegInit, regName } from '../../core/mips'
 import { useUrlState } from '../../lib/url-state'
 import { Board, CommandBar, Details, Options, PlayBar, Stage, Story } from '../../ui/board'
 import { Callout, Chip, CodeEditor, DataTable, Panel, Presets, Segmented, Select, TextField, Toggle, Workspace } from '../../ui/kit'
+import { useSpeed } from '../../ui/stepper'
 import { Transport } from '../../ui/Transport'
 import {
   AluCodeTable, AluControlTable, AluopTable, DatapathLegend, ExplainText, MainControlTable, W, mainRowName, parseNum, useUrlStepper, type NumMode,
 } from './common'
 import { Diagram } from './Diagram'
-import { WHOLE, blankModel, buildTraceModel, wireText } from './model'
+import { DWELL_MS, RUN_DELAYS, WHOLE, blankModel, buildTraceModel, runOf, wireText } from './model'
+import { PathsPanel, pathWires } from './PathsPanel'
 import { DEFAULT_TRACE, TRACE_PRESETS, type Fault, type TracePreset } from './presets'
 
 const FAULT_SIGNALS: (keyof ControlRow)[] = [...SIGNAL_ORDER, 'BranchNE']
@@ -364,9 +366,18 @@ export default function TraceTab({ intro, x }: { intro: ReactNode; x: TraceInput
   const [sel, setSel] = useState<string | null>(null)
   const res = x.result
   const t = res.ok ? res : null
-  const stepper = useUrlStepper(t ? WHOLE + 1 : 0, 'step', WHOLE)
+  // Dot timings for every step; a playing step lasts until its last dot lands, plus time to read it.
+  const runs = useMemo(() => (t ? Array.from({ length: WHOLE + 1 }, (_, i) => runOf(t, buildTraceModel(t, i, focus, 'hex'), i)) : []), [t, focus])
+  const stepper = useUrlStepper(t ? WHOLE + 1 : 0, 'step', WHOLE, (i) => (runs[i]?.total ?? 0) + DWELL_MS)
+  const rate = useSpeed()
   const k = stepper.index
   const model = useMemo(() => (t ? buildTraceModel(t, k, focus, num) : blankModel()), [t, k, focus, num])
+  const cls = t ? timingClassOf(t.instr.mnemonic) : null
+  const paths = useMemo(() => (cls ? allPaths(cls, RUN_DELAYS) : []), [cls])
+  const [hover, setHover] = useState<number | null>(null)
+  // The pointed-at path, or on the whole-cycle step the critical path.
+  const shown = hover !== null ? paths[hover] : k === WHOLE && !stepper.playing ? paths.find((p) => p.critical) : undefined
+  const highlight = t && shown ? { wires: pathWires(t, shown.nodes), crit: shown.critical } : undefined
   const support = res.support
   const row = t ? mainRowName(t.instr.opcode, t.instr.mnemonic) : null
   const marks = t ? [...t.frames.map((f) => (f.idle ? 'stall' : 'path')), 'dirty'] : []
@@ -411,7 +422,14 @@ export default function TraceTab({ intro, x }: { intro: ReactNode; x: TraceInput
           play={t ? <PlayBar stepper={stepper} start="Trace this instruction" next={(i) => STEP_TITLES[i]} /> : undefined}
           foot={<DatapathLegend />}
         >
-          <Diagram model={model} step={k} flow={k === WHOLE ? ['now', 'past'] : ['now']} selected={sel} onSelect={(id) => setSel((s) => (s === id ? null : id))} label={t ? `Datapath for ${t.instr.text}, ${STEP_TITLES[k]}` : 'Datapath without values'} />
+          <Diagram
+            model={model}
+            step={stepper.playing ? `${k}p` : k}
+            flow={k === WHOLE ? ['now', 'past'] : ['now']}
+            run={stepper.playing ? runs[k] : undefined}
+            rate={rate}
+            highlight={highlight}
+            selected={sel} onSelect={(id) => setSel((s) => (s === id ? null : id))} label={t ? `Datapath for ${t.instr.text}, ${STEP_TITLES[k]}` : 'Datapath without values'} />
         </Board>
 
         {t ? (
@@ -427,6 +445,8 @@ export default function TraceTab({ intro, x }: { intro: ReactNode; x: TraceInput
           </Story>
         ) : null}
       </Stage>
+
+      {t && paths.length ? <PathsPanel paths={paths} on={hover} onHover={setHover} /> : null}
 
       {t ? (
         <Details

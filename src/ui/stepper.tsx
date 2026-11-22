@@ -59,8 +59,13 @@ export function useSpeed(): number {
   )
 }
 
-export function useStepper(count: number, opts: { intervalMs?: number; initial?: number } = {}): Stepper {
+export function useStepper(
+  count: number,
+  opts: { intervalMs?: number; initial?: number; /** How long step i stays before the next one, in ms at 1x; defaults to intervalMs. */ durationOf?: (i: number) => number } = {},
+): Stepper {
   const { intervalMs = 900, initial = 0 } = opts
+  const durationOf = useRef(opts.durationOf)
+  durationOf.current = opts.durationOf
   const [index, setIndex] = useState(initial)
   const [playing, setPlaying] = useState(false)
   const rate = useSpeed()
@@ -71,19 +76,16 @@ export function useStepper(count: number, opts: { intervalMs?: number; initial?:
     setIndex((i) => clamp(i))
   }, [clamp])
 
+  // One timer per step, so a step can wait as long as its own animation.
   useEffect(() => {
     if (!playing) return
-    const t = window.setInterval(() => {
-      setIndex((i) => {
-        if (i >= count - 1) {
-          setPlaying(false)
-          return i
-        }
-        return i + 1
-      })
-    }, intervalMs / rate)
-    return () => window.clearInterval(t)
-  }, [playing, count, intervalMs, rate])
+    const ms = (durationOf.current?.(index) ?? intervalMs) / rate
+    const t = window.setTimeout(() => {
+      if (index >= count - 1) setPlaying(false)
+      else setIndex(index + 1)
+    }, ms)
+    return () => window.clearTimeout(t)
+  }, [playing, index, count, intervalMs, rate])
 
   return {
     index,

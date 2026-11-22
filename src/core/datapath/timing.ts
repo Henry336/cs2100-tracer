@@ -179,6 +179,32 @@ export function criticalPath(cls: TimingClass, delays: Delays): TimingResult {
   }
 }
 
+export interface TimingPath {
+  nodes: NodeId[]
+  total: number
+  /** The longest path, or one tied with it. */
+  critical: boolean
+}
+
+/** Every start-to-finish path the instruction uses, longest first (R06 p41-42: the critical path is the longest). */
+export function allPaths(cls: TimingClass, delays: Delays): TimingPath[] {
+  const r = criticalPath(cls, delays)
+  const node = new Map(r.nodes.map((n) => [n.id, n]))
+  const out: { nodes: NodeId[]; total: number }[] = []
+  const walk = (id: NodeId, tail: NodeId[], sum: number) => {
+    const n = node.get(id)!
+    const nodes = [id, ...tail]
+    if (!n.inputs.length) out.push({ nodes, total: sum + n.delay })
+    else n.inputs.forEach((i) => walk(i.id, nodes, sum + n.delay))
+  }
+  const sinks = r.nodes.filter((n) => !r.nodes.some((m) => m.inputs.some((i) => i.id === n.id)))
+  sinks.forEach((s) => walk(s.id, [], 0))
+  // On a tie, the path criticalPath picks (the one R06 p42 draws) comes first.
+  const main = r.path.join('>')
+  const rank = (p: { nodes: NodeId[] }) => (p.nodes.join('>') === main ? 0 : 1)
+  return out.sort((a, b) => b.total - a.total || rank(a) - rank(b) || b.nodes.length - a.nodes.length).map((p) => ({ ...p, critical: p.total === r.total }))
+}
+
 export interface CycleTimeResult {
   rows: { cls: TimingClass; total: number }[]
   cycle: number

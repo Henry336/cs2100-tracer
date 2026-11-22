@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { criticalPath, cycleTime, LATENCY_PRESETS, stageTable, timingClassOf } from './timing'
+import { allPaths, criticalPath, cycleTime, LATENCY_PRESETS, stageTable, timingClassOf } from './timing'
 
 const r06 = LATENCY_PRESETS.find((p) => p.id === 'r06')!.delays
 const l12 = LATENCY_PRESETS.find((p) => p.id === 'l12')!.delays
@@ -73,5 +73,28 @@ describe('bad delay values', () => {
     const neg = criticalPath('lw', { unit: 'ps', values: { ...r06.values, alu: -500 } })
     expect(neg.total).toBe(nan.total)
     expect(cycleTime(r06, []).slowest).toBeNull()
+  })
+})
+
+describe('allPaths: every path, longest first', () => {
+  it('addi lists 11 paths and the longest is the R06 p42 critical path', () => {
+    const p = allPaths('addi', r06)
+    expect(p).toHaveLength(11)
+    expect(p[0]).toMatchObject({ nodes: ['IM', 'RFR', 'ALU', 'MTR', 'RFW'], total: 950, critical: true })
+    // Inst-Mem, Control, ALU control, ALU, MemToReg, Reg-File is also 950 ps: a tie, so both are critical.
+    expect(p.filter((x) => x.critical).map((x) => x.nodes.join('>'))).toEqual(['IM>RFR>ALU>MTR>RFW', 'IM>CTRL>ALUCTL>ALU>MTR>RFW'])
+    expect(p.at(-1)).toMatchObject({ nodes: ['ADD4', 'PCSRC'], total: 130, critical: false })
+  })
+  it('totals never exceed the critical path and every path is listed once', () => {
+    for (const cls of ['R', 'lw', 'sw', 'beq', 'bne', 'addi'] as const) {
+      const p = allPaths(cls, r06)
+      expect(Math.max(...p.map((x) => x.total))).toBe(criticalPath(cls, r06).total)
+      expect(new Set(p.map((x) => x.nodes.join('>'))).size).toBe(p.length)
+    }
+  })
+  it('ties are all marked critical (L12 ns model, lw)', () => {
+    const p = allPaths('lw', l12)
+    expect(p[0].total).toBe(8)
+    expect(p.filter((x) => x.critical).every((x) => x.total === 8)).toBe(true)
   })
 })
